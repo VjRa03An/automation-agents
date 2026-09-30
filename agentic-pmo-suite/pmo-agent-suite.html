@@ -543,7 +543,7 @@ ${transcript}`;
         method:"POST",
         headers:{"Content-Type":"application/json"},
         body: JSON.stringify({
-          model:"claude-sonnet-4-6",
+          model:"claude-sonnet-5",
           max_tokens:1000,
           messages:[{role:"user", content: buildTranscriptParsePrompt(ta.value)}]
         })
@@ -725,7 +725,7 @@ Priority as submitted: ${item.priority}`;
         method:"POST",
         headers:{"Content-Type":"application/json"},
         body: JSON.stringify({
-          model:"claude-sonnet-4-6",
+          model:"claude-sonnet-5",
           max_tokens:1000,
           messages:[{role:"user", content: buildIntakePrompt(item)}]
         })
@@ -811,7 +811,7 @@ Quantified data on file: ${p.initiativeType==='Platform'
         method:"POST",
         headers:{"Content-Type":"application/json"},
         body: JSON.stringify({
-          model:"claude-sonnet-4-6",
+          model:"claude-sonnet-5",
           max_tokens:1000,
           messages:[{role:"user", content: buildProgramPriorityPrompt(p)}]
         })
@@ -851,7 +851,7 @@ Quantified data on file: ${p.initiativeType==='Platform'
         method:"POST",
         headers:{"Content-Type":"application/json"},
         body: JSON.stringify({
-          model:"claude-sonnet-4-6",
+          model:"claude-sonnet-5",
           max_tokens:1000,
           messages:[{role:"user", content: buildPrompt(p, type)}]
         })
