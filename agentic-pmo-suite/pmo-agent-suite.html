@@ -1,0 +1,1665 @@
+<script src="https://cdnjs.cloudflare.com/ajax/libs/marked/4.3.0/marked.min.js"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600&display=swap');
+
+  :root{
+    --bg:#0E1117;
+    --surface:#171C25;
+    --surface-2:#1E2530;
+    --border:#2B3242;
+    --text:#E7EAF0;
+    --text-muted:#8B93A3;
+    --text-faint:#5C6577;
+    --accent:#5B9DEF;
+    --accent-dim:#345385;
+    --green:#3FC08A;
+    --green-dim:#1D3B2E;
+    --amber:#E8A93D;
+    --amber-dim:#4A3A17;
+    --red:#E15A5A;
+    --red-dim:#4A2222;
+    --mono: 'JetBrains Mono', monospace;
+    --disp: 'Space Grotesk', sans-serif;
+    --body: 'Inter', sans-serif;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;background:var(--bg);color:var(--text);font-family:var(--body);font-size:14px;}
+  #app{display:flex;min-height:100vh;}
+
+  /* ---------- Nav rail ---------- */
+  .rail{width:200px;flex-shrink:0;background:var(--surface);border-right:1px solid var(--border);padding:20px 12px;display:flex;flex-direction:column;gap:2px;}
+  .brand{font-family:var(--disp);font-weight:700;font-size:15px;letter-spacing:0.02em;padding:4px 10px 4px;color:var(--text);}
+  .brand small{display:block;font-family:var(--mono);font-weight:400;font-size:10px;color:var(--text-faint);margin-top:3px;letter-spacing:0.04em;text-transform:uppercase;}
+  .rail-status{font-family:var(--mono);font-size:10px;color:var(--green);padding:6px 10px 18px;letter-spacing:0.03em;display:flex;align-items:center;gap:6px;}
+  .pip{width:6px;height:6px;border-radius:50%;background:var(--green);box-shadow:0 0 6px var(--green);}
+  .navbtn{display:flex;align-items:center;gap:10px;padding:9px 10px;border-radius:7px;color:var(--text-muted);cursor:pointer;font-size:13px;font-weight:500;border:1px solid transparent;}
+  .navbtn:hover{background:var(--surface-2);color:var(--text);}
+  .navbtn.active{background:var(--surface-2);color:var(--text);border-color:var(--border);}
+  .navbtn svg{width:15px;height:15px;flex-shrink:0;opacity:0.85;}
+
+  /* ---------- Main ---------- */
+  main{flex:1;padding:28px 36px;max-width:1180px;}
+  .pagehead{margin-bottom:22px;}
+  .pagehead h1{font-family:var(--disp);font-size:21px;margin:0 0 4px;font-weight:600;}
+  .pagehead p{margin:0;color:var(--text-muted);font-size:13px;}
+  .btn{background:var(--accent-dim);color:#DCE8FF;border:1px solid var(--accent);border-radius:6px;padding:7px 13px;font-size:12.5px;font-weight:500;cursor:pointer;font-family:var(--body);}
+  .btn:hover{background:var(--accent);color:#fff;}
+  .btn.ghost{background:transparent;border-color:var(--border);color:var(--text-muted);}
+  .btn.ghost:hover{color:var(--text);border-color:var(--text-faint);}
+  .btn.small{padding:4px 9px;font-size:11.5px;}
+  .btn:disabled{opacity:0.5;cursor:default;}
+
+  /* ---------- Cards / tables ---------- */
+  .card{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:18px;margin-bottom:18px;}
+  table{width:100%;border-collapse:collapse;font-size:12.5px;}
+  th{text-align:left;color:var(--text-faint);font-weight:500;font-family:var(--mono);font-size:10.5px;text-transform:uppercase;letter-spacing:0.04em;padding:0 10px 8px;border-bottom:1px solid var(--border);}
+  td{padding:11px 10px;border-bottom:1px solid var(--border);vertical-align:middle;}
+  tr:last-child td{border-bottom:none;}
+  tr.rowlink{cursor:pointer;}
+  tr.rowlink:hover{background:var(--surface-2);}
+  .pid{font-family:var(--mono);color:var(--text-faint);font-size:11px;}
+
+  .rag{display:inline-flex;align-items:center;gap:6px;font-size:11.5px;font-family:var(--mono);text-transform:uppercase;letter-spacing:0.03em;}
+  .rag .dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;}
+  .rag.green .dot{background:var(--green);box-shadow:0 0 6px var(--green);}
+  .rag.amber .dot{background:var(--amber);box-shadow:0 0 6px var(--amber);animation:pulse 2s infinite;}
+  .rag.red .dot{background:var(--red);box-shadow:0 0 6px var(--red);animation:pulse 1.2s infinite;}
+  .rag.green{color:var(--green);} .rag.amber{color:var(--amber);} .rag.red{color:var(--red);}
+  @keyframes pulse{0%,100%{opacity:1;}50%{opacity:0.35;}}
+  @media (prefers-reduced-motion: reduce){ .rag .dot{animation:none !important;} }
+
+  .barwrap{background:var(--surface-2);border-radius:5px;height:7px;width:100%;overflow:hidden;border:1px solid var(--border);}
+  .bar{height:100%;border-radius:5px;}
+  .tag{display:inline-block;font-family:var(--mono);font-size:10px;text-transform:uppercase;letter-spacing:0.03em;color:var(--text-faint);background:var(--surface-2);border:1px solid var(--border);padding:2px 7px;border-radius:4px;}
+
+  /* ---------- Forms ---------- */
+  label{display:block;font-size:11.5px;color:var(--text-muted);margin:0 0 4px;font-weight:500;}
+  input,select,textarea{width:100%;background:var(--surface-2);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:7px 9px;font-family:var(--body);font-size:12.5px;margin-bottom:12px;}
+  textarea{resize:vertical;min-height:56px;}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:0 14px;}
+  .formcard{max-width:520px;}
+
+  /* ---------- Program detail ---------- */
+  .backlink{color:var(--text-muted);font-size:12px;cursor:pointer;margin-bottom:14px;display:inline-block;}
+  .backlink:hover{color:var(--accent);}
+  .tabs{display:flex;gap:4px;border-bottom:1px solid var(--border);margin-bottom:16px;flex-wrap:wrap;}
+  .tab{padding:8px 13px;font-size:12.5px;color:var(--text-muted);cursor:pointer;border-bottom:2px solid transparent;font-weight:500;}
+  .tab:hover{color:var(--text);}
+  .tab.active{color:var(--text);border-bottom-color:var(--accent);}
+  .agentbar{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;}
+  .agentchip{font-family:var(--mono);font-size:10.5px;color:var(--accent);background:var(--accent-dim);border:1px solid var(--accent);border-radius:4px;padding:3px 8px;}
+  .artifact-body{font-size:13px;line-height:1.6;}
+  .artifact-body h1,.artifact-body h2,.artifact-body h3{font-family:var(--disp);margin:14px 0 6px;}
+  .artifact-body table{margin:8px 0 14px;}
+  .artifact-body th,.artifact-body td{border:1px solid var(--border);padding:7px 9px;}
+  .artifact-body ul,.artifact-body ol{padding-left:20px;}
+  .empty-state{color:var(--text-faint);font-size:12.5px;text-align:center;padding:34px 10px;border:1px dashed var(--border);border-radius:8px;}
+
+  .pillbtn{display:inline-flex;align-items:center;gap:5px;padding:2px 8px;border-radius:99px;font-size:11px;font-family:var(--mono);cursor:pointer;border:1px solid var(--border);color:var(--text-muted);}
+  .pillbtn:hover{border-color:var(--red);color:var(--red);}
+  .footer-credit{margin-top:30px;color:var(--text-faint);font-size:11px;font-family:var(--mono);}
+</style>
+
+<div id="app"></div>
+
+<script>
+(function(){
+  const ARTIFACT_TYPES = [
+    {key:'charter', label:'Charter', agent:'charter-agent-v1'},
+    {key:'plan', label:'Project Plan', agent:'plan-agent-v1'},
+    {key:'status', label:'Status Report', agent:'status-agent-v1'},
+    {key:'risk', label:'Risk Register', agent:'risk-agent-v1'},
+    {key:'dependency', label:'Dependency Tracker', agent:'dependency-agent-v1'},
+    {key:'okr', label:'OKR Report', agent:'okr-agent-v1'},
+    {key:'landing', label:'Landing Page', agent:'landing-agent-v1'},
+  ];
+
+  // Fixed section skeleton per artifact type — the actual PMO "template" each agent
+  // is required to fill. Keep this in sync with the section list baked into buildPrompt()
+  // below, since the whole point of a template is that generated output can be checked
+  // against a known, named shape rather than whatever markdown the agent feels like producing.
+  const ARTIFACT_TEMPLATES = {
+    charter: {sections:['Purpose','Objectives (3-5 bullets)','Scope (In / Out of Scope)','Success Criteria','Key Stakeholders (RACI table)','High-Level Timeline','Budget Summary','Assumptions & Constraints','Governance & Escalation Path']},
+    plan: {sections:['Milestones (table: Phase, Milestone, Target, Deliverable)','Key Dependencies']},
+    status: {sections:['Overall RAG Status + Rationale','Accomplishments This Period','Planned Next Period','Key Risks / Issues','Decisions Needed From Sponsor','Key Metrics Snapshot (table)']},
+    risk: {sections:['Risk Register (table: ID, Risk Description, Likelihood, Impact, Mitigation, Owner, Status)']},
+    dependency: {sections:['Dependency Tracker (table: ID, Dependency, Owning Team, Needed By, Status, Impact if Delayed)']},
+    okr: {sections:['Objective','Key Results (table: Key Result, Target, Current, Commentary)']},
+    landing: {sections:['Elevator Pitch (1 sentence)','Why This Matters','Current Status Callout','Team & Contacts','FAQ (2-3 Q&As)']},
+  };
+  const PHASES = ['Discovery','Planning','Execution','Closing','Closed'];
+  const STATUSES = ['green','amber','red'];
+
+  let STATE = null;
+  let UI = { view:'tracker', programId:null, tab:'overview', loadingKey:null, formError:null, expandedIntake:null, approvingIntakeId:null };
+  const INTAKE_AGENT = 'intake-agent-v1';
+  const PRIORITY_AGENT = 'prioritization-agent-v1';
+  const TRANSCRIPT_AGENT = 'transcript-parser-agent-v1';
+
+  const TEAM_OPTIONS = ['Data','UI','Backend','Integration','Service'];
+  const SIZE_OPTIONS = ['S','M','L','XL','XXL'];
+  const SIZE_POINTS = {S:1,M:2,L:3,XL:4,XXL:5};
+  const COMPLEXITY_POINTS = {Low:0,Medium:1,High:2};
+  const INITIATIVE_TYPES = ['Product','Platform'];
+  const QUALITY_DIMENSIONS = ['Usability','Maintainability','Reliability','Availability'];
+  const SCORE_THRESHOLD = 12;
+  const MAX_ALLOCATION_RATIO = 0.8;
+  function effectiveCap(t){ return Math.round(t.capacityPct * MAX_ALLOCATION_RATIO); }
+
+  function parseRevenue(str){
+    if(!str) return 0;
+    const s = String(str).trim().toUpperCase().replace(/[$,\s]/g,'');
+    const m = s.match(/^([\d.]+)([KMB]?)$/);
+    if(!m) return 0;
+    let num = parseFloat(m[1]);
+    if(isNaN(num)) return 0;
+    if(m[2]==='K') num *= 1e3;
+    else if(m[2]==='M') num *= 1e6;
+    else if(m[2]==='B') num *= 1e9;
+    return num;
+  }
+
+  function businessValuePoints(item){
+    const impactPct = Number(item.customerImpactPct)||0;
+    const newCust = Number(item.newCustomers)||0;
+    const revenueNum = parseRevenue(item.netNewRevenue);
+    const impactPts = impactPct>=50 ? 3 : impactPct>=25 ? 2 : impactPct>=1 ? 1 : 0;
+    const custPts = newCust>=200 ? 3 : newCust>=50 ? 2 : newCust>=1 ? 1 : 0;
+    const revPts = revenueNum>=10000000 ? 3 : revenueNum>=1000000 ? 2 : revenueNum>0 ? 1 : 0;
+    return {kind:'product', impactPts, custPts, revPts, total: impactPts+custPts+revPts};
+  }
+
+  function platformQualityPoints(item){
+    const coverage = Number(item.existingCustomerCoveragePct)||0;
+    const atRiskPct = Number(item.customersAtRiskPct)||0;
+    const revenueAtRiskNum = parseRevenue(item.revenueAtRisk);
+    const coveragePts = coverage>=50 ? 3 : coverage>=25 ? 2 : coverage>=1 ? 1 : 0;
+    const churnPts = atRiskPct>=50 ? 3 : atRiskPct>=25 ? 2 : atRiskPct>=1 ? 1 : 0;
+    const riskRevPts = revenueAtRiskNum>=10000000 ? 3 : revenueAtRiskNum>=1000000 ? 2 : revenueAtRiskNum>0 ? 1 : 0;
+    return {kind:'platform', coveragePts, churnPts, riskRevPts, total: coveragePts+churnPts+riskRevPts};
+  }
+
+  function valuePoints(item){
+    return item.initiativeType==='Platform' ? platformQualityPoints(item) : businessValuePoints(item);
+  }
+
+  function valueBreakdownText(vb){
+    if(vb.kind==='platform'){
+      return `Quality breakdown \u2014 existing-service coverage ${vb.coveragePts}, customers at risk of churn ${vb.churnPts}, revenue at risk ${vb.riskRevPts}`;
+    }
+    return `Value breakdown \u2014 customer impact ${vb.impactPts}, new customers ${vb.custPts}, revenue ${vb.revPts}`;
+  }
+
+  function computeIntakeScore(item){
+    const maxScore = 5 + 5 + 2 + 2 + 9;
+    if(!item.scoreSource){
+      return {scored:false, maxScore};
+    }
+    const sizePts = SIZE_POINTS[item.size] || 0;
+    const teamPts = (item.teams||[]).length;
+    const globalBonus = item.global ? 2 : 0;
+    const complexityPts = COMPLEXITY_POINTS[item.complexity] || 0;
+    const val = valuePoints(item);
+    const okrTied = item.okrTied === 'yes';
+    const rawTotal = sizePts + teamPts + globalBonus + complexityPts + val.total;
+    const score = okrTied ? rawTotal : 0;
+    let recommendation, reason;
+    if(!okrTied){ recommendation = 'no-tpm'; reason = 'Not tied to an OKR \u2014 not prioritized regardless of size/complexity/value'; }
+    else if(score >= SCORE_THRESHOLD){ recommendation = 'tpm'; reason = `Score ${score}/${maxScore} \u2014 at or above threshold (${SCORE_THRESHOLD})`; }
+    else { recommendation = 'no-tpm'; reason = `Score ${score}/${maxScore} \u2014 below threshold (${SCORE_THRESHOLD})`; }
+    return {scored:true, sizePts, teamPts, globalBonus, complexityPts, valuePts: val.total, valueBreakdown: val, initiativeType: item.initiativeType||'Product', maxScore, okrTied, score, recommendation, reason};
+  }
+
+  // Structural (non-agent) check: does the named OKR's own language plausibly match
+  // the category of metric this program is actually tracking? Rule-based on purpose —
+  // an OKR tie should be caught by the system, not left for an agent to notice on its own.
+  function checkOkrMetricAlignment(p){
+    if(p.okrTied !== 'yes' || !p.okrName) return null;
+    const okr = p.okrName.toLowerCase();
+    const isCostOKR = /\bcost\b|efficiency|opex|spend|operating expense/.test(okr);
+    const isRevenueGrowthOKR = /revenue growth|new revenue|\barr\b|bookings|net new revenue/.test(okr);
+    const isNpsOKR = /\bnps\b|satisfaction|\bcsat\b/.test(okr);
+    const isComplianceOKR = /compliance|renewal|audit|regulat|residency/.test(okr);
+
+    const metrics = [];
+    if(p.initiativeType === 'Platform'){
+      if(p.existingCustomerCoveragePct) metrics.push('existing-coverage %');
+      if(p.customersAtRiskPct) metrics.push('churn-risk %');
+      if(p.revenueAtRisk) metrics.push('revenue-at-risk $');
+    } else {
+      if(p.customerImpactPct) metrics.push('customer-impact %');
+      if(p.newCustomers) metrics.push('new-customer count');
+      if(p.netNewRevenue) metrics.push('net-new revenue $');
+    }
+    if(!metrics.length) return null;
+    const metricList = metrics.join(', ');
+
+    if(isCostOKR){
+      return `OKR "${p.okrName}" is a cost/efficiency objective, but this program tracks ${metricList} — none of which measure cost or spend. Either the OKR tie or the tracked metrics likely need reconciling.`;
+    }
+    if(isRevenueGrowthOKR && p.initiativeType === 'Platform'){
+      return `OKR "${p.okrName}" is framed as revenue growth, but this is a Platform initiative tracked on ${metricList} (loss-avoidance, not growth). Double-check the OKR tie.`;
+    }
+    if(isNpsOKR && p.initiativeType === 'Platform' && !p.existingCustomerCoveragePct){
+      return `OKR "${p.okrName}" targets satisfaction/NPS, but this program's tracked metrics (${metricList}) don't include a coverage or experience measure. Confirm the tie is intentional.`;
+    }
+    if(isComplianceOKR && p.initiativeType === 'Product'){
+      return `OKR "${p.okrName}" is a compliance/renewal objective, but this is tagged as a Product-growth initiative tracked on ${metricList}. Confirm the initiative type and OKR tie are both correct.`;
+    }
+    return null;
+  }
+
+  function parseAgentDraftBlock(rawText){
+    const match = rawText.match(/```draft\s*([\s\S]*?)```/i);
+    if(!match) return {draft:null, displayText:rawText};
+    const lines = match[1].split('\n');
+    const sections = {};
+    let current = null;
+    lines.forEach(line=>{
+      const h = line.match(/^([A-Z_]+):\s*$/);
+      if(h){ current = h[1]; sections[current] = []; }
+      else if(current){ sections[current].push(line); }
+    });
+    Object.keys(sections).forEach(k=>{ sections[k] = sections[k].join('\n').trim(); });
+    const draft = {
+      requirements: sections.REQUIREMENTS || '',
+      successCriteria: sections.SUCCESS_CRITERIA || '',
+      scopeIn: sections.SCOPE_IN || '',
+      scopeOut: sections.SCOPE_OUT || '',
+      constraints: sections.CONSTRAINTS || '',
+      knownRisks: sections.KNOWN_RISKS || ''
+    };
+    const displayText = rawText.replace(match[0], '').trim();
+    return {draft, displayText};
+  }
+
+  function parseAgentScoreBlock(rawText){
+    const match = rawText.match(/```score\s*([\s\S]*?)```/i);
+    if(!match) return {assessment:null, displayText:rawText};
+    const map = {};
+    match[1].split('\n').forEach(line=>{
+      const m2 = line.match(/^\s*([A-Za-z_]+)\s*:\s*(.+?)\s*$/);
+      if(m2) map[m2[1].toUpperCase()] = m2[2].trim();
+    });
+    const assessment = {
+      okrTied: /^y/i.test(map.OKR_TIED||'') ? 'yes' : 'no',
+      okrName: (map.OKR_NAME && !/^none$/i.test(map.OKR_NAME)) ? map.OKR_NAME : '',
+      size: SIZE_OPTIONS.includes((map.SIZE||'').toUpperCase()) ? (map.SIZE||'').toUpperCase() : 'M',
+      teams: (map.TEAMS||'').split(',').map(t=>t.trim()).filter(t=>TEAM_OPTIONS.includes(t)),
+      global: /^y/i.test(map.GLOBAL||''),
+      complexity: ['Low','Medium','High'].find(c=>c.toLowerCase()===(map.COMPLEXITY||'').toLowerCase()) || 'Low'
+    };
+    const displayText = rawText.replace(match[0], '').trim();
+    return {assessment, displayText};
+  }
+
+  function uid(prefix){ return (prefix||'id')+'-'+Math.random().toString(36).slice(2,8); }
+  function todayStr(){ return new Date().toISOString().slice(0,10); }
+
+  function seedState(){
+    const t1 = {id:uid('tpm'), name:'Venkatesh S.', capacityPct:100};
+    const t2 = {id:uid('tpm'), name:'Priya R.', capacityPct:100};
+    const t3 = {id:uid('tpm'), name:'Marcus T.', capacityPct:100};
+    const p1 = {id:uid('prg'), name:'Atlas Platform Migration', sponsor:'VP Engineering', objective:'Migrate core monolith to a microservices architecture to unblock scaling and reduce release risk.', phase:'Execution', status:'amber', budget:'$4.2M', startDate:'2026-01', endDate:'2026-12', tpmAllocations:[{tpmId:t1.id, pct:60}], artifacts:{},
+      valueProp:'The current monolith causes release delays affecting 100% of the customer base and has driven 3 major incidents in the last 2 quarters. Decomposing it into services is expected to reduce release lead time by 50% and cut platform operating cost 15%, protecting an estimated $25M in at-risk revenue from customers threatening churn over reliability.',
+      technicalScope:'Decompose the monolith into 5 core services (Data, UI, Backend, Integration, Service layer), each independently deployable behind a new API gateway.',
+      requirements:'- API gateway fronting all decomposed services\n- Independent CI/CD pipeline per service\n- Data layer split with zero-downtime migration\n- Backward-compatible contract for existing integrations during cutover\n- Observability/alerting parity with current monolith before old system is retired',
+      successCriteria:'All 5 services independently deployable; release lead time reduced 50%; zero customer-facing incidents during cutover; monolith fully decommissioned by end of 2026.',
+      scopeIn:'Core service decomposition, API gateway, CI/CD per service, data migration.', scopeOut:'New customer-facing features; only re-platforming, no functional changes.',
+      constraints:'Must not disrupt active enterprise renewal cycles; cutover windows limited to weekends; depends on Security sign-off on the new API gateway.',
+      knownRisks:'Legacy data layer has no clean seams for splitting, risking a longer-than-planned dual-write period. Aurora Billing Consolidation depends on this program\'s API gateway landing first, creating a cross-program sequencing risk. Security has not yet reviewed the new gateway\'s auth model.',
+      okrTied:'yes', okrName:'Reduce platform operating cost 15% (FY26 Eng OKR)', size:'XXL', teams:['Data','UI','Backend','Integration','Service'], global:true, complexity:'High',
+      initiativeType:'Platform', existingCustomerCoveragePct:80, customersAtRiskPct:60, revenueAtRisk:'$25M', qualityDimensions:['Maintainability','Reliability','Availability'],
+      targetDate:'End of 2026', scoreSource:'agent', agentAssessment:null, priorityTriage:null};
+    const p2 = {id:uid('prg'), name:'Nova Customer Portal Revamp', sponsor:'Chief Product Officer', objective:'Redesign the self-serve customer portal to reduce support ticket volume and improve NPS.', phase:'Planning', status:'green', budget:'$1.8M', startDate:'2026-03', endDate:'2026-09', tpmAllocations:[{tpmId:t1.id, pct:40},{tpmId:t2.id, pct:50}], artifacts:{},
+      valueProp:'A redesigned self-serve portal is expected to reach 60% of the existing customer base, add 50 new customers currently blocked by portal usability gaps, and generate $2M in net new revenue by end of 2026 through improved self-serve plan upgrades.',
+      technicalScope:'Rebuild the customer portal front-end on the current design system, with a new self-serve plan-management flow and in-app support deflection.',
+      requirements:'- Redesigned account/billing dashboard\n- Self-serve plan upgrade/downgrade flow\n- In-app help center with deflection analytics\n- Mobile-responsive layout',
+      successCriteria:'Support ticket volume down 30%; NPS up 10 points; self-serve plan-change adoption above 40%.',
+      scopeIn:'Portal UI/UX redesign, self-serve billing flows, help center.', scopeOut:'Backend billing engine changes (handled by Aurora).',
+      constraints:'Must ship on the existing design system; cannot change backend billing APIs owned by Finance Ops.',
+      knownRisks:'',
+      okrTied:'yes', okrName:'Improve NPS +10 points (FY26 Product OKR)', size:'L', teams:['UI','Backend'], global:false, complexity:'Medium',
+      initiativeType:'Product', customerImpactPct:60, newCustomers:50, netNewRevenue:'$2M', targetDate:'End of 2026', scoreSource:'agent', agentAssessment:null, priorityTriage:null};
+    const p3 = {id:uid('prg'), name:'Helix Compliance Program (HIPAA/GDPR)', sponsor:'Chief Legal Officer', objective:'Bring core data platform into HIPAA and GDPR data-residency compliance ahead of enterprise renewals.', phase:'Discovery', status:'red', budget:'$900K', startDate:'2026-02', endDate:'2026-08', tpmAllocations:[{tpmId:t2.id, pct:60}], artifacts:{},
+      valueProp:'20% of existing customers are on data-residency-sensitive contracts and cannot renew without HIPAA/GDPR compliance attestation; 15% are actively at risk of churn over this gap, representing $8M in revenue at risk if unaddressed before their renewal dates.',
+      technicalScope:'Data residency controls, audit logging, and access-control changes across the Data and Integration layers of the core platform.',
+      requirements:'- Regional data residency enforcement for EU/US customer data\n- Full audit log of PII access\n- Data processing agreements reflected in system access controls\n- Third-party subprocessor review',
+      successCriteria:'Pass external HIPAA/GDPR readiness audit; zero cross-region data residency violations; audit log coverage on 100% of PII access paths.',
+      scopeIn:'Data residency, audit logging, access controls for PII.', scopeOut:'New product features; contract/legal-only remediation is out of scope for this program.',
+      constraints:'Hard external deadline tied to enterprise renewal dates; Legal must sign off before any customer communication.',
+      knownRisks:'Current architecture stores EU customer data in a single US region, requiring a data migration with no established zero-downtime path. Discovery phase has not yet completed a full subprocessor audit, so true scope may still grow.',
+      okrTied:'yes', okrName:'Enterprise renewal readiness (FY26 GTM OKR)', size:'XL', teams:['Data','Integration'], global:true, complexity:'Medium',
+      initiativeType:'Platform', existingCustomerCoveragePct:20, customersAtRiskPct:15, revenueAtRisk:'$8M', qualityDimensions:['Reliability'],
+      targetDate:'End of 2026', scoreSource:'agent', agentAssessment:null, priorityTriage:null};
+    return {
+      tpms:[t1,t2,t3],
+      programs:[p1,p2,p3],
+      intake:[
+        {id:uid('in'), name:'Aurora Billing Consolidation', requestedBy:'Finance Ops', executiveSponsor:'CFO', description:'Consolidate three legacy billing systems (Zuora, in-house ledger, and a partner-billing add-on) onto a single platform.', priority:'High', status:'pending', submittedDate: todayStr(),
+          valueProp:'This release will impact 50% of our existing customer base by removing billing errors that currently drive support escalations. It will also unlock support for 200 possible new customers currently blocked by our billing limitations, with an estimated net new revenue of $10M by end of 2027.',
+          requirements:'- Unified billing ledger across all three legacy systems\n- Self-serve plan migration for customers\n- Partner-billing add-on parity with current feature set\n- Automated reconciliation and error alerting',
+          successCriteria:'All three legacy billing systems decommissioned; billing-related support tickets reduced by 80%; error rate under 0.1%.',
+          scopeIn:'Core billing ledger, invoicing, plan migration tooling.', scopeOut:'Payment gateway migration, tax engine changes.',
+          constraints:'Depends on Finance\'s new GL going live first; must not disrupt active enterprise renewal cycles.',
+          knownRisks:'Vendor contract for the legacy in-house ledger expires mid-2027, forcing a hard cutover deadline. Security has not yet reviewed the new cross-system data flow. Depends on the Platform team\'s API gateway migration (Atlas) landing first.',
+          budgetEstimate:'$3.5M', contentDraftSource:'override', agentContentDraft:null,
+          customerImpactPct:50, newCustomers:200, netNewRevenue:'$10M', targetDate:'End of 2027',
+          okrTied:'no', okrName:'', size:'M', teams:[], global:false, complexity:'Low', scoreSource:null, agentAssessment:null},
+        {id:uid('in'), name:'Team Offsite Scheduling Tool', requestedBy:'HR', executiveSponsor:'', description:'Small internal tool to schedule quarterly team offsites.', priority:'Low', status:'pending', submittedDate: todayStr(),
+          valueProp:'', customerImpactPct:'', newCustomers:'', netNewRevenue:'', targetDate:'',
+          requirements:'', successCriteria:'', scopeIn:'', scopeOut:'', constraints:'', knownRisks:'', budgetEstimate:'', contentDraftSource:null, agentContentDraft:null,
+          okrTied:'no', okrName:'', size:'M', teams:[], global:false, complexity:'Low', scoreSource:null, agentAssessment:null}
+      ]
+    };
+  }
+
+  async function loadState(){
+    try{
+      const r = await window.storage.get('pmo-suite-data', false);
+      STATE = r ? JSON.parse(r.value) : seedState();
+    }catch(e){
+      STATE = seedState();
+    }
+    render();
+  }
+  async function saveState(){
+    try{ await window.storage.set('pmo-suite-data', JSON.stringify(STATE), false); }
+    catch(e){ console.error('Storage save failed', e); }
+  }
+
+  function getProgram(id){ return STATE.programs.find(p=>p.id===id); }
+  function getTpm(id){ return STATE.tpms.find(t=>t.id===id); }
+  function tpmLoad(tpmId){
+    let sum = 0;
+    STATE.programs.forEach(p=>{
+      (p.tpmAllocations||[]).forEach(a=>{ if(a.tpmId===tpmId) sum += Number(a.pct)||0; });
+    });
+    return sum;
+  }
+  function suggestedTpmId(){
+    let best = null, bestRemaining = -Infinity;
+    STATE.tpms.forEach(t=>{
+      const remaining = effectiveCap(t) - tpmLoad(t.id);
+      if(remaining > bestRemaining){ bestRemaining = remaining; best = t.id; }
+    });
+    return best;
+  }
+
+  function parseFencedSections(rawText, fenceLabel){
+    const re = new RegExp('```'+fenceLabel+'\\s*([\\s\\S]*?)```','i');
+    const m = rawText.match(re);
+    if(!m) return null;
+    const lines = m[1].split('\n');
+    const sections = {};
+    let current = null;
+    lines.forEach(line=>{
+      const h = line.match(/^([A-Z_]+):\s*$/);
+      if(h){ current = h[1]; sections[current] = []; }
+      else if(current){ sections[current].push(line); }
+    });
+    Object.keys(sections).forEach(k=>{ sections[k] = sections[k].join('\n').trim(); });
+    return sections;
+  }
+
+  function buildTranscriptParsePrompt(transcript){
+    return `You are an Intake Transcript Parser Agent. Below is a transcript of an Engineering or Product leader speaking through an intake request out loud \u2014 it may be messy, conversational, include filler words, or be out of order. Extract the following fields as best you can from what was actually said. Leave a field blank if it wasn't addressed \u2014 do not invent specifics that weren't mentioned.
+
+Respond with ONLY the fenced block below, nothing else \u2014 no preamble, no commentary, no text outside the block.
+
+\`\`\`intakeparse
+NAME:
+short program/idea name
+REQUESTED_BY:
+value or blank
+EXECUTIVE_SPONSOR:
+value or blank
+VALUE_PROP:
+1-3 sentence business value statement, in the speaker's own framing
+INITIATIVE_TYPE:
+Product or Platform
+CUSTOMER_IMPACT_PCT:
+number only, or blank (Product)
+NEW_CUSTOMERS:
+number only, or blank (Product)
+NET_NEW_REVENUE:
+e.g. $10M, or blank (Product)
+EXISTING_COVERAGE_PCT:
+number only, or blank (Platform)
+CUSTOMERS_AT_RISK_PCT:
+number only, or blank (Platform)
+REVENUE_AT_RISK:
+e.g. $5M, or blank (Platform)
+TARGET_DATE:
+value or blank
+TECHNICAL_SCOPE:
+brief engineering endpoint description if mentioned, or blank
+PRIORITY:
+Low, Medium, or High
+\`\`\`
+
+Transcript:
+${transcript}`;
+  }
+
+  let recognition = null;
+  let recognizing = false;
+  function toggleDictation(){
+    const btn = document.getElementById('dictateBtn');
+    const ta = document.getElementById('transcriptInput');
+    const statusEl = document.getElementById('transcriptStatus');
+    if(!ta) return;
+    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if(!SR){
+      if(statusEl) statusEl.textContent = 'Voice dictation isn\'t supported in this browser \u2014 paste a transcript instead.';
+      return;
+    }
+    if(recognizing){
+      if(recognition) recognition.stop();
+      return;
+    }
+    recognition = new SR();
+    recognition.continuous = true;
+    recognition.interimResults = false;
+    recognition.lang = 'en-US';
+    recognition.onresult = (e)=>{
+      let text = '';
+      for(let i=e.resultIndex;i<e.results.length;i++){
+        if(e.results[i].isFinal) text += e.results[i][0].transcript + ' ';
+      }
+      if(text) ta.value = (ta.value + ' ' + text).trim();
+    };
+    recognition.onerror = (e)=>{
+      recognizing = false;
+      if(btn) btn.textContent = '\ud83c\udfa4 Start Dictation';
+      if(statusEl){
+        if(e.error === 'not-allowed' || e.error === 'permission-denied'){
+          statusEl.textContent = 'Microphone access was blocked. Please check your browser\'s site permissions for microphone access, then try again \u2014 or paste a transcript instead.';
+        } else {
+          statusEl.textContent = `Dictation error (${e.error||'unknown'}) \u2014 try pasting a transcript instead.`;
+        }
+      }
+    };
+    recognition.onend = ()=>{
+      recognizing = false;
+      if(btn) btn.textContent = '\ud83c\udfa4 Start Dictation';
+    };
+    try{
+      recognition.start();
+      recognizing = true;
+      if(btn) btn.textContent = '\u23f9 Stop Dictation';
+      if(statusEl) statusEl.textContent = 'Listening\u2026';
+    }catch(err){
+      if(statusEl) statusEl.textContent = 'Could not start dictation \u2014 try pasting a transcript instead.';
+    }
+  }
+
+  async function parseTranscriptAndFill(){
+    const ta = document.getElementById('transcriptInput');
+    const statusEl = document.getElementById('transcriptStatus');
+    const btn = document.getElementById('parseTranscriptBtn');
+    if(!ta || !ta.value.trim()){
+      if(statusEl) statusEl.textContent = 'Paste or dictate a transcript first.';
+      return;
+    }
+    if(btn){ btn.disabled = true; btn.textContent = 'Parsing\u2026'; }
+    if(statusEl) statusEl.textContent = '';
+    try{
+      const response = await fetch("https://api.anthropic.com/v1/messages", {
+        method:"POST",
+        headers:{"Content-Type":"application/json"},
+        body: JSON.stringify({
+          model:"claude-sonnet-4-6",
+          max_tokens:1000,
+          messages:[{role:"user", content: buildTranscriptParsePrompt(ta.value)}]
+        })
+      });
+      const data = await response.json();
+      const rawText = (data.content||[]).filter(b=>b.type==='text').map(b=>b.text).join('\n\n');
+      const sections = parseFencedSections(rawText, 'intakeparse');
+      if(!sections){
+        if(statusEl) statusEl.textContent = 'Could not parse a response \u2014 try again.';
+      } else {
+        const form = document.getElementById('newIntakeForm');
+        if(form){
+          const setVal = (name, val)=>{ const el = form.querySelector(`[name="${name}"]`); if(el && val) el.value = val; };
+          setVal('name', sections.NAME);
+          setVal('requestedBy', sections.REQUESTED_BY);
+          setVal('valueProp', sections.VALUE_PROP);
+          setVal('targetDate', sections.TARGET_DATE);
+          setVal('description', sections.TECHNICAL_SCOPE);
+          setVal('customerImpactPct', sections.CUSTOMER_IMPACT_PCT);
+          setVal('newCustomers', sections.NEW_CUSTOMERS);
+          setVal('netNewRevenue', sections.NET_NEW_REVENUE);
+          setVal('existingCustomerCoveragePct', sections.EXISTING_COVERAGE_PCT);
+          setVal('customersAtRiskPct', sections.CUSTOMERS_AT_RISK_PCT);
+          setVal('revenueAtRisk', sections.REVENUE_AT_RISK);
+          if(sections.PRIORITY){
+            const p = form.querySelector('[name="priority"]');
+            const match = ['Low','Medium','High'].find(x=>x.toLowerCase()===sections.PRIORITY.toLowerCase());
+            if(p && match) p.value = match;
+          }
+          if(sections.INITIATIVE_TYPE){
+            const typeSel = form.querySelector('[name="initiativeType"]');
+            const match = ['Product','Platform'].find(x=>x.toLowerCase()===sections.INITIATIVE_TYPE.toLowerCase());
+            if(typeSel && match){ typeSel.value = match; typeSel.dispatchEvent(new Event('change')); }
+          }
+        }
+        if(statusEl) statusEl.textContent = 'Form filled from transcript \u2014 review every field before submitting.';
+      }
+    }catch(e){
+      console.error(e);
+      if(statusEl) statusEl.textContent = 'Something went wrong \u2014 try again.';
+    }
+    if(btn){ btn.disabled = false; btn.textContent = 'Parse & Fill Form'; }
+  }
+
+  function ragBadge(status){
+    return `<span class="rag ${status}"><span class="dot"></span>${status}</span>`;
+  }
+
+  function renderInitiativeFields(entity){
+    const type = entity.initiativeType || 'Product';
+    return `
+      <label>Initiative Type</label>
+      <select name="initiativeType" onchange="this.closest('form').querySelector('.vf-product').style.display=this.value==='Product'?'block':'none'; this.closest('form').querySelector('.vf-platform').style.display=this.value==='Platform'?'block':'none';">
+        <option value="Product" ${type==='Product'?'selected':''}>Product \u2014 customer adds / revenue</option>
+        <option value="Platform" ${type==='Platform'?'selected':''}>Platform \u2014 quality of existing service</option>
+      </select>
+      <div class="vf-product" style="display:${type==='Product'?'block':'none'};">
+        <div class="grid2">
+          <div><label>Existing Customer Impact (%)</label><input name="customerImpactPct" type="number" value="${entity.customerImpactPct||''}"></div>
+          <div><label>New Customers</label><input name="newCustomers" type="number" value="${entity.newCustomers||''}"></div>
+        </div>
+        <label>Net New Revenue</label><input name="netNewRevenue" value="${entity.netNewRevenue||''}" placeholder="e.g. $10M">
+      </div>
+      <div class="vf-platform" style="display:${type==='Platform'?'block':'none'};">
+        <div class="grid2">
+          <div><label>Existing Customer / Service Coverage (%)</label><input name="existingCustomerCoveragePct" type="number" value="${entity.existingCustomerCoveragePct||''}" placeholder="e.g. 80"></div>
+          <div><label>Customers at Risk of Churn (%) <span style="color:var(--text-faint);font-weight:400;">if unaddressed</span></label><input name="customersAtRiskPct" type="number" value="${entity.customersAtRiskPct||''}" placeholder="e.g. 60"></div>
+        </div>
+        <label>Revenue at Risk <span style="color:var(--text-faint);font-weight:400;">if unaddressed</span></label><input name="revenueAtRisk" value="${entity.revenueAtRisk||''}" placeholder="e.g. $25M">
+        <label>Quality Dimensions Improved <span style="color:var(--text-faint);font-weight:400;">(descriptive \u2014 not separately scored)</span></label>
+        <div style="display:flex;gap:14px;flex-wrap:wrap;margin-bottom:12px;">
+          ${QUALITY_DIMENSIONS.map(d=>`<label style="display:flex;align-items:center;gap:5px;font-weight:400;color:var(--text);margin:0;"><input type="checkbox" style="width:auto;margin:0;" name="qualityDimensions" value="${d}" ${(entity.qualityDimensions||[]).includes(d)?'checked':''}> ${d}</label>`).join('')}
+        </div>
+      </div>
+    `;
+  }
+
+  // ---------------- Prompt builder ----------------
+  function programContext(p){
+    const allocs = (p.tpmAllocations||[]).map(a=>{
+      const t = getTpm(a.tpmId);
+      return `${t? t.name : 'Unassigned'} (${a.pct}%)`;
+    }).join(', ') || 'Unassigned';
+    const metricsLine = p.initiativeType==='Platform'
+      ? `${p.existingCustomerCoveragePct?`${p.existingCustomerCoveragePct}% of existing customers/service covered`:'no coverage estimate'}; ${p.customersAtRiskPct?`${p.customersAtRiskPct}% of existing customers at risk of churn if unaddressed`:'no churn-risk estimate'}; ${p.revenueAtRisk?`${p.revenueAtRisk} revenue at risk if unaddressed`:'no revenue-at-risk estimate'}`
+      : `${p.customerImpactPct?`${p.customerImpactPct}% of existing customer base impacted`:'no impact estimate'}; ${p.newCustomers?`${p.newCustomers} new customers expected`:'no new-customer estimate'}; ${p.netNewRevenue?`${p.netNewRevenue} net new revenue expected`:'no revenue estimate'}`;
+    return `Program name: ${p.name}
+Sponsor: ${p.sponsor || 'TBD'}
+Objective: ${p.objective || 'TBD'}
+${p.valueProp ? `Value Proposition: ${p.valueProp}\n` : ''}${p.technicalScope ? `Technical Scope: ${p.technicalScope}\n` : ''}${p.requirements ? `High-Level Requirements:\n${p.requirements}\n` : ''}${p.successCriteria ? `Success Criteria: ${p.successCriteria}\n` : ''}${(p.scopeIn||p.scopeOut) ? `In Scope: ${p.scopeIn||'TBD'}\nOut of Scope: ${p.scopeOut||'TBD'}\n` : ''}${p.constraints ? `Constraints/Assumptions: ${p.constraints}\n` : ''}${p.knownRisks ? `Known Risks / Dependencies (as reported at intake): ${p.knownRisks}\n` : ''}Initiative Type: ${p.initiativeType || 'Product'}
+Quantified impact: ${metricsLine}
+Phase: ${p.phase}
+Overall RAG status: ${p.status.toUpperCase()}
+Timeline: ${p.startDate || 'TBD'} to ${p.endDate || 'TBD'}
+Budget: ${p.budget || 'TBD'}
+Assigned TPM(s): ${allocs}
+Target Date: ${p.targetDate || 'TBD'}`;
+  }
+
+  function buildPrompt(p, type){
+    const ctx = programContext(p);
+    const common = "Be concise, structured, and boardroom-ready. Use markdown headers, tables, and bullet lists where appropriate. Do not include any preamble like 'Here is...' \u2014 start directly with the content.";
+    const map = {
+      charter: `You are a Charter Agent for an enterprise PMO. Draft a Program Charter with sections: Purpose, Objectives (3-5 bullets), Scope (In / Out of scope), Success Criteria, Key Stakeholders (brief RACI table), High-Level Timeline, Budget Summary, Assumptions & Constraints, Governance & Escalation Path. Where the context below already states requirements, success criteria, scope, constraints, sponsor, or budget, use that information directly rather than inventing your own \u2014 only fill gaps the context leaves open, and note explicitly if a section has no grounding to work from. ${common}\n\n${ctx}`,
+      plan: `You are a Project Plan Agent for an enterprise PMO. Draft a phase-based Project Plan: a markdown table of milestones (Phase, Milestone, Target, Deliverable), followed by a short "Key Dependencies" list. Where the context states high-level requirements, build milestones and deliverables directly around those requirements rather than inventing generic ones — each stated requirement should be traceable to at least one milestone. Where known risks/dependencies were already reported, list those specific ones first under Key Dependencies before adding further plausible ones. If no requirements are given, say so and build the plan from the objective/value proposition alone, noting it's a rougher estimate as a result. ${common}\n\n${ctx}`,
+      status: `You are a Status Reporting Agent for an enterprise PMO. Draft a single-period Status Report with: Overall RAG status and one-line rationale, Accomplishments This Period (bullets), Planned Next Period (bullets), Key Risks/Issues (bullets), Decisions Needed From Sponsor, Key Metrics snapshot (small table). Ground the RAG rationale and Key Risks/Issues in any known risks/dependencies and constraints already on file, listing those specifically before adding further plausible ones. The Key Metrics snapshot should reference the program's actual quantified targets (customer impact, revenue, or coverage/churn/risk figures) from the context rather than inventing unrelated metrics — show current progress toward those specific numbers, not generic placeholders. ${common}\n\n${ctx}`,
+      risk: `You are a Risk Register Agent for an enterprise PMO. Produce a markdown table with columns: ID, Risk Description, Likelihood (H/M/L), Impact (H/M/L), Mitigation, Owner, Status. If any risks or dependencies were already reported at intake, include those as specific rows first (don't paraphrase them into something generic), then add further realistic risks appropriate to this program's domain and current phase to reach 5-7 total. ${common}\n\n${ctx}`,
+      dependency: `You are a Dependency Tracker Agent for an enterprise PMO. Produce a markdown table with columns: ID, Dependency, Owning Team, Needed By, Status, Impact if Delayed. If any dependencies were already reported at intake, include those as specific rows first, then add further realistic cross-team dependencies to reach 4-6 total. ${common}\n\n${ctx}`,
+      okr: `You are an OKR Reporting Agent for an enterprise PMO. Produce 1 Objective with 3-4 Key Results relevant to this program, each with a plausible current progress percentage and a one-line commentary. Format as a markdown table (Key Result, Target, Current, Commentary). If the context gives a named OKR this program is tied to, use that exact OKR as the Objective rather than inventing a different one — if it says no OKR is evident, say so plainly as the Objective and note that Key Results below are therefore speculative. Key Results should be built from the program's actual quantified targets (customer impact %, new customers, net new revenue, or coverage/churn-risk/revenue-at-risk figures) rather than generic invented metrics — turn each real number on file into a Key Result with a plausible current-progress estimate toward it. ${common}\n\n${ctx}`,
+      landing: `You are a Program Landing Page Agent for an enterprise PMO. Write internal one-page program landing copy: a one-sentence elevator pitch, "Why This Matters" (2-3 sentences), Current Status callout with rationale, Team & Contacts (placeholders), FAQ (2-3 Q&As). Base the elevator pitch and "Why This Matters" directly on the value proposition and success criteria given, rather than a generic restatement of the objective — the value prop's actual numbers (customer impact, revenue, or risk-avoided) belong in "Why This Matters," not just the Key Metrics of other artifacts. Use the named sponsor for Team & Contacts if given, and a generic placeholder if not. Write for a general internal audience, not just PMO insiders. ${common}\n\n${ctx}`,
+    };
+    const tmpl = ARTIFACT_TEMPLATES[type];
+    const templateInstruction = tmpl
+      ? `\n\nUse exactly these section headers, as markdown ## headings, in this order (this is the standard PMO template for this artifact type — do not rename, reorder, merge, or drop any of them, and do not add extra top-level sections): ${tmpl.sections.map(s=>`"${s}"`).join(', ')}.`
+      : '';
+    return map[type] + templateInstruction;
+  }
+
+  function buildIntakePrompt(item){
+    return `You are an Intake Agent for an enterprise PMO. Assess the raw request below and produce, in markdown:
+1. **Problem Statement** \u2014 a crisp 1-2 sentence restatement of the real problem (not just the submitted title).
+2. **Value Proposition Quality Check** \u2014 this request is marked as a "${item.initiativeType||'Product'}" initiative. If Product: does it articulate clear, quantifiable business value (customer impact, new customers, revenue)? If Platform: does it articulate a clear improvement to usability, maintainability, reliability, or availability of the existing service, rather than being judged on revenue it was never meant to generate? Either way, if the value proposition is missing or vague for its type, say so explicitly \u2014 a request without real, type-appropriate value should not be treated as high priority even if it sounds technically important.
+3. **OKR Alignment Assessment** \u2014 based on the value proposition (not the technical scope), does this plausibly tie to a company OKR? Be conservative \u2014 do not invent an OKR tie that isn't reasonably evident, and do not let technical complexity substitute for demonstrated business value. Name the likely OKR if there is one, or say clearly that none is evident.
+4. **Sizing, Team Spread & Complexity Assessment** \u2014 estimate initiative size (S/M/L/XL/XXL), which of these teams are likely involved (Data, UI, Backend, Integration, Service), whether the effort is likely to span global teams, and overall complexity (Low/Medium/High, driven mainly by number of integrations). Base this on the technical scope if provided; otherwise infer conservatively from the value proposition. Explain your reasoning briefly.
+5. **Key Risks or Open Questions** \u2014 2-4 bullets.
+6. **Recommended Starting Phase** \u2014 Discovery or Planning.
+
+Be concise and decisive \u2014 this feeds a real approval and TPM-allocation decision, not a rough draft. Do not include any preamble \u2014 start directly with section 1.
+
+After the six sections, append EXACTLY two fenced blocks in this order.
+
+First, a draft of charter-feeding content based only on what's given \u2014 be appropriately hedged since you're inferring, not stating fact (e.g. "Likely depends on..." rather than asserting a specific vendor or team by name unless the description actually said so):
+
+\`\`\`draft
+REQUIREMENTS:
+- 3-5 bullet high-level capabilities this would need
+SUCCESS_CRITERIA:
+1-2 sentence definition of done
+SCOPE_IN:
+brief in-scope bullets
+SCOPE_OUT:
+brief out-of-scope bullets
+CONSTRAINTS:
+1-2 plausible constraints/assumptions, hedged appropriately
+KNOWN_RISKS:
+2-3 plausible risks or dependencies, hedged appropriately
+\`\`\`
+
+Second, your final scoring assessment encoded as key: value pairs (used by an automated system \u2014 keep this block plain, no markdown formatting inside it):
+
+\`\`\`score
+OKR_TIED: yes or no
+OKR_NAME: name of the OKR, or none
+SIZE: S, M, L, XL, or XXL
+TEAMS: comma-separated subset of Data, UI, Backend, Integration, Service
+GLOBAL: yes or no
+COMPLEXITY: Low, Medium, or High
+\`\`\`
+
+Request name: ${item.name}
+Requested by: ${item.requestedBy || 'Unknown'}
+Value Proposition: ${item.valueProp || 'NOT PROVIDED \u2014 treat this as a significant gap.'}
+Quantified impact: ${item.customerImpactPct ? `${item.customerImpactPct}% of existing customer base` : 'none given'}; ${item.newCustomers ? `${item.newCustomers} new customers` : 'no new-customer estimate'}; ${item.netNewRevenue ? `${item.netNewRevenue} net new revenue` : 'no revenue estimate'}; target: ${item.targetDate || 'none given'}
+Technical Scope (if provided): ${item.description || 'None provided.'}
+Priority as submitted: ${item.priority}`;
+  }
+
+  async function generateIntakeTriage(id){
+    const item = STATE.intake.find(i=>i.id===id);
+    if(!item) return;
+    UI.loadingKey = 'intake-'+id;
+    render();
+    try{
+      const response = await fetch("https://api.anthropic.com/v1/messages", {
+        method:"POST",
+        headers:{"Content-Type":"application/json"},
+        body: JSON.stringify({
+          model:"claude-sonnet-4-6",
+          max_tokens:1000,
+          messages:[{role:"user", content: buildIntakePrompt(item)}]
+        })
+      });
+      const data = await response.json();
+      const rawText = (data.content||[]).filter(b=>b.type==='text').map(b=>b.text).join('\n\n');
+      const {draft, displayText:afterDraft} = parseAgentDraftBlock(rawText || '');
+      const {assessment, displayText} = parseAgentScoreBlock(afterDraft || '');
+      item.triage = displayText || rawText || '_Agent returned no content \u2014 try again._';
+      if(draft){
+        item.agentContentDraft = draft;
+        if(item.contentDraftSource !== 'override'){
+          item.requirements = draft.requirements;
+          item.successCriteria = draft.successCriteria;
+          item.scopeIn = draft.scopeIn;
+          item.scopeOut = draft.scopeOut;
+          item.constraints = draft.constraints;
+          item.knownRisks = draft.knownRisks;
+          item.contentDraftSource = 'agent';
+        }
+      }
+      if(assessment){
+        item.agentAssessment = assessment;
+        if(item.scoreSource !== 'override'){
+          item.okrTied = assessment.okrTied;
+          item.okrName = assessment.okrName;
+          item.size = assessment.size;
+          item.teams = assessment.teams;
+          item.global = assessment.global;
+          item.complexity = assessment.complexity;
+          item.scoreSource = 'agent';
+        }
+      }
+      await saveState();
+    }catch(e){
+      item.triage = '_Generation failed. Check your connection and try again._';
+      console.error(e);
+    }
+    UI.loadingKey = null;
+    render();
+  }
+
+  function buildProgramPriorityPrompt(p){
+    return `You are a Prioritization Agent for an enterprise PMO, reviewing an already-active program to decide whether it still deserves its engineering allocation relative to the rest of the portfolio. Produce, in markdown:
+1. **Problem Statement** \u2014 a crisp 1-2 sentence restatement of what this program is actually for.
+2. **Value Proposition Quality Check** \u2014 this program is marked as a "${p.initiativeType||'Product'}" initiative. If Product: does it have clear, quantifiable value (customer impact, new customers, revenue)? If Platform: does it clearly improve usability, maintainability, reliability, or availability of the existing service for existing customers, rather than being judged on revenue it isn't meant to generate? Say plainly if the stated value is weak for its type \u2014 a program can be technically important and still score low, and that tension should be named, not hidden.
+3. **OKR Alignment Assessment** \u2014 does this program plausibly tie to a company OKR based on its objective? Be conservative. Name the likely OKR or say none is evident.
+4. **Sizing, Team Spread & Complexity Assessment** \u2014 estimate size (S/M/L/XL/XXL), which teams are likely involved (Data, UI, Backend, Integration, Service), whether it spans global teams, and complexity (Low/Medium/High). Explain briefly.
+5. **Recommendation** \u2014 given everything above, should this program's engineering resourcing grow, hold, or shrink relative to the rest of the portfolio? One or two sentences, direct.
+
+Be concise and decisive \u2014 this feeds a real resourcing decision. Do not include any preamble \u2014 start directly with section 1.
+
+After the five sections, append EXACTLY one fenced block like this, with your final assessment encoded as key: value pairs (used by an automated system \u2014 keep this block plain, no markdown formatting inside it):
+
+\`\`\`score
+OKR_TIED: yes or no
+OKR_NAME: name of the OKR, or none
+SIZE: S, M, L, XL, or XXL
+TEAMS: comma-separated subset of Data, UI, Backend, Integration, Service
+GLOBAL: yes or no
+COMPLEXITY: Low, Medium, or High
+\`\`\`
+
+Program name: ${p.name}
+Sponsor: ${p.sponsor || 'TBD'}
+Objective: ${p.objective || 'TBD'}
+Phase: ${p.phase}
+Current RAG status: ${p.status.toUpperCase()}
+Budget: ${p.budget || 'TBD'}
+Initiative Type: ${p.initiativeType || 'Product'}
+Quantified data on file: ${p.initiativeType==='Platform'
+  ? `${p.existingCustomerCoveragePct?`${p.existingCustomerCoveragePct}% of existing customers/service covered`:'no coverage estimate'}; ${p.customersAtRiskPct?`${p.customersAtRiskPct}% of existing customers at risk of churn if unaddressed`:'no churn-risk estimate'}; ${p.revenueAtRisk?`${p.revenueAtRisk} revenue at risk if unaddressed`:'no revenue-at-risk estimate'}; quality dimensions: ${(p.qualityDimensions||[]).join(', ')||'none selected'}`
+  : `${p.customerImpactPct ? `${p.customerImpactPct}% of existing customer base` : 'none given'}; ${p.newCustomers ? `${p.newCustomers} new customers` : 'no new-customer estimate'}; ${p.netNewRevenue ? `${p.netNewRevenue} net new revenue` : 'no revenue estimate'}`}`;
+  }
+
+  async function generateProgramPriority(programId){
+    const p = getProgram(programId);
+    if(!p) return;
+    UI.loadingKey = 'priority-'+programId;
+    render();
+    try{
+      const response = await fetch("https://api.anthropic.com/v1/messages", {
+        method:"POST",
+        headers:{"Content-Type":"application/json"},
+        body: JSON.stringify({
+          model:"claude-sonnet-4-6",
+          max_tokens:1000,
+          messages:[{role:"user", content: buildProgramPriorityPrompt(p)}]
+        })
+      });
+      const data = await response.json();
+      const rawText = (data.content||[]).filter(b=>b.type==='text').map(b=>b.text).join('\n\n');
+      const {assessment, displayText} = parseAgentScoreBlock(rawText || '');
+      p.priorityTriage = displayText || rawText || '_Agent returned no content \u2014 try again._';
+      if(assessment){
+        p.agentAssessment = assessment;
+        if(p.scoreSource !== 'override'){
+          p.okrTied = assessment.okrTied;
+          p.okrName = assessment.okrName;
+          p.size = assessment.size;
+          p.teams = assessment.teams;
+          p.global = assessment.global;
+          p.complexity = assessment.complexity;
+          p.scoreSource = 'agent';
+        }
+      }
+      await saveState();
+    }catch(e){
+      p.priorityTriage = '_Generation failed. Check your connection and try again._';
+      console.error(e);
+    }
+    UI.loadingKey = null;
+    render();
+  }
+
+  async function generateArtifact(programId, type){
+    const p = getProgram(programId);
+    if(!p) return;
+    UI.loadingKey = type;
+    render();
+    try{
+      const response = await fetch("https://api.anthropic.com/v1/messages", {
+        method:"POST",
+        headers:{"Content-Type":"application/json"},
+        body: JSON.stringify({
+          model:"claude-sonnet-4-6",
+          max_tokens:1000,
+          messages:[{role:"user", content: buildPrompt(p, type)}]
+        })
+      });
+      const data = await response.json();
+      const text = (data.content||[]).filter(b=>b.type==='text').map(b=>b.text).join('\n\n');
+      p.artifacts = p.artifacts || {};
+      p.artifacts[type] = text || '_Agent returned no content \u2014 try again._';
+      await saveState();
+    }catch(e){
+      p.artifacts = p.artifacts || {};
+      p.artifacts[type] = '_Generation failed. Check your connection and try again._';
+      console.error(e);
+    }
+    UI.loadingKey = null;
+    render();
+  }
+
+  // ---------------- Views ----------------
+  function navIcon(name){
+    const icons = {
+      tracker: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3" y="11" width="4" height="9"/><rect x="10" y="6" width="4" height="14"/><rect x="17" y="3" width="4" height="17"/></svg>',
+      programs: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7z"/></svg>',
+      intake: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M4 4h16v12H8l-4 4V4z"/></svg>',
+      team: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="9" cy="8" r="3"/><path d="M2 20c0-3.3 3-6 7-6s7 2.7 7 6"/><circle cx="17" cy="9" r="2.3"/><path d="M16 14.2c2.6.3 5 2 5 5.8"/></svg>',
+      priority: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M4 19V10M12 19V5M20 19v-6"/></svg>'
+    };
+    return icons[name]||'';
+  }
+
+  function renderRail(){
+    const items = [
+      {key:'tracker', label:'Portfolio Tracker'},
+      {key:'priority', label:'Priority Ranking'},
+      {key:'programs', label:'Programs'},
+      {key:'intake', label:'Intake'},
+      {key:'team', label:'TPM Team'},
+    ];
+    return `
+      <div class="rail">
+        <div class="brand">PMO Agent Suite<small>Program Command Center</small></div>
+        <div class="rail-status"><span class="pip"></span>7 AGENTS ONLINE</div>
+        ${items.map(it=>`<div class="navbtn ${UI.view===it.key?'active':''}" data-action="nav" data-view="${it.key}">${navIcon(it.key)}${it.label}</div>`).join('')}
+      </div>`;
+  }
+
+  function renderTracker(){
+    const maxScore = 5+5+2+2+9;
+    const rows = STATE.programs.map(p=>{
+      const allocStr = (p.tpmAllocations||[]).map(a=>{
+        const t = getTpm(a.tpmId); return t? `${t.name.split(' ')[0]} ${a.pct}%` : '';
+      }).join(', ') || '\u2014';
+      const s = computeIntakeScore(p);
+      const scoreCell = s.scored ? `${s.score}/${maxScore}` : `<span style="color:var(--text-faint);">\u2014</span>`;
+      return `<tr class="rowlink" data-action="open-program" data-id="${p.id}">
+        <td class="pid">${p.id}</td>
+        <td>${p.name}</td>
+        <td>${ragBadge(p.status)}</td>
+        <td><span class="tag">${p.phase}</span></td>
+        <td style="font-family:var(--mono);font-size:12px;">${scoreCell}</td>
+        <td style="font-size:12px;color:var(--text-muted)">${allocStr}</td>
+        <td style="font-size:12px;color:var(--text-muted)">${p.budget||'\u2014'}</td>
+      </tr>`;
+    }).join('') || `<tr><td colspan="7"><div class="empty-state">No programs yet. Add one from the Programs tab.</div></td></tr>`;
+
+    const top3 = STATE.programs.map(p=>({p, s:computeIntakeScore(p)})).filter(x=>x.s.scored).sort((a,b)=>b.s.score-a.s.score).slice(0,3);
+    const priorityCard = top3.length ? `
+      <div class="pagehead" style="margin-bottom:10px;"><h1 style="font-size:15px;">Engineering Resourcing Priority</h1></div>
+      <div class="card">
+        ${top3.map((x,i)=>`
+          <div style="display:flex;align-items:center;gap:12px;margin-bottom:${i<top3.length-1?'10px':'0'};">
+            <span class="pid" style="width:16px;">#${i+1}</span>
+            <span style="flex:1;font-size:13px;">${x.p.name}</span>
+            <div class="barwrap" style="width:120px;"><div class="bar" style="width:${Math.round(x.s.score/maxScore*100)}%;background:var(--accent);"></div></div>
+            <span style="font-family:var(--mono);font-size:11.5px;color:var(--text-muted);width:50px;text-align:right;">${x.s.score}/${maxScore}</span>
+          </div>`).join('')}
+        <div style="margin-top:12px;"><span class="navbtn" style="display:inline-flex;" data-action="nav" data-view="priority">View full ranking \u2192</span></div>
+      </div>` : '';
+
+    return `
+      <div class="pagehead"><h1>Portfolio Tracker</h1><p>Consolidated view across all active programs and TPM capacity. TPMs are capped at ${Math.round(MAX_ALLOCATION_RATIO*100)}% utilization to preserve buffer capacity.</p></div>
+      <div class="card">
+        <table>
+          <thead><tr><th>ID</th><th>Program</th><th>RAG</th><th>Phase</th><th>Score</th><th>TPM Allocation</th><th>Budget</th></tr></thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>
+      ${priorityCard}
+      <div class="pagehead" style="margin-bottom:10px;"><h1 style="font-size:15px;">TPM Capacity</h1></div>
+      <div class="card"><table><tbody>${tpmRows(STATE)}</tbody></table></div>
+    `;
+  }
+  function tpmRows(){
+    return STATE.tpms.map(t=>{
+      const load = tpmLoad(t.id);
+      const cap = effectiveCap(t);
+      const over = load > cap;
+      const barColor = over ? 'var(--red)' : (load >= cap*0.85 ? 'var(--amber)' : 'var(--green)');
+      return `<tr>
+        <td>${t.name}</td>
+        <td style="width:220px;">
+          <div class="barwrap"><div class="bar" style="width:${Math.min(load,140)}%;background:${barColor};"></div></div>
+        </td>
+        <td style="font-family:var(--mono);font-size:12px;${over?'color:var(--red);':'color:var(--text-muted);'}">${load}% / cap ${cap}%${over? ' \u2014 OVER CAP':''}</td>
+      </tr>`;
+    }).join('');
+  }
+
+  function renderPriorityRanking(){
+    const maxScore = 5+5+2+2+9;
+    const scored = STATE.programs.map(p=>({p, s: computeIntakeScore(p)}));
+    const ranked = scored.filter(x=>x.s.scored).sort((a,b)=>b.s.score - a.s.score);
+    const unscored = scored.filter(x=>!x.s.scored);
+
+    let rows = '';
+    let cutoffDrawn = false;
+    ranked.forEach((x, idx)=>{
+      if(!cutoffDrawn && x.s.score < SCORE_THRESHOLD){
+        rows += `<tr><td colspan="6" style="padding:6px 10px;background:var(--surface-2);color:var(--text-faint);font-family:var(--mono);font-size:10.5px;text-transform:uppercase;letter-spacing:0.04em;">\u2014 below threshold (${SCORE_THRESHOLD}) \u2014 candidates to shrink or cut \u2014</td></tr>`;
+        cutoffDrawn = true;
+      }
+      const recTag = x.s.recommendation==='tpm'
+        ? `<span class="tag" style="color:var(--green);border-color:var(--green);">resourced</span>`
+        : `<span class="tag" style="color:var(--red);border-color:var(--red);">at risk</span>`;
+      rows += `<tr class="rowlink" data-action="open-program" data-id="${x.p.id}">
+        <td class="pid">#${idx+1}</td>
+        <td>${x.p.name}</td>
+        <td style="font-family:var(--mono);font-size:12px;">${x.s.score}/${maxScore}</td>
+        <td style="font-size:12px;color:var(--text-muted);">${x.p.okrTied==='yes' ? (x.p.okrName||'OKR-tied') : 'No OKR'}</td>
+        <td>${ragBadge(x.p.status)}</td>
+        <td>${recTag}</td>
+      </tr>`;
+    });
+    unscored.forEach(x=>{
+      rows += `<tr class="rowlink" data-action="open-program" data-id="${x.p.id}">
+        <td class="pid">\u2014</td>
+        <td>${x.p.name}</td>
+        <td style="color:var(--text-faint);font-size:11.5px;">not scored</td>
+        <td style="font-size:12px;color:var(--text-muted);">\u2014</td>
+        <td>${ragBadge(x.p.status)}</td>
+        <td><span class="tag">score it</span></td>
+      </tr>`;
+    });
+    if(!rows) rows = `<tr><td colspan="6"><div class="empty-state">No programs yet.</div></td></tr>`;
+
+    return `
+      <div class="pagehead"><h1>Priority Ranking</h1><p>Every program stack-ranked by the same OKR-tie + size/spread/complexity + quantified-value model used at Intake. This is the honest answer to "are we working on the right initiatives" \u2014 not a policy statement, a ranked list.</p></div>
+      <div class="card">
+        <table>
+          <thead><tr><th>Rank</th><th>Program</th><th>Score</th><th>OKR</th><th>RAG</th><th>Resourcing</th></tr></thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>
+      <div class="card" style="font-size:12px;color:var(--text-faint);">
+        Click "Score it" on unscored programs, or open a program \u2192 Priority tab to run the ${PRIORITY_AGENT} or apply a leadership override.
+      </div>
+    `;
+  }
+
+  function renderProgramsList(){
+    const rows = STATE.programs.map(p=>`
+      <tr class="rowlink" data-action="open-program" data-id="${p.id}">
+        <td class="pid">${p.id}</td>
+        <td>${p.name}</td>
+        <td>${p.sponsor||'\u2014'}</td>
+        <td>${ragBadge(p.status)}</td>
+        <td><span class="tag">${p.phase}</span></td>
+        <td><span class="pillbtn" data-action="delete-program" data-id="${p.id}">remove</span></td>
+      </tr>`).join('') || `<tr><td colspan="6"><div class="empty-state">No programs yet.</div></td></tr>`;
+
+    return `
+      <div class="pagehead"><h1>Programs</h1><p>All active and past programs.</p></div>
+      <div class="card">
+        <table><thead><tr><th>ID</th><th>Name</th><th>Sponsor</th><th>RAG</th><th>Phase</th><th></th></tr></thead>
+        <tbody>${rows}</tbody></table>
+      </div>
+      <div class="card formcard">
+        <h3 style="margin-top:0;font-family:var(--disp);font-size:14px;">New Program</h3>
+        <form id="newProgramForm">
+          <label>Name</label><input name="name" required>
+          <label>Sponsor</label><input name="sponsor">
+          <label>Objective</label><textarea name="objective"></textarea>
+          <div class="grid2">
+            <div><label>Phase</label><select name="phase">${PHASES.map(ph=>`<option>${ph}</option>`).join('')}</select></div>
+            <div><label>Status</label><select name="status">${STATUSES.map(s=>`<option value="${s}">${s}</option>`).join('')}</select></div>
+          </div>
+          <div class="grid2">
+            <div><label>Start</label><input name="startDate" type="month"></div>
+            <div><label>End</label><input name="endDate" type="month"></div>
+          </div>
+          <label>Budget</label><input name="budget" placeholder="e.g. $1.2M">
+          <button class="btn" type="submit">Add Program</button>
+        </form>
+      </div>
+    `;
+  }
+
+  function renderIntake(){
+    const rows = STATE.intake.map(i=>{
+      const expanded = UI.expandedIntake === i.id;
+      const loading = UI.loadingKey === 'intake-'+i.id;
+      const s = computeIntakeScore(i);
+      const scoreCell = !s.scored
+        ? `<span style="color:var(--text-faint);font-size:11.5px;">not scored</span>`
+        : `<span style="font-family:var(--mono);font-size:12px;">${s.score}/${s.maxScore}</span>`;
+      const recTag = !s.scored
+        ? `<span class="tag">run agent</span>`
+        : (s.recommendation==='tpm'
+            ? `<span class="tag" style="color:var(--green);border-color:var(--green);">TPM allocation</span>`
+            : `<span class="tag" style="color:var(--text-faint);">no TPM</span>`);
+      const sourceBadge = i.scoreSource==='agent'
+        ? `<span class="tag" style="color:var(--accent);border-color:var(--accent);">agent-scored</span>`
+        : i.scoreSource==='override'
+          ? `<span class="tag" style="color:var(--amber);border-color:var(--amber);">PMO override</span>`
+          : `<span class="tag">not yet scored</span>`;
+
+      const mainRow = `
+      <tr class="rowlink" data-action="toggle-intake" data-id="${i.id}">
+        <td class="pid">${i.id}</td>
+        <td>${i.name}</td>
+        <td style="color:var(--text-muted);font-size:12px;">${i.requestedBy}</td>
+        <td>${scoreCell}</td>
+        <td>${recTag}</td>
+        <td>${i.status==='pending' ? `<span class="tag" style="color:var(--amber);border-color:var(--amber);">pending</span>` : i.status==='approved' ? `<span class="tag" style="color:var(--green);border-color:var(--green);">approved</span>` : `<span class="tag" style="color:var(--red);border-color:var(--red);">rejected</span>`}</td>
+        <td>${i.status==='pending' ? `<span class="pillbtn" data-action="approve-intake" data-id="${i.id}" style="margin-right:6px;">approve</span><span class="pillbtn" data-action="reject-intake" data-id="${i.id}">reject</span>` : (i.status==='approved' && i.approvedProgramId ? `<span class="pillbtn" data-action="open-program" data-id="${i.approvedProgramId}">view program</span>` : '')}</td>
+      </tr>`;
+
+      const scoreBoxHtml = s.scored ? `
+            <div style="margin:14px 0;padding-top:12px;border-top:1px solid var(--border);display:flex;align-items:center;gap:18px;flex-wrap:wrap;">
+              <div><span style="font-family:var(--mono);font-size:20px;font-weight:600;">${s.score}</span><span style="color:var(--text-faint);font-size:12px;">/${s.maxScore}</span></div>
+              <div style="font-size:12px;color:var(--text-muted);">Size ${s.sizePts} + Teams ${s.teamPts} + Global ${s.globalBonus} + Complexity ${s.complexityPts} + ${s.initiativeType==='Platform'?'Quality':'Value'} ${s.valuePts}</div>
+              ${recTag} ${sourceBadge}
+              <div style="font-size:11.5px;color:var(--text-faint);width:100%;">${s.reason}</div>
+              <div style="font-size:11px;color:var(--text-faint);width:100%;">${valueBreakdownText(s.valueBreakdown)}</div>
+            </div>` : `
+            <div style="margin:14px 0;padding-top:12px;border-top:1px solid var(--border);font-size:12px;color:var(--text-faint);">
+              Not yet scored. Run the Intake Agent below, or set values manually to apply a PMO override directly.
+            </div>`;
+
+      const revertBtn = (i.scoreSource==='override' && i.agentAssessment)
+        ? `<span class="pillbtn" data-action="revert-score" data-id="${i.id}" style="margin-left:8px;">revert to agent assessment</span>` : '';
+
+      const approvalPanel = (UI.approvingIntakeId === i.id) ? (()=>{
+        const suggested = s.scored && s.recommendation==='tpm' ? suggestedTpmId() : '';
+        const capRows = STATE.tpms.map(t=>{
+          const load = tpmLoad(t.id);
+          const cap = effectiveCap(t);
+          const remaining = cap - load;
+          return `<tr><td>${t.name}</td><td>${load}%</td><td>${cap}% <span style="color:var(--text-faint);">(cap)</span></td><td style="${remaining<=0?'color:var(--red);':'color:var(--text-muted);'}">${remaining}%</td></tr>`;
+        }).join('') || `<tr><td colspan="4" style="color:var(--text-faint);">No TPMs in roster yet.</td></tr>`;
+        const tpmOpts = STATE.tpms.map(t=>{
+          const remaining = effectiveCap(t) - tpmLoad(t.id);
+          return `<option value="${t.id}" ${t.id===suggested?'selected':''}>${t.name} (${remaining}% free of cap)</option>`;
+        }).join('');
+        return `
+          <div style="margin-top:16px;padding-top:14px;border-top:1px solid var(--border);">
+            <h4 style="margin:0 0 8px;font-family:var(--disp);font-size:12.5px;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.03em;">Approve \u2014 Assign TPM</h4>
+            <table style="margin-bottom:12px;">
+              <thead><tr><th>TPM</th><th>Current Load</th><th>Cap (${Math.round(MAX_ALLOCATION_RATIO*100)}%)</th><th>Remaining</th></tr></thead>
+              <tbody>${capRows}</tbody>
+            </table>
+            <form id="approveForm" data-id="${i.id}">
+              <div class="grid2">
+                <div><label>Assign TPM</label>
+                  <select name="tpmId">
+                    <option value="">No TPM (self-serve backlog)</option>
+                    ${tpmOpts}
+                  </select>
+                </div>
+                <div><label>Allocation (%)</label><input name="pct" type="number" value="25"></div>
+              </div>
+              <div style="display:flex;gap:8px;">
+                <button class="btn small" type="submit">Confirm Approval</button>
+                <button class="btn small ghost" type="button" data-action="cancel-approve" data-id="${i.id}">Cancel</button>
+              </div>
+            </form>
+          </div>`;
+      })() : '';
+
+      const detailRow = expanded ? `
+      <tr>
+        <td></td>
+        <td colspan="6" style="padding:0 10px 16px;">
+          <div style="background:var(--surface-2);border:1px solid var(--border);border-radius:8px;padding:14px;">
+            ${i.valueProp ? `
+              <div style="margin-bottom:12px;">
+                <div style="font-family:var(--mono);font-size:10px;color:var(--text-faint);text-transform:uppercase;letter-spacing:0.04em;margin-bottom:4px;">Value Proposition</div>
+                <p style="color:var(--text);font-size:13px;margin:0 0 8px;">${i.valueProp}</p>
+                <div style="display:flex;gap:16px;flex-wrap:wrap;font-size:11.5px;color:var(--text-muted);font-family:var(--mono);">
+                  ${i.customerImpactPct ? `<span>Customer impact: ${i.customerImpactPct}%</span>` : ''}
+                  ${i.newCustomers ? `<span>New customers: ${i.newCustomers}</span>` : ''}
+                  ${i.netNewRevenue ? `<span>Net new revenue: ${i.netNewRevenue}</span>` : ''}
+                  ${i.targetDate ? `<span>Target: ${i.targetDate}</span>` : ''}
+                </div>
+              </div>
+            ` : `<div class="tag" style="color:var(--red);border-color:var(--red);margin-bottom:12px;">No value proposition provided</div>`}
+
+            <h4 style="margin:14px 0 8px;font-family:var(--disp);font-size:12.5px;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.03em;">Charter & Risk Inputs
+              ${i.contentDraftSource==='agent' ? `<span class="tag" style="color:var(--accent);border-color:var(--accent);">agent-drafted</span>` : i.contentDraftSource==='override' ? `<span class="tag" style="color:var(--amber);border-color:var(--amber);">reviewed</span>` : `<span class="tag">not yet drafted</span>`}
+              ${(i.contentDraftSource==='override' && i.agentContentDraft) ? `<span class="pillbtn" data-action="revert-content" data-id="${i.id}" style="margin-left:6px;">revert to agent draft</span>` : ''}
+            </h4>
+            <form id="contentForm" data-id="${i.id}">
+              <div class="grid2">
+                <div><label>Executive Sponsor <span style="color:var(--text-faint);font-weight:400;">(human-entered only)</span></label><input name="executiveSponsor" value="${i.executiveSponsor||''}" placeholder="e.g. VP Engineering"></div>
+                <div><label>Budget Estimate <span style="color:var(--text-faint);font-weight:400;">(human-entered only)</span></label><input name="budgetEstimate" value="${i.budgetEstimate||''}" placeholder="e.g. $1.2M"></div>
+              </div>
+              <label>High-Level Requirements</label><textarea name="requirements" placeholder="Run the Intake Agent to draft this, or write your own.">${i.requirements||''}</textarea>
+              <label>Success Criteria</label><textarea name="successCriteria">${i.successCriteria||''}</textarea>
+              <div class="grid2">
+                <div><label>In Scope</label><textarea name="scopeIn">${i.scopeIn||''}</textarea></div>
+                <div><label>Out of Scope</label><textarea name="scopeOut">${i.scopeOut||''}</textarea></div>
+              </div>
+              <label>Constraints / Assumptions</label><textarea name="constraints">${i.constraints||''}</textarea>
+              <label>Known Risks / Dependencies</label><textarea name="knownRisks">${i.knownRisks||''}</textarea>
+              <button class="btn small" type="submit">Save Review</button>
+            </form>
+            ${i.description ? `
+              <div style="margin-bottom:4px;">
+                <div style="font-family:var(--mono);font-size:10px;color:var(--text-faint);text-transform:uppercase;letter-spacing:0.04em;margin-bottom:4px;">Technical Scope</div>
+                <p style="color:var(--text-muted);font-size:12.5px;margin:0;">${i.description}</p>
+              </div>
+            ` : ''}
+
+            ${scoreBoxHtml}
+
+            <div class="agentbar">
+              <span class="agentchip">AGENT: ${INTAKE_AGENT}</span>
+              <button class="btn small" data-action="generate-intake" data-id="${i.id}" ${loading?'disabled':''}>${loading ? 'Scoring\u2026' : (i.triage ? 'Re-run Agent' : 'Run Intake Agent')}</button>
+            </div>
+            ${loading ? `<div class="empty-state">${INTAKE_AGENT} is assessing this request\u2026</div>` :
+              i.triage ? `<div class="artifact-body">${window.marked ? marked.parse(i.triage) : i.triage}</div>` :
+              `<div class="empty-state">No assessment yet \u2014 run the agent to score this request.</div>`}
+
+            <h4 style="margin:18px 0 8px;font-family:var(--disp);font-size:12.5px;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.03em;">PMO Override ${sourceBadge} ${revertBtn}</h4>
+            <form id="scoreForm" data-id="${i.id}">
+              <div class="grid2">
+                <div>
+                  <label>Tied to an OKR?</label>
+                  <select name="okrTied">
+                    <option value="no" ${i.okrTied!=='yes'?'selected':''}>No</option>
+                    <option value="yes" ${i.okrTied==='yes'?'selected':''}>Yes</option>
+                  </select>
+                </div>
+                <div><label>OKR (if tied)</label><input name="okrName" value="${i.okrName||''}" placeholder="e.g. Reduce churn 10%"></div>
+              </div>
+              <div class="grid2">
+                <div><label>Size</label><select name="size">${SIZE_OPTIONS.map(s2=>`<option ${i.size===s2?'selected':''}>${s2}</option>`).join('')}</select></div>
+                <div><label>Complexity</label><select name="complexity">${Object.keys(COMPLEXITY_POINTS).map(c=>`<option ${i.complexity===c?'selected':''}>${c}</option>`).join('')}</select></div>
+              </div>
+              <label>Teams Involved</label>
+              <div style="display:flex;gap:14px;flex-wrap:wrap;margin-bottom:10px;">
+                ${TEAM_OPTIONS.map(t=>`<label style="display:flex;align-items:center;gap:5px;font-weight:400;color:var(--text);margin:0;"><input type="checkbox" style="width:auto;margin:0;" name="teams" value="${t}" ${(i.teams||[]).includes(t)?'checked':''}> ${t}</label>`).join('')}
+              </div>
+              <label style="display:flex;align-items:center;gap:6px;font-weight:400;color:var(--text);"><input type="checkbox" style="width:auto;margin:0;" name="global" ${i.global?'checked':''}> Teams are spread globally</label>
+              <div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--border);">${renderInitiativeFields(i)}</div>
+              <button class="btn small" type="submit" style="margin-top:8px;">${i.scoreSource==='override' ? 'Update Override' : 'Apply Override'}</button>
+            </form>
+
+            ${approvalPanel}
+          </div>
+        </td>
+      </tr>` : '';
+      return mainRow + detailRow;
+    }).join('') || `<tr><td colspan="7"><div class="empty-state">No intake requests.</div></td></tr>`;
+
+    return `
+      <div class="pagehead"><h1>Intake</h1><p>The Intake Agent scores each request \u2014 OKR tie, size, team spread, complexity \u2014 and quantified business value (customer impact, new customers, revenue) feeds the score directly. Only OKR-tied requests scoring ${SCORE_THRESHOLD}+ of ${5+5+2+2+9} get a TPM allocation recommendation. The PMO leader can override any agent score.</p></div>
+      <div class="card">
+        <table><thead><tr><th>ID</th><th>Request</th><th>Requested By</th><th>Score</th><th>Recommendation</th><th>Status</th><th></th></tr></thead>
+        <tbody>${rows}</tbody></table>
+      </div>
+      <div class="card formcard">
+        <h3 style="margin-top:0;font-family:var(--disp);font-size:14px;">Quick-Fill from Voice or Transcript</h3>
+        <p style="font-size:11.5px;color:var(--text-faint);margin:0 0 10px;">Paste a meeting transcript (Zoom/Teams/Otter), or try live dictation, then let the agent fill the form below for you to review before submitting.</p>
+        <textarea id="transcriptInput" placeholder="Paste a transcript here, or click Start Dictation and talk through your request\u2026" style="min-height:90px;"></textarea>
+        <p style="font-size:11px;color:var(--text-faint);margin:0 0 8px;">Claude should have access to your microphone. Please check your browser's site permissions before using voice input \u2014 if it's blocked, paste a transcript instead.</p>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+          <button type="button" class="btn small ghost" id="dictateBtn" data-action="toggle-dictation">\ud83c\udfa4 Start Dictation</button>
+          <button type="button" class="btn small" id="parseTranscriptBtn" data-action="parse-transcript">Parse & Fill Form</button>
+          <span class="agentchip">AGENT: ${TRANSCRIPT_AGENT}</span>
+        </div>
+        <div id="transcriptStatus" style="font-size:11.5px;color:var(--text-faint);margin-top:8px;"></div>
+      </div>
+      <div class="card formcard">
+        <h3 style="margin-top:0;font-family:var(--disp);font-size:14px;">Submit New Request</h3>
+        <form id="newIntakeForm">
+          <label>Program / Idea Name</label><input name="name" required>
+          <label>Requested By</label><input name="requestedBy">
+
+          <label>Value Proposition <span style="color:var(--text-faint);font-weight:400;">(business impact \u2014 required)</span></label>
+          <textarea name="valueProp" required placeholder="e.g. This release will impact 50% of our existing customer base, add ~200 new customers, and drive ~$10M net new revenue by end of 2027."></textarea>
+          ${renderInitiativeFields({})}
+          <label>Target Date</label><input name="targetDate" placeholder="e.g. End of 2027">
+
+          <label>Technical Scope <span style="color:var(--text-faint);font-weight:400;">(optional \u2014 engineering endpoint, systems touched, etc.)</span></label>
+          <textarea name="description" placeholder="Optional \u2014 do not substitute this for the value proposition above."></textarea>
+
+          <label>Priority</label>
+          <select name="priority"><option>Low</option><option selected>Medium</option><option>High</option></select>
+          <button class="btn" type="submit">Submit Request</button>
+          <p style="font-size:11px;color:var(--text-faint);margin-top:8px;">That's it \u2014 the Intake Agent will draft requirements, success criteria, scope, and known risks during triage. No need to write those up front.</p>
+        </form>
+      </div>
+    `;
+  }
+
+  function renderTeam(){
+    const rows = STATE.tpms.map(t=>{
+      const load = tpmLoad(t.id);
+      const cap = effectiveCap(t);
+      const over = load > cap;
+      return `<tr>
+        <td>${t.name}</td>
+        <td style="font-family:var(--mono);font-size:12px;">${t.capacityPct}%</td>
+        <td style="font-family:var(--mono);font-size:12px;color:var(--text-muted);">${cap}%</td>
+        <td style="font-family:var(--mono);font-size:12px;${over?'color:var(--red);':'color:var(--text-muted);'}">${load}%${over?' \u2014 over cap':''}</td>
+        <td><span class="pillbtn" data-action="delete-tpm" data-id="${t.id}">remove</span></td>
+      </tr>`;
+    }).join('') || `<tr><td colspan="5"><div class="empty-state">No TPMs added.</div></td></tr>`;
+
+    return `
+      <div class="pagehead"><h1>TPM Team</h1><p>Roster and capacity used for portfolio allocation checks. Max allocation is capped at ${Math.round(MAX_ALLOCATION_RATIO*100)}% of stated capacity to preserve buffer.</p></div>
+      <div class="card">
+        <table><thead><tr><th>Name</th><th>Capacity</th><th>Max Alloc (${Math.round(MAX_ALLOCATION_RATIO*100)}%)</th><th>Current Load</th><th></th></tr></thead>
+        <tbody>${rows}</tbody></table>
+      </div>
+      <div class="card formcard">
+        <h3 style="margin-top:0;font-family:var(--disp);font-size:14px;">Add TPM</h3>
+        <form id="newTpmForm">
+          <label>Name</label><input name="name" required>
+          <label>Capacity (%)</label><input name="capacityPct" type="number" value="100">
+          <button class="btn" type="submit">Add TPM</button>
+        </form>
+      </div>
+    `;
+  }
+
+  function renderProgramDetail(){
+    const p = getProgram(UI.programId);
+    if(!p){ UI.view='programs'; return renderProgramsList(); }
+    const tabs = [{key:'overview', label:'Overview'}, {key:'priority', label:'Priority'}, ...ARTIFACT_TYPES];
+    const tabsHtml = tabs.map(t=>`<div class="tab ${UI.tab===t.key?'active':''}" data-action="set-tab" data-key="${t.key}">${t.label}</div>`).join('');
+
+    let body = '';
+    if(UI.tab==='overview'){
+      const allocRows = (p.tpmAllocations||[]).map((a,idx)=>{
+        const t = getTpm(a.tpmId);
+        return `<tr><td>${t? t.name : 'Unknown'}</td><td>${a.pct}%</td><td><span class="pillbtn" data-action="remove-alloc" data-idx="${idx}">remove</span></td></tr>`;
+      }).join('') || `<tr><td colspan="3" style="color:var(--text-faint);">No TPM assigned.</td></tr>`;
+      const tpmOptions = STATE.tpms.map(t=>{
+        const remaining = effectiveCap(t) - tpmLoad(t.id);
+        return `<option value="${t.id}">${t.name} (${remaining}% free of cap)</option>`;
+      }).join('');
+      body = `
+        <div class="card">
+          <form id="editOverviewForm">
+            <div class="grid2">
+              <div><label>Name</label><input name="name" value="${p.name}"></div>
+              <div><label>Sponsor</label><input name="sponsor" value="${p.sponsor||''}"></div>
+            </div>
+            <label>Objective</label><textarea name="objective">${p.objective||''}</textarea>
+            <label>Value Proposition <span style="color:var(--text-faint);font-weight:400;">(feeds Charter, Plan, and other agents)</span></label><textarea name="valueProp">${p.valueProp||''}</textarea>
+            <label>High-Level Requirements</label><textarea name="requirements">${p.requirements||''}</textarea>
+            <label>Success Criteria</label><textarea name="successCriteria">${p.successCriteria||''}</textarea>
+            <div class="grid2">
+              <div><label>In Scope</label><textarea name="scopeIn">${p.scopeIn||''}</textarea></div>
+              <div><label>Out of Scope</label><textarea name="scopeOut">${p.scopeOut||''}</textarea></div>
+            </div>
+            <label>Constraints / Assumptions</label><textarea name="constraints">${p.constraints||''}</textarea>
+            <label>Known Risks / Dependencies</label><textarea name="knownRisks">${p.knownRisks||''}</textarea>
+            <div class="grid2">
+              <div><label>Phase</label><select name="phase">${PHASES.map(ph=>`<option ${ph===p.phase?'selected':''}>${ph}</option>`).join('')}</select></div>
+              <div><label>RAG Status</label><select name="status">${STATUSES.map(s=>`<option value="${s}" ${s===p.status?'selected':''}>${s}</option>`).join('')}</select></div>
+            </div>
+            <div class="grid2">
+              <div><label>Start</label><input name="startDate" type="month" value="${p.startDate||''}"></div>
+              <div><label>End</label><input name="endDate" type="month" value="${p.endDate||''}"></div>
+            </div>
+            <label>Budget</label><input name="budget" value="${p.budget||''}">
+            <button class="btn" type="submit">Save Changes</button>
+          </form>
+        </div>
+        <div class="card formcard">
+          <h3 style="margin-top:0;font-family:var(--disp);font-size:14px;">TPM Allocation</h3>
+          <table><tbody>${allocRows}</tbody></table>
+          <form id="addAllocForm" style="margin-top:10px;">
+            <div class="grid2">
+              <div><label>TPM</label><select name="tpmId">${tpmOptions}</select></div>
+              <div><label>Allocation (%)</label><input name="pct" type="number" value="25"></div>
+            </div>
+            <button class="btn small" type="submit">Add Allocation</button>
+          </form>
+        </div>
+      `;
+    } else if(UI.tab==='priority'){
+      const s = computeIntakeScore(p);
+      const maxScore = 5+5+2+2+9;
+      const loadingP = UI.loadingKey === 'priority-'+p.id;
+      const sourceBadge = p.scoreSource==='agent'
+        ? `<span class="tag" style="color:var(--accent);border-color:var(--accent);">agent-scored</span>`
+        : p.scoreSource==='override'
+          ? `<span class="tag" style="color:var(--amber);border-color:var(--amber);">leadership override</span>`
+          : `<span class="tag">not yet scored</span>`;
+      const recTag = !s.scored ? `<span class="tag">run agent</span>` : (s.recommendation==='tpm'
+        ? `<span class="tag" style="color:var(--green);border-color:var(--green);">resourced</span>`
+        : `<span class="tag" style="color:var(--red);border-color:var(--red);">at risk</span>`);
+      const revertBtn = (p.scoreSource==='override' && p.agentAssessment)
+        ? `<span class="pillbtn" data-action="revert-program-score" data-id="${p.id}" style="margin-left:8px;">revert to agent assessment</span>` : '';
+      const okrMismatch = checkOkrMetricAlignment(p);
+      const okrMismatchBanner = okrMismatch
+        ? `<div style="border:1px solid var(--amber);background:rgba(230,160,40,0.08);color:var(--amber);border-radius:8px;padding:10px 12px;margin-bottom:14px;font-size:12px;line-height:1.5;"><strong>OKR/metric mismatch:</strong> ${okrMismatch}</div>`
+        : '';
+      body = `
+        <div class="card">
+          ${okrMismatchBanner}
+          ${s.scored ? `
+            <div style="display:flex;align-items:center;gap:18px;flex-wrap:wrap;margin-bottom:14px;">
+              <div><span style="font-family:var(--mono);font-size:20px;font-weight:600;">${s.score}</span><span style="color:var(--text-faint);font-size:12px;">/${maxScore}</span></div>
+              <div style="font-size:12px;color:var(--text-muted);">Size ${s.sizePts} + Teams ${s.teamPts} + Global ${s.globalBonus} + Complexity ${s.complexityPts} + ${s.initiativeType==='Platform'?'Quality':'Value'} ${s.valuePts}</div>
+              ${recTag} ${sourceBadge}
+              <div style="font-size:11.5px;color:var(--text-faint);width:100%;">${s.reason}</div>
+              <div style="font-size:11px;color:var(--text-faint);width:100%;">${valueBreakdownText(s.valueBreakdown)}</div>
+            </div>` : `<div style="font-size:12px;color:var(--text-faint);margin-bottom:14px;">Not yet scored. Run the ${PRIORITY_AGENT} below, or apply a leadership override directly.</div>`}
+
+          <div class="agentbar">
+            <span class="agentchip">AGENT: ${PRIORITY_AGENT}</span>
+            <button class="btn small" data-action="generate-priority" data-id="${p.id}" ${loadingP?'disabled':''}>${loadingP ? 'Scoring\u2026' : (p.priorityTriage ? 'Re-run Agent' : 'Run Prioritization Agent')}</button>
+          </div>
+          ${loadingP ? `<div class="empty-state">${PRIORITY_AGENT} is assessing this program\u2026</div>` :
+            p.priorityTriage ? `<div class="artifact-body">${window.marked ? marked.parse(p.priorityTriage) : p.priorityTriage}</div>` :
+            `<div class="empty-state">No assessment yet.</div>`}
+
+          <h4 style="margin:18px 0 8px;font-family:var(--disp);font-size:12.5px;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.03em;">Leadership Override ${sourceBadge} ${revertBtn}</h4>
+          <form id="programScoreForm" data-id="${p.id}">
+            <div class="grid2">
+              <div><label>Tied to an OKR?</label>
+                <select name="okrTied">
+                  <option value="no" ${p.okrTied!=='yes'?'selected':''}>No</option>
+                  <option value="yes" ${p.okrTied==='yes'?'selected':''}>Yes</option>
+                </select>
+              </div>
+              <div><label>OKR (if tied)</label><input name="okrName" value="${p.okrName||''}" placeholder="e.g. Reduce churn 10%"></div>
+            </div>
+            <div class="grid2">
+              <div><label>Size</label><select name="size">${SIZE_OPTIONS.map(s2=>`<option ${p.size===s2?'selected':''}>${s2}</option>`).join('')}</select></div>
+              <div><label>Complexity</label><select name="complexity">${Object.keys(COMPLEXITY_POINTS).map(c=>`<option ${p.complexity===c?'selected':''}>${c}</option>`).join('')}</select></div>
+            </div>
+            <label>Teams Involved</label>
+            <div style="display:flex;gap:14px;flex-wrap:wrap;margin-bottom:10px;">
+              ${TEAM_OPTIONS.map(t=>`<label style="display:flex;align-items:center;gap:5px;font-weight:400;color:var(--text);margin:0;"><input type="checkbox" style="width:auto;margin:0;" name="teams" value="${t}" ${(p.teams||[]).includes(t)?'checked':''}> ${t}</label>`).join('')}
+            </div>
+            <label style="display:flex;align-items:center;gap:6px;font-weight:400;color:var(--text);"><input type="checkbox" style="width:auto;margin:0;" name="global" ${p.global?'checked':''}> Teams are spread globally</label>
+            <div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--border);">${renderInitiativeFields(p)}</div>
+            <button class="btn small" type="submit" style="margin-top:8px;">${p.scoreSource==='override' ? 'Update Override' : 'Apply Override'}</button>
+          </form>
+        </div>
+      `;
+    } else {
+      const meta = ARTIFACT_TYPES.find(a=>a.key===UI.tab);
+      const content = (p.artifacts||{})[UI.tab];
+      const loading = UI.loadingKey === UI.tab;
+      const okrMismatch = UI.tab==='okr' ? checkOkrMetricAlignment(p) : null;
+      const okrMismatchBanner = okrMismatch
+        ? `<div style="border:1px solid var(--amber);background:rgba(230,160,40,0.08);color:var(--amber);border-radius:8px;padding:10px 12px;margin-bottom:14px;font-size:12px;line-height:1.5;"><strong>OKR/metric mismatch:</strong> ${okrMismatch}</div>`
+        : '';
+      const tmpl = ARTIFACT_TEMPLATES[UI.tab];
+      const templateBox = tmpl ? `
+        <details style="margin-bottom:14px;border:1px solid var(--border);border-radius:8px;padding:8px 12px;">
+          <summary style="cursor:pointer;font-size:11.5px;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.03em;font-family:var(--disp);">Standard Template \u2014 ${meta.label}</summary>
+          <ol style="margin:8px 0 2px;padding-left:18px;font-size:12px;color:var(--text-muted);line-height:1.7;">
+            ${tmpl.sections.map(s=>`<li>${s}</li>`).join('')}
+          </ol>
+        </details>` : '';
+      body = `
+        <div class="card">
+          ${okrMismatchBanner}
+          ${templateBox}
+          <div class="agentbar">
+            <span class="agentchip">AGENT: ${meta.agent}</span>
+            <button class="btn small" data-action="generate" data-key="${UI.tab}" ${loading?'disabled':''}>${loading ? 'Generating\u2026' : (content ? 'Regenerate' : 'Generate with AI')}</button>
+          </div>
+          ${loading ? `<div class="empty-state">${meta.agent} is drafting the ${meta.label.toLowerCase()}\u2026</div>` :
+            content ? `<div class="artifact-body">${window.marked ? marked.parse(content) : content}</div>` :
+            `<div class="empty-state">No ${meta.label.toLowerCase()} generated yet.</div>`}
+        </div>
+      `;
+    }
+
+    return `
+      <span class="backlink" data-action="nav" data-view="programs">\u2190 Back to Programs</span>
+      <div class="pagehead">
+        <h1>${p.name}</h1>
+        <p>${p.sponsor ? p.sponsor+' \u00b7 ' : ''}${ragBadge(p.status)} &nbsp; <span class="tag">${p.phase}</span></p>
+      </div>
+      <div class="tabs">${tabsHtml}</div>
+      ${body}
+    `;
+  }
+
+  function render(){
+    const app = document.getElementById('app');
+    let mainHtml = '';
+    if(UI.view==='tracker') mainHtml = renderTracker();
+    else if(UI.view==='priority') mainHtml = renderPriorityRanking();
+    else if(UI.view==='programs') mainHtml = renderProgramsList();
+    else if(UI.view==='programDetail') mainHtml = renderProgramDetail();
+    else if(UI.view==='intake') mainHtml = renderIntake();
+    else if(UI.view==='team') mainHtml = renderTeam();
+
+    app.innerHTML = `${renderRail()}<main>${mainHtml}<div class="footer-credit">PMO Agent Suite \u00b7 agents run on Claude \u00b7 built by Venkatesh Subramanyam</div></main>`;
+    attachFormHandlers();
+  }
+
+  function attachFormHandlers(){
+    const npf = document.getElementById('newProgramForm');
+    if(npf) npf.addEventListener('submit', e=>{
+      e.preventDefault();
+      const fd = new FormData(npf);
+      const p = {
+        id: uid('prg'), name: fd.get('name'), sponsor: fd.get('sponsor'), objective: fd.get('objective'),
+        phase: fd.get('phase'), status: fd.get('status'), startDate: fd.get('startDate'), endDate: fd.get('endDate'),
+        budget: fd.get('budget'), tpmAllocations: [], artifacts: {},
+        okrTied:'no', okrName:'', size:'M', teams:[], global:false, complexity:'Low',
+        initiativeType:'Product', customerImpactPct:'', newCustomers:'', netNewRevenue:'',
+        existingCustomerCoveragePct:'', customersAtRiskPct:'', revenueAtRisk:'', qualityDimensions:[],
+        targetDate:'', scoreSource:null, agentAssessment:null, priorityTriage:null
+      };
+      STATE.programs.push(p);
+      saveState();
+      UI.view='programDetail'; UI.programId=p.id; UI.tab='overview';
+      render();
+    });
+
+    const nif = document.getElementById('newIntakeForm');
+    if(nif) nif.addEventListener('submit', e=>{
+      e.preventDefault();
+      const fd = new FormData(nif);
+      STATE.intake.push({id:uid('in'), name:fd.get('name'), requestedBy:fd.get('requestedBy'), executiveSponsor:'', description:fd.get('description'), priority:fd.get('priority'), status:'pending', submittedDate: todayStr(),
+        valueProp: fd.get('valueProp'), initiativeType: fd.get('initiativeType')||'Product',
+        requirements:'', successCriteria:'', scopeIn:'', scopeOut:'', constraints:'', knownRisks:'', budgetEstimate:'',
+        contentDraftSource:null, agentContentDraft:null,
+        customerImpactPct: fd.get('customerImpactPct'), newCustomers: fd.get('newCustomers'), netNewRevenue: fd.get('netNewRevenue'), targetDate: fd.get('targetDate'),
+        existingCustomerCoveragePct: fd.get('existingCustomerCoveragePct'), customersAtRiskPct: fd.get('customersAtRiskPct'), revenueAtRisk: fd.get('revenueAtRisk'), qualityDimensions: fd.getAll('qualityDimensions'),
+        okrTied:'no', okrName:'', size:'M', teams:[], global:false, complexity:'Low', scoreSource:null, agentAssessment:null});
+      saveState(); render();
+    });
+
+    const psf = document.getElementById('programScoreForm');
+    if(psf) psf.addEventListener('submit', e=>{
+      e.preventDefault();
+      const p = getProgram(psf.dataset.id);
+      const fd = new FormData(psf);
+      p.okrTied = fd.get('okrTied');
+      p.okrName = fd.get('okrName');
+      p.size = fd.get('size');
+      p.complexity = fd.get('complexity');
+      p.teams = fd.getAll('teams');
+      p.global = fd.get('global') === 'on';
+      p.initiativeType = fd.get('initiativeType')||'Product';
+      p.customerImpactPct = fd.get('customerImpactPct');
+      p.newCustomers = fd.get('newCustomers');
+      p.netNewRevenue = fd.get('netNewRevenue');
+      p.existingCustomerCoveragePct = fd.get('existingCustomerCoveragePct');
+      p.customersAtRiskPct = fd.get('customersAtRiskPct');
+      p.revenueAtRisk = fd.get('revenueAtRisk');
+      p.qualityDimensions = fd.getAll('qualityDimensions');
+      p.scoreSource = 'override';
+      saveState(); render();
+    });
+
+    const apf = document.getElementById('approveForm');
+    if(apf) apf.addEventListener('submit', e=>{
+      e.preventDefault();
+      const item = STATE.intake.find(i=>i.id===apf.dataset.id);
+      const fd = new FormData(apf);
+      const tpmId = fd.get('tpmId');
+      const pct = Number(fd.get('pct')) || 0;
+      if(tpmId){
+        const t = getTpm(tpmId);
+        const cap = effectiveCap(t);
+        const currentLoad = tpmLoad(tpmId);
+        const newLoad = currentLoad + pct;
+        if(newLoad > cap){
+          const over = newLoad - cap;
+          const proceed = window.confirm(`This would put ${t.name} at ${newLoad}% load \u2014 ${over}% over their ${cap}% cap (${Math.round(MAX_ALLOCATION_RATIO*100)}% of ${t.capacityPct}% capacity). Approve anyway?`);
+          if(!proceed) return;
+        }
+      }
+      item.status = 'approved';
+      const newProgram = {
+        id: uid('prg'), name: item.name, sponsor: item.executiveSponsor || item.requestedBy,
+        objective: item.valueProp || item.description || '',
+        valueProp: item.valueProp || '', technicalScope: item.description || '',
+        requirements: item.requirements || '', successCriteria: item.successCriteria || '',
+        scopeIn: item.scopeIn || '', scopeOut: item.scopeOut || '', constraints: item.constraints || '', knownRisks: item.knownRisks || '',
+        phase:'Discovery', status:'green', budget: item.budgetEstimate || '', startDate:'', endDate:'',
+        tpmAllocations: tpmId ? [{tpmId, pct}] : [],
+        artifacts:{},
+        okrTied: item.okrTied, okrName: item.okrName, size: item.size, teams: item.teams, global: item.global, complexity: item.complexity,
+        initiativeType: item.initiativeType, customerImpactPct: item.customerImpactPct, newCustomers: item.newCustomers, netNewRevenue: item.netNewRevenue,
+        existingCustomerCoveragePct: item.existingCustomerCoveragePct, customersAtRiskPct: item.customersAtRiskPct, revenueAtRisk: item.revenueAtRisk, qualityDimensions: item.qualityDimensions,
+        targetDate: item.targetDate, scoreSource: item.scoreSource, agentAssessment: item.agentAssessment, priorityTriage: item.triage || null,
+        fromIntakeId: item.id
+      };
+      STATE.programs.push(newProgram);
+      item.approvedProgramId = newProgram.id;
+      UI.approvingIntakeId = null;
+      UI.view = 'programDetail'; UI.programId = newProgram.id; UI.tab = 'charter';
+      saveState(); render();
+    });
+
+    const cf = document.getElementById('contentForm');
+    if(cf) cf.addEventListener('submit', e=>{
+      e.preventDefault();
+      const item = STATE.intake.find(i=>i.id===cf.dataset.id);
+      const fd = new FormData(cf);
+      item.executiveSponsor = fd.get('executiveSponsor');
+      item.budgetEstimate = fd.get('budgetEstimate');
+      item.requirements = fd.get('requirements');
+      item.successCriteria = fd.get('successCriteria');
+      item.scopeIn = fd.get('scopeIn');
+      item.scopeOut = fd.get('scopeOut');
+      item.constraints = fd.get('constraints');
+      item.knownRisks = fd.get('knownRisks');
+      item.contentDraftSource = 'override';
+      saveState(); render();
+    });
+
+    const scf = document.getElementById('scoreForm');
+    if(scf) scf.addEventListener('submit', e=>{
+      e.preventDefault();
+      const item = STATE.intake.find(i=>i.id===scf.dataset.id);
+      const fd = new FormData(scf);
+      item.okrTied = fd.get('okrTied');
+      item.okrName = fd.get('okrName');
+      item.size = fd.get('size');
+      item.complexity = fd.get('complexity');
+      item.teams = fd.getAll('teams');
+      item.global = fd.get('global') === 'on';
+      item.initiativeType = fd.get('initiativeType')||'Product';
+      item.customerImpactPct = fd.get('customerImpactPct');
+      item.newCustomers = fd.get('newCustomers');
+      item.netNewRevenue = fd.get('netNewRevenue');
+      item.existingCustomerCoveragePct = fd.get('existingCustomerCoveragePct');
+      item.customersAtRiskPct = fd.get('customersAtRiskPct');
+      item.revenueAtRisk = fd.get('revenueAtRisk');
+      item.qualityDimensions = fd.getAll('qualityDimensions');
+      item.scoreSource = 'override';
+      saveState(); render();
+    });
+
+    const ntf = document.getElementById('newTpmForm');
+    if(ntf) ntf.addEventListener('submit', e=>{
+      e.preventDefault();
+      const fd = new FormData(ntf);
+      STATE.tpms.push({id:uid('tpm'), name:fd.get('name'), capacityPct: Number(fd.get('capacityPct'))||100});
+      saveState(); render();
+    });
+
+    const eof = document.getElementById('editOverviewForm');
+    if(eof) eof.addEventListener('submit', e=>{
+      e.preventDefault();
+      const p = getProgram(UI.programId);
+      const fd = new FormData(eof);
+      Object.assign(p, {
+        name: fd.get('name'), sponsor: fd.get('sponsor'), objective: fd.get('objective'), valueProp: fd.get('valueProp'),
+        requirements: fd.get('requirements'), successCriteria: fd.get('successCriteria'), scopeIn: fd.get('scopeIn'), scopeOut: fd.get('scopeOut'), constraints: fd.get('constraints'), knownRisks: fd.get('knownRisks'),
+        phase: fd.get('phase'), status: fd.get('status'), startDate: fd.get('startDate'),
+        endDate: fd.get('endDate'), budget: fd.get('budget')
+      });
+      saveState(); render();
+    });
+
+    const aaf = document.getElementById('addAllocForm');
+    if(aaf) aaf.addEventListener('submit', e=>{
+      e.preventDefault();
+      const p = getProgram(UI.programId);
+      const fd = new FormData(aaf);
+      const tpmId = fd.get('tpmId');
+      const pct = Number(fd.get('pct'))||0;
+      const t = getTpm(tpmId);
+      if(t){
+        const cap = effectiveCap(t);
+        const currentLoad = tpmLoad(tpmId);
+        const newLoad = currentLoad + pct;
+        if(newLoad > cap){
+          const over = newLoad - cap;
+          const proceed = window.confirm(`This would put ${t.name} at ${newLoad}% load \u2014 ${over}% over their ${cap}% cap (${Math.round(MAX_ALLOCATION_RATIO*100)}% of ${t.capacityPct}% capacity). Add anyway?`);
+          if(!proceed) return;
+        }
+      }
+      p.tpmAllocations = p.tpmAllocations || [];
+      p.tpmAllocations.push({tpmId, pct});
+      saveState(); render();
+    });
+  }
+
+  document.getElementById('app').addEventListener('click', function(e){
+    const el = e.target.closest('[data-action]');
+    if(!el) return;
+    const action = el.dataset.action;
+    if(action==='nav'){ UI.view = el.dataset.view; UI.programId=null; render(); }
+    else if(action==='toggle-dictation'){ toggleDictation(); }
+    else if(action==='parse-transcript'){ parseTranscriptAndFill(); }
+    else if(action==='open-program'){ UI.view='programDetail'; UI.programId=el.dataset.id; UI.tab='overview'; render(); }
+    else if(action==='set-tab'){ UI.tab = el.dataset.key; render(); }
+    else if(action==='generate'){ generateArtifact(UI.programId, el.dataset.key); }
+    else if(action==='generate-priority'){ generateProgramPriority(el.dataset.id); }
+    else if(action==='revert-program-score'){
+      const p = getProgram(el.dataset.id);
+      if(p && p.agentAssessment){
+        Object.assign(p, p.agentAssessment);
+        p.scoreSource = 'agent';
+        saveState(); render();
+      }
+    }
+    else if(action==='delete-program'){ STATE.programs = STATE.programs.filter(p=>p.id!==el.dataset.id); saveState(); render(); }
+    else if(action==='delete-tpm'){ STATE.tpms = STATE.tpms.filter(t=>t.id!==el.dataset.id); saveState(); render(); }
+    else if(action==='revert-content'){
+      const item = STATE.intake.find(i=>i.id===el.dataset.id);
+      if(item && item.agentContentDraft){
+        Object.assign(item, item.agentContentDraft);
+        item.contentDraftSource = 'agent';
+        saveState(); render();
+      }
+    }
+    else if(action==='revert-score'){
+      const item = STATE.intake.find(i=>i.id===el.dataset.id);
+      if(item && item.agentAssessment){
+        Object.assign(item, item.agentAssessment);
+        item.scoreSource = 'agent';
+        saveState(); render();
+      }
+    }
+    else if(action==='toggle-intake'){ UI.expandedIntake = (UI.expandedIntake===el.dataset.id) ? null : el.dataset.id; render(); }
+    else if(action==='generate-intake'){ generateIntakeTriage(el.dataset.id); }
+    else if(action==='approve-intake'){
+      UI.expandedIntake = el.dataset.id;
+      UI.approvingIntakeId = el.dataset.id;
+      render();
+    }
+    else if(action==='cancel-approve'){ UI.approvingIntakeId = null; render(); }
+    else if(action==='reject-intake'){ const item = STATE.intake.find(i=>i.id===el.dataset.id); item.status='rejected'; saveState(); render(); }
+    else if(action==='remove-alloc'){ const p = getProgram(UI.programId); p.tpmAllocations.splice(Number(el.dataset.idx),1); saveState(); render(); }
+  });
+
+  loadState();
+})();
+</script>

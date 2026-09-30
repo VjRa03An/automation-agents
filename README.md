@@ -6,6 +6,9 @@ Built with Python, GitHub Actions, and the Claude API.
 
 ## What's in here
 
+### `agentic-pmo-suite/`
+A single-file agentic PMO tool: named AI agents (Charter, Project Plan, Status Report, Risk Register, Dependency Tracker, OKR Report, Landing Page, Intake, Prioritization) that draft every standard PMO artifact for a program from a shared, grounded context object, plus intake triage, OKR-gated prioritization scoring, and TPM capacity governance. See its own README for details and the current limitation on running it outside Claude.ai.
+
 ### `forex-agent/`
 Daily USD→INR exchange rate digest. Checks multiple rate providers, compares against a target threshold, and emails a summary with Claude-generated commentary. Runs daily via GitHub Actions.
 
