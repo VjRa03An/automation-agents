@@ -30,7 +30,8 @@
   .rail{width:200px;flex-shrink:0;background:var(--surface);border-right:1px solid var(--border);padding:20px 12px;display:flex;flex-direction:column;gap:2px;}
   .brand{font-family:var(--disp);font-weight:700;font-size:15px;letter-spacing:0.02em;padding:4px 10px 4px;color:var(--text);}
   .brand small{display:block;font-family:var(--mono);font-weight:400;font-size:10px;color:var(--text-faint);margin-top:3px;letter-spacing:0.04em;text-transform:uppercase;}
-  .rail-status{font-family:var(--mono);font-size:10px;color:var(--green);padding:6px 10px 18px;letter-spacing:0.03em;display:flex;align-items:center;gap:6px;}
+  .rail-status{font-family:var(--mono);font-size:10px;color:var(--green);padding:6px 10px 10px;letter-spacing:0.03em;display:flex;align-items:center;gap:6px;}
+  .wip-badge{font-family:var(--mono);font-size:9.5px;color:var(--amber);background:var(--amber-dim);border:1px solid var(--amber);border-radius:4px;padding:4px 8px;margin:0 10px 16px;letter-spacing:0.03em;text-align:center;}
   .pip{width:6px;height:6px;border-radius:50%;background:var(--green);box-shadow:0 0 6px var(--green);}
   .navbtn{display:flex;align-items:center;gap:10px;padding:9px 10px;border-radius:7px;color:var(--text-muted);cursor:pointer;font-size:13px;font-weight:500;border:1px solid transparent;}
   .navbtn:hover{background:var(--surface-2);color:var(--text);}
@@ -877,7 +878,8 @@ Quantified data on file: ${p.initiativeType==='Platform'
       programs: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7z"/></svg>',
       intake: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M4 4h16v12H8l-4 4V4z"/></svg>',
       team: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="9" cy="8" r="3"/><path d="M2 20c0-3.3 3-6 7-6s7 2.7 7 6"/><circle cx="17" cy="9" r="2.3"/><path d="M16 14.2c2.6.3 5 2 5 5.8"/></svg>',
-      priority: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M4 19V10M12 19V5M20 19v-6"/></svg>'
+      priority: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M4 19V10M12 19V5M20 19v-6"/></svg>',
+      roadmap: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M3 12h4l2-7 4 14 2-7h6"/></svg>'
     };
     return icons[name]||'';
   }
@@ -889,11 +891,13 @@ Quantified data on file: ${p.initiativeType==='Platform'
       {key:'programs', label:'Programs'},
       {key:'intake', label:'Intake'},
       {key:'team', label:'TPM Team'},
+      {key:'roadmap', label:'Roadmap & Scope'},
     ];
     return `
       <div class="rail">
         <div class="brand">PMO Agent Suite<small>Program Command Center</small></div>
         <div class="rail-status"><span class="pip"></span>7 AGENTS ONLINE</div>
+        <div class="wip-badge">WORK IN PROGRESS — PROTOTYPE</div>
         ${items.map(it=>`<div class="navbtn ${UI.view===it.key?'active':''}" data-action="nav" data-view="${it.key}">${navIcon(it.key)}${it.label}</div>`).join('')}
       </div>`;
   }
@@ -1289,6 +1293,73 @@ Quantified data on file: ${p.initiativeType==='Platform'
     `;
   }
 
+  // Honest, self-reported scope assessment — kept here as code (not just a slide)
+  // specifically so it can be shown live, in the same tool, next to the thing it is
+  // judging. A roadmap that only exists in a separate deck is easy to lose track of.
+  const ROADMAP_DATA = {
+    covered: [
+      {t:'Intake & AI Triage', d:'Structured submission form; Intake Agent drafts problem statement, value-prop quality check, OKR alignment, requirements/scope/risks for human review.'},
+      {t:'OKR-Gated Prioritization Scoring', d:'Fixed rubric — OKR tie as a hard gate, size, team spread/global reach, complexity, 9-point value component.'},
+      {t:'Product vs. Platform Value Tracks', d:'Parallel, equally-weighted scoring so infra/reliability work isn’t structurally penalized next to revenue-generating work.'},
+      {t:'Human Override, Badged & Reversible', d:'Any agent score or draft can be overridden by a leader, clearly tagged, and reverted back to the agent’s original output.'},
+      {t:'TPM Capacity Governance', d:'No TPM allocated above 80% of stated capacity — enforced on intake approval and manual allocation changes.'},
+      {t:'Seven Templated Artifact Agents', d:'Charter, Plan, Status, Risk Register, Dependency Tracker, OKR Report, Landing Page — each grounded in shared program context, each against a fixed section template.'},
+      {t:'Risk Register with Pattern Library', d:'A seeded set of risks from prior programs, matched by initiative type/teams/keywords and surfaced before generation.'},
+      {t:'Voice / Transcript Intake', d:'Paste a transcript (or live dictation) and a Transcript Parser Agent fills the intake form.'},
+      {t:'OKR / Metric Consistency Check', d:'Rule-based (non-agent) flag when a program’s named OKR doesn’t match the category of metric it actually tracks.'},
+      {t:'Consolidated Program Tracker', d:'Portfolio-level view of RAG, phase, budget, and TPM allocation across all active programs.'},
+    ],
+    partial: [
+      {t:'Portfolio-Level Rollups', d:'The tracker shows per-program status, but there’s no aggregate view yet — e.g. “% of portfolio / TPM capacity that’s OKR-aligned.”'},
+      {t:'Cross-Program Dependencies', d:'Tracked per-program; no system-enforced graph linking one program’s dependency to another program’s deliverable.'},
+      {t:'Stakeholder & Communications', d:'Charter has a static RACI and there’s a Landing Page agent, but no live stakeholder register or comms-plan tracking over time.'},
+      {t:'Governance / Stage-Gates', d:'Phase is tracked as a field; there’s no formal gate-approval workflow or exit-criteria checklist.'},
+    ],
+    notBuilt: [
+      {t:'Financial Management', d:'Budget is a static text field — no actuals-vs-plan, burn rate, or earned value (EV/CPI/SPI).'},
+      {t:'Benefits Realization', d:'The OKR Report is a point-in-time estimate at generation time; nothing closes the loop after launch to confirm the benefit actually materialized.'},
+      {t:'Change Control', d:'No scope-change log or formal re-baselining process.'},
+      {t:'Audit Trail on Overrides', d:'Overrides are badged and reversible, but there’s no timestamped who/when/why history yet.'},
+      {t:'Duplicate / Overlap Detection', d:'Nothing yet stops two similar requests from entering intake as if unrelated.'},
+      {t:'Real System Integration', d:'All data is seeded/manual — nothing talks to Jira, Workday, a financial system, or an HRIS.'},
+      {t:'Production Readiness', d:'Single file, sandbox-only AI access, no auth/RBAC, no multi-tenant data model.'},
+    ],
+  };
+
+  function roadmapGroup(title, items, color, note){
+    const rows = items.map(it=>`
+      <div style="padding:10px 0;border-bottom:1px solid var(--border);">
+        <div style="font-weight:600;color:${color};font-size:12.5px;">${it.t}</div>
+        <div style="color:var(--text-muted);font-size:12px;margin-top:2px;line-height:1.5;">${it.d}</div>
+      </div>`).join('');
+    return `
+      <div class="card">
+        <h3 style="margin:0 0 4px;font-family:var(--disp);font-size:14px;color:${color};">${title} <span style="color:var(--text-faint);font-weight:400;font-size:12px;">(${items.length})</span></h3>
+        ${note ? `<div style="color:var(--text-faint);font-size:11.5px;margin-bottom:6px;">${note}</div>` : ''}
+        <div>${rows}</div>
+      </div>`;
+  }
+
+  function renderRoadmap(){
+    return `
+      <div class="pagehead">
+        <h1>Roadmap &amp; Scope</h1>
+        <p>An honest accounting of what this prototype actually does today, what's half-built, and what hasn't been attempted — kept in the tool itself rather than a separate slide.</p>
+      </div>
+      <div class="card" style="border-color:var(--amber);background:rgba(230,169,61,0.06);">
+        <div style="font-family:var(--mono);font-size:11px;color:var(--amber);letter-spacing:0.03em;margin-bottom:6px;">STATUS: WORK IN PROGRESS — NOT A FINISHED PRODUCT</div>
+        <div style="font-size:12.5px;color:var(--text);line-height:1.6;">
+          Against what this prototype actually set out to prove — AI-agent-driven PMO artifact generation plus OKR-gated intake governance — it's roughly <strong>75–80% there</strong>.
+          Against a full enterprise Portfolio Management Office function — financials, benefits realization, governance gates, real system integration — it's closer to <strong>35–40%</strong>.
+          The gap is deliberate scope, not an oversight: the parts below that are genuinely hard to fake (financial tracking, closed-loop benefits realization, real integrations) are the parts not yet attempted.
+        </div>
+      </div>
+      ${roadmapGroup('Built & Working', ROADMAP_DATA.covered, 'var(--green)')}
+      ${roadmapGroup('Partially Covered', ROADMAP_DATA.partial, 'var(--amber)')}
+      ${roadmapGroup('Not Yet Built', ROADMAP_DATA.notBuilt, 'var(--red)', 'Next in line: a lightweight OKR-alignment portfolio rollup and a timestamped override audit trail — both scoped, neither built yet.')}
+    `;
+  }
+
   function renderProgramDetail(){
     const p = getProgram(UI.programId);
     if(!p){ UI.view='programs'; return renderProgramsList(); }
@@ -1474,6 +1545,7 @@ Quantified data on file: ${p.initiativeType==='Platform'
     else if(UI.view==='programDetail') mainHtml = renderProgramDetail();
     else if(UI.view==='intake') mainHtml = renderIntake();
     else if(UI.view==='team') mainHtml = renderTeam();
+    else if(UI.view==='roadmap') mainHtml = renderRoadmap();
 
     app.innerHTML = `${renderRail()}<main>${mainHtml}<div class="footer-credit">PMO Agent Suite \u00b7 agents run on Claude \u00b7 built by Venkatesh Subramanyam</div></main>`;
     attachFormHandlers();
