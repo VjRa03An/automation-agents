@@ -115,7 +115,7 @@
     {key:'landing', label:'Landing Page', agent:'landing-agent-v1'},
   ];
 
-  // Fixed section skeleton per artifact type — the actual PMO "template" each agent
+  // Fixed section skeleton per artifact type \u2014 the actual PMO "template" each agent
   // is required to fill. Keep this in sync with the section list baked into buildPrompt()
   // below, since the whole point of a template is that generated output can be checked
   // against a known, named shape rather than whatever markdown the agent feels like producing.
@@ -212,7 +212,7 @@
   }
 
   // Structural (non-agent) check: does the named OKR's own language plausibly match
-  // the category of metric this program is actually tracking? Rule-based on purpose —
+  // the category of metric this program is actually tracking? Rule-based on purpose \u2014
   // an OKR tie should be caught by the system, not left for an agent to notice on its own.
   function checkOkrMetricAlignment(p){
     if(p.okrTied !== 'yes' || !p.okrName) return null;
@@ -236,7 +236,7 @@
     const metricList = metrics.join(', ');
 
     if(isCostOKR){
-      return `OKR "${p.okrName}" is a cost/efficiency objective, but this program tracks ${metricList} — none of which measure cost or spend. Either the OKR tie or the tracked metrics likely need reconciling.`;
+      return `OKR "${p.okrName}" is a cost/efficiency objective, but this program tracks ${metricList} \u2014 none of which measure cost or spend. Either the OKR tie or the tracked metrics likely need reconciling.`;
     }
     if(isRevenueGrowthOKR && p.initiativeType === 'Platform'){
       return `OKR "${p.okrName}" is framed as revenue growth, but this is a Platform initiative tracked on ${metricList} (loss-avoidance, not growth). Double-check the OKR tie.`;
@@ -260,13 +260,13 @@
     {id:'rp1', description:'Legacy system cutover ran a dual-write period longer than planned, letting data drift between old and new systems.', teams:['Data','Backend'], keywords:['migration','cutover','legacy','decommission'], mitigation:'Define and rehearse the cutover runbook with a hard dual-write deadline and automated reconciliation checks before go-live.', source:'Ledger Consolidation (2024)', timesObserved:3},
     {id:'rp2', description:"A third-party vendor changed their contract or API without enough notice, breaking an integration mid-program.", teams:['Integration'], keywords:['vendor','third-party','partner','api'], mitigation:'Establish a named vendor point of contact and a change-notification SLA in the contract; add a compatibility test suite that runs against the vendor sandbox.', source:'Partner Billing Add-on (2023)', timesObserved:4},
     {id:'rp3', description:'Security or compliance review was not scheduled until late in the program, creating a launch-blocking bottleneck.', keywords:['security','compliance','audit','gdpr','hipaa','residency','regulat'], mitigation:'Schedule the security/compliance review at kickoff, not before launch, with a defined SLA for turnaround.', source:'Encryption-at-Rest Rollout (2024)', timesObserved:5},
-    {id:'rp4', description:'Teams spread across time zones caused decision latency on cross-team blockers.', global:true, keywords:[], mitigation:'Establish a standing async decision log and a rotating overlap-hours sync so cross-region blockers don’t wait a full day for an answer.', source:'Prior global re-platform program', timesObserved:2},
+    {id:'rp4', description:'Teams spread across time zones caused decision latency on cross-team blockers.', global:true, keywords:[], mitigation:'Establish a standing async decision log and a rotating overlap-hours sync so cross-region blockers don\u2019t wait a full day for an answer.', source:'Prior global re-platform program', timesObserved:2},
     {id:'rp5', description:'Mobile/client release cadence lagged the backend, leaving a finished feature dark for a full release cycle.', teams:['UI'], keywords:['mobile','app','client','portal'], mitigation:'Feature-flag backend changes so they can ship ahead of the client release without being user-visible until the client catches up.', source:'Customer Portal Revamp (2023)', timesObserved:2},
     {id:'rp6', description:'Data residency or regional storage requirements were discovered mid-build, forcing a rearchitecture of the data layer.', teams:['Data'], keywords:['residency','region','gdpr','compliance','data platform'], mitigation:'Confirm data residency requirements during discovery, before committing to a single-region data architecture.', source:'EU Data Localization (2024)', timesObserved:3},
     {id:'rp7', description:'Customer communication about a breaking change went out later than the change itself, driving avoidable support escalations.', keywords:['billing','customer','communication','self-serve'], mitigation:'Lock the customer-comms timeline to the technical cutover plan at kickoff, not after the change ships.', source:'Billing Platform Migration (2022)', timesObserved:3},
     {id:'rp8', description:'A single subject-matter expert became a review bottleneck, and their unplanned absence stalled the program for weeks.', sizes:['XL','XXL'], keywords:[], mitigation:'Cross-train a second reviewer/approver before the program reaches its critical path.', source:'Recurring pattern across large programs', timesObserved:6},
-    {id:'rp9', description:'API gateway or auth changes broke backward compatibility for integration partners who hadn’t been given a migration window.', teams:['Integration','Backend'], keywords:['api','gateway','auth','microservice'], mitigation:'Version the API and give partners a minimum notice window with a published deprecation timeline.', source:'Service Mesh Rollout (2024)', timesObserved:3},
-    {id:'rp10', description:'Existing service reliability regressed during a platform migration because load testing didn’t cover real peak-traffic patterns.', initiativeType:'Platform', qualityDimensions:['Reliability','Availability'], keywords:['migration','platform','decompos'], mitigation:'Load-test against a replay of real peak traffic before cutover, not synthetic average-load tests.', source:'Core Services Re-platform (2023)', timesObserved:4},
+    {id:'rp9', description:'API gateway or auth changes broke backward compatibility for integration partners who hadn\u2019t been given a migration window.', teams:['Integration','Backend'], keywords:['api','gateway','auth','microservice'], mitigation:'Version the API and give partners a minimum notice window with a published deprecation timeline.', source:'Service Mesh Rollout (2024)', timesObserved:3},
+    {id:'rp10', description:'Existing service reliability regressed during a platform migration because load testing didn\u2019t cover real peak-traffic patterns.', initiativeType:'Platform', qualityDimensions:['Reliability','Availability'], keywords:['migration','platform','decompos'], mitigation:'Load-test against a replay of real peak traffic before cutover, not synthetic average-load tests.', source:'Core Services Re-platform (2023)', timesObserved:4},
   ];
 
   function matchRiskPatterns(p){
@@ -653,16 +653,16 @@ Target Date: ${p.targetDate || 'TBD'}`;
       : '';
     const map = {
       charter: `You are a Charter Agent for an enterprise PMO. Draft a Program Charter with sections: Purpose, Objectives (3-5 bullets), Scope (In / Out of scope), Success Criteria, Key Stakeholders (brief RACI table), High-Level Timeline, Budget Summary, Assumptions & Constraints, Governance & Escalation Path. Where the context below already states requirements, success criteria, scope, constraints, sponsor, or budget, use that information directly rather than inventing your own \u2014 only fill gaps the context leaves open, and note explicitly if a section has no grounding to work from. ${common}\n\n${ctx}`,
-      plan: `You are a Project Plan Agent for an enterprise PMO. Draft a phase-based Project Plan: a markdown table of milestones (Phase, Milestone, Target, Deliverable), followed by a short "Key Dependencies" list. Where the context states high-level requirements, build milestones and deliverables directly around those requirements rather than inventing generic ones — each stated requirement should be traceable to at least one milestone. Where known risks/dependencies were already reported, list those specific ones first under Key Dependencies before adding further plausible ones. If no requirements are given, say so and build the plan from the objective/value proposition alone, noting it's a rougher estimate as a result. ${common}\n\n${ctx}`,
-      status: `You are a Status Reporting Agent for an enterprise PMO. Draft a single-period Status Report with: Overall RAG status and one-line rationale, Accomplishments This Period (bullets), Planned Next Period (bullets), Key Risks/Issues (bullets), Decisions Needed From Sponsor, Key Metrics snapshot (small table). Ground the RAG rationale and Key Risks/Issues in any known risks/dependencies and constraints already on file, listing those specifically before adding further plausible ones. The Key Metrics snapshot should reference the program's actual quantified targets (customer impact, revenue, or coverage/churn/risk figures) from the context rather than inventing unrelated metrics — show current progress toward those specific numbers, not generic placeholders. ${common}\n\n${ctx}`,
-      risk: `You are a Risk Register Agent for an enterprise PMO. Produce a markdown table with columns: ID, Risk Description, Likelihood (H/M/L), Impact (H/M/L), Mitigation, Owner, Status. Priority order for rows: (1) any risks or dependencies already reported at intake — include those as specific rows first, don't paraphrase them into something generic; (2) any risk patterns matched from similar past programs, listed below — include these next, adapting the mitigation to this program's specifics, and note in the Status or a short parenthetical that it's a recurring pattern from prior programs; (3) further realistic risks appropriate to this program's domain and current phase, to reach 5-7 total. ${common}\n\n${ctx}${riskPatternContext}`,
+      plan: `You are a Project Plan Agent for an enterprise PMO. Draft a phase-based Project Plan: a markdown table of milestones (Phase, Milestone, Target, Deliverable), followed by a short "Key Dependencies" list. Where the context states high-level requirements, build milestones and deliverables directly around those requirements rather than inventing generic ones \u2014 each stated requirement should be traceable to at least one milestone. Where known risks/dependencies were already reported, list those specific ones first under Key Dependencies before adding further plausible ones. If no requirements are given, say so and build the plan from the objective/value proposition alone, noting it's a rougher estimate as a result. ${common}\n\n${ctx}`,
+      status: `You are a Status Reporting Agent for an enterprise PMO. Draft a single-period Status Report with: Overall RAG status and one-line rationale, Accomplishments This Period (bullets), Planned Next Period (bullets), Key Risks/Issues (bullets), Decisions Needed From Sponsor, Key Metrics snapshot (small table). Ground the RAG rationale and Key Risks/Issues in any known risks/dependencies and constraints already on file, listing those specifically before adding further plausible ones. The Key Metrics snapshot should reference the program's actual quantified targets (customer impact, revenue, or coverage/churn/risk figures) from the context rather than inventing unrelated metrics \u2014 show current progress toward those specific numbers, not generic placeholders. ${common}\n\n${ctx}`,
+      risk: `You are a Risk Register Agent for an enterprise PMO. Produce a markdown table with columns: ID, Risk Description, Likelihood (H/M/L), Impact (H/M/L), Mitigation, Owner, Status. Priority order for rows: (1) any risks or dependencies already reported at intake \u2014 include those as specific rows first, don't paraphrase them into something generic; (2) any risk patterns matched from similar past programs, listed below \u2014 include these next, adapting the mitigation to this program's specifics, and note in the Status or a short parenthetical that it's a recurring pattern from prior programs; (3) further realistic risks appropriate to this program's domain and current phase, to reach 5-7 total. ${common}\n\n${ctx}${riskPatternContext}`,
       dependency: `You are a Dependency Tracker Agent for an enterprise PMO. Produce a markdown table with columns: ID, Dependency, Owning Team, Needed By, Status, Impact if Delayed. If any dependencies were already reported at intake, include those as specific rows first, then add further realistic cross-team dependencies to reach 4-6 total. ${common}\n\n${ctx}`,
-      okr: `You are an OKR Reporting Agent for an enterprise PMO. Produce 1 Objective with 3-4 Key Results relevant to this program, each with a plausible current progress percentage and a one-line commentary. Format as a markdown table (Key Result, Target, Current, Commentary). If the context gives a named OKR this program is tied to, use that exact OKR as the Objective rather than inventing a different one — if it says no OKR is evident, say so plainly as the Objective and note that Key Results below are therefore speculative. Key Results should be built from the program's actual quantified targets (customer impact %, new customers, net new revenue, or coverage/churn-risk/revenue-at-risk figures) rather than generic invented metrics — turn each real number on file into a Key Result with a plausible current-progress estimate toward it. ${common}\n\n${ctx}`,
-      landing: `You are a Program Landing Page Agent for an enterprise PMO. Write internal one-page program landing copy: a one-sentence elevator pitch, "Why This Matters" (2-3 sentences), Current Status callout with rationale, Team & Contacts (placeholders), FAQ (2-3 Q&As). Base the elevator pitch and "Why This Matters" directly on the value proposition and success criteria given, rather than a generic restatement of the objective — the value prop's actual numbers (customer impact, revenue, or risk-avoided) belong in "Why This Matters," not just the Key Metrics of other artifacts. Use the named sponsor for Team & Contacts if given, and a generic placeholder if not. Write for a general internal audience, not just PMO insiders. ${common}\n\n${ctx}`,
+      okr: `You are an OKR Reporting Agent for an enterprise PMO. Produce 1 Objective with 3-4 Key Results relevant to this program, each with a plausible current progress percentage and a one-line commentary. Format as a markdown table (Key Result, Target, Current, Commentary). If the context gives a named OKR this program is tied to, use that exact OKR as the Objective rather than inventing a different one \u2014 if it says no OKR is evident, say so plainly as the Objective and note that Key Results below are therefore speculative. Key Results should be built from the program's actual quantified targets (customer impact %, new customers, net new revenue, or coverage/churn-risk/revenue-at-risk figures) rather than generic invented metrics \u2014 turn each real number on file into a Key Result with a plausible current-progress estimate toward it. ${common}\n\n${ctx}`,
+      landing: `You are a Program Landing Page Agent for an enterprise PMO. Write internal one-page program landing copy: a one-sentence elevator pitch, "Why This Matters" (2-3 sentences), Current Status callout with rationale, Team & Contacts (placeholders), FAQ (2-3 Q&As). Base the elevator pitch and "Why This Matters" directly on the value proposition and success criteria given, rather than a generic restatement of the objective \u2014 the value prop's actual numbers (customer impact, revenue, or risk-avoided) belong in "Why This Matters," not just the Key Metrics of other artifacts. Use the named sponsor for Team & Contacts if given, and a generic placeholder if not. Write for a general internal audience, not just PMO insiders. ${common}\n\n${ctx}`,
     };
     const tmpl = ARTIFACT_TEMPLATES[type];
     const templateInstruction = tmpl
-      ? `\n\nUse exactly these section headers, as markdown ## headings, in this order (this is the standard PMO template for this artifact type — do not rename, reorder, merge, or drop any of them, and do not add extra top-level sections): ${tmpl.sections.map(s=>`"${s}"`).join(', ')}.`
+      ? `\n\nUse exactly these section headers, as markdown ## headings, in this order (this is the standard PMO template for this artifact type \u2014 do not rename, reorder, merge, or drop any of them, and do not add extra top-level sections): ${tmpl.sections.map(s=>`"${s}"`).join(', ')}.`
       : '';
     return map[type] + templateInstruction;
   }
@@ -897,7 +897,7 @@ Quantified data on file: ${p.initiativeType==='Platform'
       <div class="rail">
         <div class="brand">PMO Agent Suite<small>Program Command Center</small></div>
         <div class="rail-status"><span class="pip"></span>7 AGENTS ONLINE</div>
-        <div class="wip-badge">WORK IN PROGRESS — PROTOTYPE</div>
+        <div class="wip-badge">WORK IN PROGRESS \u2014 PROTOTYPE</div>
         ${items.map(it=>`<div class="navbtn ${UI.view===it.key?'active':''}" data-action="nav" data-view="${it.key}">${navIcon(it.key)}${it.label}</div>`).join('')}
       </div>`;
   }
@@ -1293,7 +1293,7 @@ Quantified data on file: ${p.initiativeType==='Platform'
     `;
   }
 
-  // Honest, self-reported scope assessment — kept here as code (not just a slide)
+  // Honest, self-reported scope assessment \u2014 kept here as code (not just a slide)
   // specifically so it can be shown live, in the same tool, next to the thing it is
   // judging. A roadmap that only exists in a separate deck is easy to lose track of.
   // The roadmap IS the PfMO Function Map: the 14 standard functions of a Portfolio
@@ -1306,15 +1306,15 @@ Quantified data on file: ${p.initiativeType==='Platform'
     {fn:'Prioritization & Selection', owns:'Ranks competing investments against a defensible, repeatable method instead of politics or recency.', status:'Built', proto:'Fixed rubric (OKR gate, size, team spread, complexity, 9-pt value score), with equally-weighted tracks for revenue-generating vs. reliability/infra work.'},
     {fn:'Program Artifact Standards', owns:'Defines and enforces a consistent shape for charters, plans, status reports, etc. across every program.', status:'Built', proto:'Seven agents (Charter, Plan, Status, Risk Register, Dependency Tracker, OKR Report, Landing Page), each against a fixed template, grounded in shared context.'},
     {fn:'Resource & Capacity Management', owns:'Tracks who/what is allocated where, and prevents silent over-commitment of scarce delivery capacity.', status:'Partial', proto:"TPM allocation is capped at 80% of capacity and enforced automatically. Broader engineering/budget capacity isn't modeled."},
-    {fn:'Risk, Issue & Knowledge Management', owns:'Surfaces and mitigates risk, and carries lessons from past programs forward instead of relearning them.', status:'Partial', proto:'Per-program risk register plus a seeded pattern library matched from prior programs — not yet fed by a live, closed-loop post-mortem process.'},
+    {fn:'Risk, Issue & Knowledge Management', owns:'Surfaces and mitigates risk, and carries lessons from past programs forward instead of relearning them.', status:'Partial', proto:'Per-program risk register plus a seeded pattern library matched from prior programs \u2014 not yet fed by a live, closed-loop post-mortem process.'},
     {fn:'Dependency Management', owns:'Tracks what one program needs from another, and sequences work accordingly.', status:'Partial', proto:"Tracked within each program; no system-enforced graph linking one program's dependency to another's actual deliverable."},
-    {fn:'Portfolio Reporting & Rollups', owns:'Gives leadership one aggregate view of portfolio health, not a dozen separate decks.', status:'Partial', proto:'A tracker shows per-program RAG/budget/TPM load; no rolled-up “% of portfolio OKR-aligned” or capacity heat map yet.'},
-    {fn:'Financial Management', owns:'Tracks budget vs. actuals, burn rate, and earned value across the portfolio.', status:'Not Yet', proto:'Budget is a static field today — no actuals, forecasting, or EVM (CPI/SPI).'},
+    {fn:'Portfolio Reporting & Rollups', owns:'Gives leadership one aggregate view of portfolio health, not a dozen separate decks.', status:'Partial', proto:'A tracker shows per-program RAG/budget/TPM load; no rolled-up \u201c% of portfolio OKR-aligned\u201d or capacity heat map yet.'},
+    {fn:'Financial Management', owns:'Tracks budget vs. actuals, burn rate, and earned value across the portfolio.', status:'Not Yet', proto:'Budget is a static field today \u2014 no actuals, forecasting, or EVM (CPI/SPI).'},
     {fn:'Benefits Realization', owns:'Confirms, after delivery, that the value promised at intake was actually achieved.', status:'Not Yet', proto:'The OKR Report is a point-in-time estimate at generation time; nothing closes the loop after launch.'},
     {fn:'Governance & Stage-Gates', owns:'Enforces formal go/no-go decisions at defined checkpoints, with documented exit criteria.', status:'Not Yet', proto:"Phase is tracked as a field; there's no formal gate-approval workflow."},
     {fn:'Change Control', owns:'Manages and documents changes to scope, schedule, or budget baselines.', status:'Not Yet', proto:"No scope-change log or re-baselining process exists yet."},
     {fn:'Audit & Compliance', owns:'Maintains a defensible record of who decided what, and when.', status:'Not Yet', proto:"Overrides are badged and reversible; a timestamped who/when/why log doesn't exist yet."},
-    {fn:'Tooling & System Integration', owns:'Connects PfMO views to systems of record (ticketing, HRIS, financials) so data isn’t re-entered by hand.', status:'Not Yet', proto:'Fully standalone — all data is seeded/manual; no real integrations.'},
+    {fn:'Tooling & System Integration', owns:'Connects PfMO views to systems of record (ticketing, HRIS, financials) so data isn\u2019t re-entered by hand.', status:'Not Yet', proto:'Fully standalone \u2014 all data is seeded/manual; no real integrations.'},
   ];
   const STATUS_COLOR = {Built:'var(--green)', Partial:'var(--amber)', 'Not Yet':'var(--text-faint)'};
 
@@ -1332,13 +1332,13 @@ Quantified data on file: ${p.initiativeType==='Platform'
       </tr>`).join('');
     return `
       <div class="pagehead">
-        <h1>Roadmap &amp; Scope — The PfMO Function Map</h1>
-        <p>What a Portfolio Management Office actually does, mapped against what this prototype covers today — kept in the tool itself rather than only a separate slide.</p>
+        <h1>Roadmap &amp; Scope \u2014 The PfMO Function Map</h1>
+        <p>What a Portfolio Management Office actually does, mapped against what this prototype covers today \u2014 kept in the tool itself rather than only a separate slide.</p>
       </div>
       <div class="card" style="border-color:var(--amber);background:rgba(230,169,61,0.06);">
-        <div style="font-family:var(--mono);font-size:11px;color:var(--amber);letter-spacing:0.03em;margin-bottom:6px;">STATUS: WORK IN PROGRESS — NOT A FINISHED PRODUCT</div>
+        <div style="font-family:var(--mono);font-size:11px;color:var(--amber);letter-spacing:0.03em;margin-bottom:6px;">STATUS: WORK IN PROGRESS \u2014 NOT A FINISHED PRODUCT</div>
         <div style="font-size:12.5px;color:var(--text);line-height:1.6;">
-          Of ${PFMO_FUNCTION_MAP.length} standard PfMO functions: <strong>${builtCount} fully built</strong>, <strong>${partialCount} partially covered</strong>, <strong>${notYetCount} not yet attempted</strong> — roughly <strong>${weighted}% weighted completion</strong> against the full PfMO role.
+          Of ${PFMO_FUNCTION_MAP.length} standard PfMO functions: <strong>${builtCount} fully built</strong>, <strong>${partialCount} partially covered</strong>, <strong>${notYetCount} not yet attempted</strong> \u2014 roughly <strong>${weighted}% weighted completion</strong> against the full PfMO role.
           The gap is deliberate scope, not an oversight: the functions below that are genuinely hard to fake (financial tracking, closed-loop benefits realization, real system integration) are the ones not yet attempted.
         </div>
       </div>
