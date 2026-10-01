@@ -250,6 +250,27 @@
     return null;
   }
 
+  // A single, deliberately concrete example of a structured cross-program dependency
+  // (Aurora's billing cutover blocked on Atlas's API gateway) — system-tracked data,
+  // not just narrative text buried in a knownRisks paragraph. This does not make
+  // cross-program dependency management a built feature (see Roadmap: still Partial,
+  // since there's no general graph linking any two programs automatically) — it's one
+  // named, real link shown concretely rather than claimed abstractly.
+  function crossDependencyBox(p){
+    const deps = p.crossDependencies || [];
+    if(!deps.length) return '';
+    return `
+      <div style="border:1px solid var(--red);background:rgba(225,90,90,0.07);border-radius:8px;padding:10px 12px;margin-bottom:14px;">
+        <div style="font-family:var(--mono);font-size:11px;color:var(--red);letter-spacing:0.03em;margin-bottom:6px;">CROSS-PROGRAM DEPENDENCY (SYSTEM-TRACKED)</div>
+        ${deps.map(cd=>`
+          <div style="font-size:12.5px;color:var(--text);line-height:1.6;">
+            This program <strong>${cd.direction}</strong> <strong>${cd.program}</strong> <span style="color:var(--text-faint);">(${cd.programStatus})</span>.<br>
+            ${cd.need}<br>
+            <span style="color:var(--text-faint);font-style:italic;">Impact if delayed: ${cd.impact}</span>
+          </div>`).join('')}
+      </div>`;
+  }
+
   // Organizational memory: risks actually seen on prior programs, tagged by the same
   // parameters used elsewhere (initiative type, teams, size, global, quality dimensions)
   // plus free-text keywords matched against this program's objective/scope/value prop.
@@ -343,6 +364,7 @@
       scopeIn:'Core service decomposition, API gateway, CI/CD per service, data migration.', scopeOut:'New customer-facing features; only re-platforming, no functional changes.',
       constraints:'Must not disrupt active enterprise renewal cycles; cutover windows limited to weekends; depends on Security sign-off on the new API gateway.',
       knownRisks:'Legacy data layer has no clean seams for splitting, risking a longer-than-planned dual-write period. Aurora Billing Consolidation depends on this program\'s API gateway landing first, creating a cross-program sequencing risk. Security has not yet reviewed the new gateway\'s auth model.',
+      crossDependencies:[{direction:'blocks', program:'Aurora Billing Consolidation', programStatus:'pending intake', need:'Atlas\u2019s new API gateway must be live before Aurora can begin its cross-system billing cutover.', impact:'Any slip in Atlas\u2019s API gateway timeline pushes Aurora\u2019s billing consolidation go-live by the same margin.'}],
       okrTied:'yes', okrName:'Reduce platform operating cost 15% (FY26 Eng OKR)', size:'XXL', teams:['Data','UI','Backend','Integration','Service'], global:true, complexity:'High',
       initiativeType:'Platform', existingCustomerCoveragePct:80, customersAtRiskPct:60, revenueAtRisk:'$25M', qualityDimensions:['Maintainability','Reliability','Availability'],
       targetDate:'End of 2026', scoreSource:'agent', agentAssessment:null, priorityTriage:null};
@@ -378,6 +400,7 @@
           scopeIn:'Core billing ledger, invoicing, plan migration tooling.', scopeOut:'Payment gateway migration, tax engine changes.',
           constraints:'Depends on Finance\'s new GL going live first; must not disrupt active enterprise renewal cycles.',
           knownRisks:'Vendor contract for the legacy in-house ledger expires mid-2027, forcing a hard cutover deadline. Security has not yet reviewed the new cross-system data flow. Depends on the Platform team\'s API gateway migration (Atlas) landing first.',
+          blockedBy:{program:'Atlas Platform Migration', programStatus:'active, Execution phase', need:'Atlas\u2019s new API gateway must be live before Aurora\u2019s cross-system billing cutover can begin.'},
           budgetEstimate:'$3.5M', contentDraftSource:'override', agentContentDraft:null,
           customerImpactPct:50, newCustomers:200, netNewRevenue:'$10M', targetDate:'End of 2027',
           okrTied:'no', okrName:'', size:'M', teams:[], global:false, complexity:'Low', scoreSource:null, agentAssessment:null},
@@ -631,10 +654,13 @@ ${transcript}`;
     const metricsLine = p.initiativeType==='Platform'
       ? `${p.existingCustomerCoveragePct?`${p.existingCustomerCoveragePct}% of existing customers/service covered`:'no coverage estimate'}; ${p.customersAtRiskPct?`${p.customersAtRiskPct}% of existing customers at risk of churn if unaddressed`:'no churn-risk estimate'}; ${p.revenueAtRisk?`${p.revenueAtRisk} revenue at risk if unaddressed`:'no revenue-at-risk estimate'}`
       : `${p.customerImpactPct?`${p.customerImpactPct}% of existing customer base impacted`:'no impact estimate'}; ${p.newCustomers?`${p.newCustomers} new customers expected`:'no new-customer estimate'}; ${p.netNewRevenue?`${p.netNewRevenue} net new revenue expected`:'no revenue estimate'}`;
+    const crossDepsLine = (p.crossDependencies||[]).map(cd=>
+      `This program ${cd.direction} "${cd.program}" (${cd.programStatus}): ${cd.need} Impact if delayed: ${cd.impact}`
+    ).join(' ');
     return `Program name: ${p.name}
 Sponsor: ${p.sponsor || 'TBD'}
 Objective: ${p.objective || 'TBD'}
-${p.valueProp ? `Value Proposition: ${p.valueProp}\n` : ''}${p.technicalScope ? `Technical Scope: ${p.technicalScope}\n` : ''}${p.requirements ? `High-Level Requirements:\n${p.requirements}\n` : ''}${p.successCriteria ? `Success Criteria: ${p.successCriteria}\n` : ''}${(p.scopeIn||p.scopeOut) ? `In Scope: ${p.scopeIn||'TBD'}\nOut of Scope: ${p.scopeOut||'TBD'}\n` : ''}${p.constraints ? `Constraints/Assumptions: ${p.constraints}\n` : ''}${p.knownRisks ? `Known Risks / Dependencies (as reported at intake): ${p.knownRisks}\n` : ''}Initiative Type: ${p.initiativeType || 'Product'}
+${p.valueProp ? `Value Proposition: ${p.valueProp}\n` : ''}${p.technicalScope ? `Technical Scope: ${p.technicalScope}\n` : ''}${p.requirements ? `High-Level Requirements:\n${p.requirements}\n` : ''}${p.successCriteria ? `Success Criteria: ${p.successCriteria}\n` : ''}${(p.scopeIn||p.scopeOut) ? `In Scope: ${p.scopeIn||'TBD'}\nOut of Scope: ${p.scopeOut||'TBD'}\n` : ''}${p.constraints ? `Constraints/Assumptions: ${p.constraints}\n` : ''}${p.knownRisks ? `Known Risks / Dependencies (as reported at intake): ${p.knownRisks}\n` : ''}${crossDepsLine ? `Structured Cross-Program Dependency (system-tracked, not just narrative): ${crossDepsLine}\n` : ''}Initiative Type: ${p.initiativeType || 'Product'}
 Quantified impact: ${metricsLine}
 Phase: ${p.phase}
 Overall RAG status: ${p.status.toUpperCase()}
@@ -653,10 +679,10 @@ Target Date: ${p.targetDate || 'TBD'}`;
       : '';
     const map = {
       charter: `You are a Charter Agent for an enterprise PMO. Draft a Program Charter with sections: Purpose, Objectives (3-5 bullets), Scope (In / Out of scope), Success Criteria, Key Stakeholders (brief RACI table), High-Level Timeline, Budget Summary, Assumptions & Constraints, Governance & Escalation Path. Where the context below already states requirements, success criteria, scope, constraints, sponsor, or budget, use that information directly rather than inventing your own \u2014 only fill gaps the context leaves open, and note explicitly if a section has no grounding to work from. ${common}\n\n${ctx}`,
-      plan: `You are a Project Plan Agent for an enterprise PMO. Draft a phase-based Project Plan: a markdown table of milestones (Phase, Milestone, Target, Deliverable), followed by a short "Key Dependencies" list. Where the context states high-level requirements, build milestones and deliverables directly around those requirements rather than inventing generic ones \u2014 each stated requirement should be traceable to at least one milestone. Where known risks/dependencies were already reported, list those specific ones first under Key Dependencies before adding further plausible ones. If no requirements are given, say so and build the plan from the objective/value proposition alone, noting it's a rougher estimate as a result. ${common}\n\n${ctx}`,
+      plan: `You are a Project Plan Agent for an enterprise PMO. Draft a phase-based Project Plan: a markdown table of milestones (Phase, Milestone, Target, Deliverable), followed by a short "Key Dependencies" list. Where the context states high-level requirements, build milestones and deliverables directly around those requirements rather than inventing generic ones \u2014 each stated requirement should be traceable to at least one milestone. If the context includes a "Structured Cross-Program Dependency," list that as the very first item under Key Dependencies, named explicitly (which program, what it needs, what happens if delayed) \u2014 it is system-tracked, not just a note, and should never be dropped or vaguely paraphrased. After that, list any other known risks/dependencies reported at intake, then add further plausible ones. If no requirements are given, say so and build the plan from the objective/value proposition alone, noting it's a rougher estimate as a result. ${common}\n\n${ctx}`,
       status: `You are a Status Reporting Agent for an enterprise PMO. Draft a single-period Status Report with: Overall RAG status and one-line rationale, Accomplishments This Period (bullets), Planned Next Period (bullets), Key Risks/Issues (bullets), Decisions Needed From Sponsor, Key Metrics snapshot (small table). Ground the RAG rationale and Key Risks/Issues in any known risks/dependencies and constraints already on file, listing those specifically before adding further plausible ones. The Key Metrics snapshot should reference the program's actual quantified targets (customer impact, revenue, or coverage/churn/risk figures) from the context rather than inventing unrelated metrics \u2014 show current progress toward those specific numbers, not generic placeholders. ${common}\n\n${ctx}`,
       risk: `You are a Risk Register Agent for an enterprise PMO. Produce a markdown table with columns: ID, Risk Description, Likelihood (H/M/L), Impact (H/M/L), Mitigation, Owner, Status. Priority order for rows: (1) any risks or dependencies already reported at intake \u2014 include those as specific rows first, don't paraphrase them into something generic; (2) any risk patterns matched from similar past programs, listed below \u2014 include these next, adapting the mitigation to this program's specifics, and note in the Status or a short parenthetical that it's a recurring pattern from prior programs; (3) further realistic risks appropriate to this program's domain and current phase, to reach 5-7 total. ${common}\n\n${ctx}${riskPatternContext}`,
-      dependency: `You are a Dependency Tracker Agent for an enterprise PMO. Produce a markdown table with columns: ID, Dependency, Owning Team, Needed By, Status, Impact if Delayed. If any dependencies were already reported at intake, include those as specific rows first, then add further realistic cross-team dependencies to reach 4-6 total. ${common}\n\n${ctx}`,
+      dependency: `You are a Dependency Tracker Agent for an enterprise PMO. Produce a markdown table with columns: ID, Dependency, Owning Team, Needed By, Status, Impact if Delayed. If the context includes a "Structured Cross-Program Dependency," make that the first row, naming the other program explicitly in the Dependency column (not just "another team") and using its actual stated impact. Then include any other dependencies already reported at intake, then add further realistic cross-team dependencies to reach 4-6 total. ${common}\n\n${ctx}`,
       okr: `You are an OKR Reporting Agent for an enterprise PMO. Produce 1 Objective with 3-4 Key Results relevant to this program, each with a plausible current progress percentage and a one-line commentary. Format as a markdown table (Key Result, Target, Current, Commentary). If the context gives a named OKR this program is tied to, use that exact OKR as the Objective rather than inventing a different one \u2014 if it says no OKR is evident, say so plainly as the Objective and note that Key Results below are therefore speculative. Key Results should be built from the program's actual quantified targets (customer impact %, new customers, net new revenue, or coverage/churn-risk/revenue-at-risk figures) rather than generic invented metrics \u2014 turn each real number on file into a Key Result with a plausible current-progress estimate toward it. ${common}\n\n${ctx}`,
       landing: `You are a Program Landing Page Agent for an enterprise PMO. Write internal one-page program landing copy: a one-sentence elevator pitch, "Why This Matters" (2-3 sentences), Current Status callout with rationale, Team & Contacts (placeholders), FAQ (2-3 Q&As). Base the elevator pitch and "Why This Matters" directly on the value proposition and success criteria given, rather than a generic restatement of the objective \u2014 the value prop's actual numbers (customer impact, revenue, or risk-avoided) belong in "Why This Matters," not just the Key Metrics of other artifacts. Use the named sponsor for Team & Contacts if given, and a generic placeholder if not. Write for a general internal audience, not just PMO insiders. ${common}\n\n${ctx}`,
     };
@@ -1075,7 +1101,7 @@ Quantified data on file: ${p.initiativeType==='Platform'
       const mainRow = `
       <tr class="rowlink" data-action="toggle-intake" data-id="${i.id}">
         <td class="pid">${i.id}</td>
-        <td>${i.name}</td>
+        <td>${i.name}${i.blockedBy ? `<br><span class="tag" style="color:var(--red);border-color:var(--red);font-size:9.5px;margin-top:3px;">blocked by: ${i.blockedBy.program}</span>` : ''}</td>
         <td style="color:var(--text-muted);font-size:12px;">${i.requestedBy}</td>
         <td>${scoreCell}</td>
         <td>${recTag}</td>
@@ -1140,6 +1166,14 @@ Quantified data on file: ${p.initiativeType==='Platform'
         <td></td>
         <td colspan="6" style="padding:0 10px 16px;">
           <div style="background:var(--surface-2);border:1px solid var(--border);border-radius:8px;padding:14px;">
+            ${i.blockedBy ? `
+              <div style="border:1px solid var(--red);background:rgba(225,90,90,0.07);border-radius:8px;padding:10px 12px;margin-bottom:12px;">
+                <div style="font-family:var(--mono);font-size:10px;color:var(--red);letter-spacing:0.03em;margin-bottom:5px;">BLOCKED BY (SYSTEM-TRACKED)</div>
+                <div style="font-size:12.5px;color:var(--text);line-height:1.6;">
+                  Blocked by <strong>${i.blockedBy.program}</strong> <span style="color:var(--text-faint);">(${i.blockedBy.programStatus})</span>.<br>
+                  ${i.blockedBy.need}
+                </div>
+              </div>` : ''}
             ${i.valueProp ? `
               <div style="margin-bottom:12px;">
                 <div style="font-family:var(--mono);font-size:10px;color:var(--text-faint);text-transform:uppercase;letter-spacing:0.04em;margin-bottom:4px;">Value Proposition</div>
@@ -1368,6 +1402,7 @@ Quantified data on file: ${p.initiativeType==='Platform'
         return `<option value="${t.id}">${t.name} (${remaining}% free of cap)</option>`;
       }).join('');
       body = `
+        ${crossDependencyBox(p)}
         <div class="card">
           <form id="editOverviewForm">
             <div class="grid2">
@@ -1500,9 +1535,11 @@ Quantified data on file: ${p.initiativeType==='Platform'
               </div>`).join('')}
           </div>
         </details>` : '';
+      const crossDepBox = (UI.tab==='plan' || UI.tab==='dependency') ? crossDependencyBox(p) : '';
       body = `
         <div class="card">
           ${okrMismatchBanner}
+          ${crossDepBox}
           ${templateBox}
           ${patternBox}
           <div class="agentbar">
