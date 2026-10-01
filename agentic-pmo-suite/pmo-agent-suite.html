@@ -1296,67 +1296,58 @@ Quantified data on file: ${p.initiativeType==='Platform'
   // Honest, self-reported scope assessment — kept here as code (not just a slide)
   // specifically so it can be shown live, in the same tool, next to the thing it is
   // judging. A roadmap that only exists in a separate deck is easy to lose track of.
-  const ROADMAP_DATA = {
-    covered: [
-      {t:'Intake & AI Triage', d:'Structured submission form; Intake Agent drafts problem statement, value-prop quality check, OKR alignment, requirements/scope/risks for human review.'},
-      {t:'OKR-Gated Prioritization Scoring', d:'Fixed rubric — OKR tie as a hard gate, size, team spread/global reach, complexity, 9-point value component.'},
-      {t:'Product vs. Platform Value Tracks', d:'Parallel, equally-weighted scoring so infra/reliability work isn’t structurally penalized next to revenue-generating work.'},
-      {t:'Human Override, Badged & Reversible', d:'Any agent score or draft can be overridden by a leader, clearly tagged, and reverted back to the agent’s original output.'},
-      {t:'TPM Capacity Governance', d:'No TPM allocated above 80% of stated capacity — enforced on intake approval and manual allocation changes.'},
-      {t:'Seven Templated Artifact Agents', d:'Charter, Plan, Status, Risk Register, Dependency Tracker, OKR Report, Landing Page — each grounded in shared program context, each against a fixed section template.'},
-      {t:'Risk Register with Pattern Library', d:'A seeded set of risks from prior programs, matched by initiative type/teams/keywords and surfaced before generation.'},
-      {t:'Voice / Transcript Intake', d:'Paste a transcript (or live dictation) and a Transcript Parser Agent fills the intake form.'},
-      {t:'OKR / Metric Consistency Check', d:'Rule-based (non-agent) flag when a program’s named OKR doesn’t match the category of metric it actually tracks.'},
-      {t:'Consolidated Program Tracker', d:'Portfolio-level view of RAG, phase, budget, and TPM allocation across all active programs.'},
-    ],
-    partial: [
-      {t:'Portfolio-Level Rollups', d:'The tracker shows per-program status, but there’s no aggregate view yet — e.g. “% of portfolio / TPM capacity that’s OKR-aligned.”'},
-      {t:'Cross-Program Dependencies', d:'Tracked per-program; no system-enforced graph linking one program’s dependency to another program’s deliverable.'},
-      {t:'Stakeholder & Communications', d:'Charter has a static RACI and there’s a Landing Page agent, but no live stakeholder register or comms-plan tracking over time.'},
-      {t:'Governance / Stage-Gates', d:'Phase is tracked as a field; there’s no formal gate-approval workflow or exit-criteria checklist.'},
-    ],
-    notBuilt: [
-      {t:'Financial Management', d:'Budget is a static text field — no actuals-vs-plan, burn rate, or earned value (EV/CPI/SPI).'},
-      {t:'Benefits Realization', d:'The OKR Report is a point-in-time estimate at generation time; nothing closes the loop after launch to confirm the benefit actually materialized.'},
-      {t:'Change Control', d:'No scope-change log or formal re-baselining process.'},
-      {t:'Audit Trail on Overrides', d:'Overrides are badged and reversible, but there’s no timestamped who/when/why history yet.'},
-      {t:'Duplicate / Overlap Detection', d:'Nothing yet stops two similar requests from entering intake as if unrelated.'},
-      {t:'Real System Integration', d:'All data is seeded/manual — nothing talks to Jira, Workday, a financial system, or an HRIS.'},
-      {t:'Production Readiness', d:'Single file, sandbox-only AI access, no auth/RBAC, no multi-tenant data model.'},
-    ],
-  };
-
-  function roadmapGroup(title, items, color, note){
-    const rows = items.map(it=>`
-      <div style="padding:10px 0;border-bottom:1px solid var(--border);">
-        <div style="font-weight:600;color:${color};font-size:12.5px;">${it.t}</div>
-        <div style="color:var(--text-muted);font-size:12px;margin-top:2px;line-height:1.5;">${it.d}</div>
-      </div>`).join('');
-    return `
-      <div class="card">
-        <h3 style="margin:0 0 4px;font-family:var(--disp);font-size:14px;color:${color};">${title} <span style="color:var(--text-faint);font-weight:400;font-size:12px;">(${items.length})</span></h3>
-        ${note ? `<div style="color:var(--text-faint);font-size:11.5px;margin-bottom:6px;">${note}</div>` : ''}
-        <div>${rows}</div>
-      </div>`;
-  }
+  // The roadmap IS the PfMO Function Map: the 14 standard functions of a Portfolio
+  // Management Office, each mapped to this prototype's actual status. Kept as one
+  // source of truth so the live tool, the one-pager, and the function-map doc never
+  // drift from each other.
+  const PFMO_FUNCTION_MAP = [
+    {fn:'Strategic Alignment & Governance', owns:"Ensures every active investment ties back to the org's real strategic objectives, not just the loudest request.", status:'Built', proto:"OKR tie is a hard gate in scoring; a rule-based check flags when a program's stated OKR doesn't match the metrics it's actually tracking."},
+    {fn:'Demand & Intake Management', owns:'Captures new work requests in a consistent format and triages them before they compete for resources.', status:'Built', proto:'Structured intake form; an Intake Agent drafts the problem statement, checks value-prop quality, assesses OKR fit. Voice/transcript capture included.'},
+    {fn:'Prioritization & Selection', owns:'Ranks competing investments against a defensible, repeatable method instead of politics or recency.', status:'Built', proto:'Fixed rubric (OKR gate, size, team spread, complexity, 9-pt value score), with equally-weighted tracks for revenue-generating vs. reliability/infra work.'},
+    {fn:'Program Artifact Standards', owns:'Defines and enforces a consistent shape for charters, plans, status reports, etc. across every program.', status:'Built', proto:'Seven agents (Charter, Plan, Status, Risk Register, Dependency Tracker, OKR Report, Landing Page), each against a fixed template, grounded in shared context.'},
+    {fn:'Resource & Capacity Management', owns:'Tracks who/what is allocated where, and prevents silent over-commitment of scarce delivery capacity.', status:'Partial', proto:"TPM allocation is capped at 80% of capacity and enforced automatically. Broader engineering/budget capacity isn't modeled."},
+    {fn:'Risk, Issue & Knowledge Management', owns:'Surfaces and mitigates risk, and carries lessons from past programs forward instead of relearning them.', status:'Partial', proto:'Per-program risk register plus a seeded pattern library matched from prior programs — not yet fed by a live, closed-loop post-mortem process.'},
+    {fn:'Dependency Management', owns:'Tracks what one program needs from another, and sequences work accordingly.', status:'Partial', proto:"Tracked within each program; no system-enforced graph linking one program's dependency to another's actual deliverable."},
+    {fn:'Portfolio Reporting & Rollups', owns:'Gives leadership one aggregate view of portfolio health, not a dozen separate decks.', status:'Partial', proto:'A tracker shows per-program RAG/budget/TPM load; no rolled-up “% of portfolio OKR-aligned” or capacity heat map yet.'},
+    {fn:'Financial Management', owns:'Tracks budget vs. actuals, burn rate, and earned value across the portfolio.', status:'Not Yet', proto:'Budget is a static field today — no actuals, forecasting, or EVM (CPI/SPI).'},
+    {fn:'Benefits Realization', owns:'Confirms, after delivery, that the value promised at intake was actually achieved.', status:'Not Yet', proto:'The OKR Report is a point-in-time estimate at generation time; nothing closes the loop after launch.'},
+    {fn:'Governance & Stage-Gates', owns:'Enforces formal go/no-go decisions at defined checkpoints, with documented exit criteria.', status:'Not Yet', proto:"Phase is tracked as a field; there's no formal gate-approval workflow."},
+    {fn:'Change Control', owns:'Manages and documents changes to scope, schedule, or budget baselines.', status:'Not Yet', proto:"No scope-change log or re-baselining process exists yet."},
+    {fn:'Audit & Compliance', owns:'Maintains a defensible record of who decided what, and when.', status:'Not Yet', proto:"Overrides are badged and reversible; a timestamped who/when/why log doesn't exist yet."},
+    {fn:'Tooling & System Integration', owns:'Connects PfMO views to systems of record (ticketing, HRIS, financials) so data isn’t re-entered by hand.', status:'Not Yet', proto:'Fully standalone — all data is seeded/manual; no real integrations.'},
+  ];
+  const STATUS_COLOR = {Built:'var(--green)', Partial:'var(--amber)', 'Not Yet':'var(--text-faint)'};
 
   function renderRoadmap(){
+    const builtCount = PFMO_FUNCTION_MAP.filter(r=>r.status==='Built').length;
+    const partialCount = PFMO_FUNCTION_MAP.filter(r=>r.status==='Partial').length;
+    const notYetCount = PFMO_FUNCTION_MAP.filter(r=>r.status==='Not Yet').length;
+    const weighted = Math.round(((builtCount*1 + partialCount*0.5) / PFMO_FUNCTION_MAP.length) * 100);
+    const rows = PFMO_FUNCTION_MAP.map(r=>`
+      <tr>
+        <td style="font-weight:600;color:var(--accent);">${r.fn}</td>
+        <td style="color:var(--text-muted);">${r.owns}</td>
+        <td><span class="tag" style="color:${STATUS_COLOR[r.status]};border-color:${STATUS_COLOR[r.status]};">${r.status}</span></td>
+        <td style="color:var(--text-faint);font-style:italic;">${r.proto}</td>
+      </tr>`).join('');
     return `
       <div class="pagehead">
-        <h1>Roadmap &amp; Scope</h1>
-        <p>An honest accounting of what this prototype actually does today, what's half-built, and what hasn't been attempted — kept in the tool itself rather than a separate slide.</p>
+        <h1>Roadmap &amp; Scope — The PfMO Function Map</h1>
+        <p>What a Portfolio Management Office actually does, mapped against what this prototype covers today — kept in the tool itself rather than only a separate slide.</p>
       </div>
       <div class="card" style="border-color:var(--amber);background:rgba(230,169,61,0.06);">
         <div style="font-family:var(--mono);font-size:11px;color:var(--amber);letter-spacing:0.03em;margin-bottom:6px;">STATUS: WORK IN PROGRESS — NOT A FINISHED PRODUCT</div>
         <div style="font-size:12.5px;color:var(--text);line-height:1.6;">
-          Against what this prototype actually set out to prove — AI-agent-driven PMO artifact generation plus OKR-gated intake governance — it's roughly <strong>75–80% there</strong>.
-          Against a full enterprise Portfolio Management Office function — financials, benefits realization, governance gates, real system integration — it's closer to <strong>35–40%</strong>.
-          The gap is deliberate scope, not an oversight: the parts below that are genuinely hard to fake (financial tracking, closed-loop benefits realization, real integrations) are the parts not yet attempted.
+          Of ${PFMO_FUNCTION_MAP.length} standard PfMO functions: <strong>${builtCount} fully built</strong>, <strong>${partialCount} partially covered</strong>, <strong>${notYetCount} not yet attempted</strong> — roughly <strong>${weighted}% weighted completion</strong> against the full PfMO role.
+          The gap is deliberate scope, not an oversight: the functions below that are genuinely hard to fake (financial tracking, closed-loop benefits realization, real system integration) are the ones not yet attempted.
         </div>
       </div>
-      ${roadmapGroup('Built & Working', ROADMAP_DATA.covered, 'var(--green)')}
-      ${roadmapGroup('Partially Covered', ROADMAP_DATA.partial, 'var(--amber)')}
-      ${roadmapGroup('Not Yet Built', ROADMAP_DATA.notBuilt, 'var(--red)', 'Next in line: a lightweight OKR-alignment portfolio rollup and a timestamped override audit trail — both scoped, neither built yet.')}
+      <div class="card">
+        <table>
+          <thead><tr><th>PfMO Function</th><th>What a PfMO Owns Here</th><th>Status</th><th>In This Prototype</th></tr></thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>
     `;
   }
 
