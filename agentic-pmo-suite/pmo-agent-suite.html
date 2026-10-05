@@ -353,9 +353,9 @@
   function todayStr(){ return new Date().toISOString().slice(0,10); }
 
   function seedState(){
-    const t1 = {id:uid('tpm'), name:'Venkatesh S.', capacityPct:100};
-    const t2 = {id:uid('tpm'), name:'Priya R.', capacityPct:100};
-    const t3 = {id:uid('tpm'), name:'Marcus T.', capacityPct:100};
+    const t1 = {id:uid('tpm'), name:'VS', capacityPct:100};
+    const t2 = {id:uid('tpm'), name:'PR', capacityPct:100};
+    const t3 = {id:uid('tpm'), name:'MT', capacityPct:100};
     const p1 = {id:uid('prg'), name:'Atlas Platform Migration', sponsor:'VP Engineering', objective:'Migrate core monolith to a microservices architecture to unblock scaling and reduce release risk.', phase:'Execution', status:'amber', budget:'$4.2M', startDate:'2026-01', endDate:'2026-12', tpmAllocations:[{tpmId:t1.id, pct:60}], artifacts:{},
       valueProp:'The current monolith causes release delays affecting 100% of the customer base and has driven 3 major incidents in the last 2 quarters. Decomposing it into services is expected to reduce release lead time by 50% and cut platform operating cost 15%, protecting an estimated $25M in at-risk revenue from customers threatening churn over reliability.',
       technicalScope:'Decompose the monolith into 5 core services (Data, UI, Backend, Integration, Service layer), each independently deployable behind a new API gateway.',
