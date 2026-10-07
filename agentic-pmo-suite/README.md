@@ -1,5 +1,17 @@
 # Agentic PMO Suite
 
+## Start here
+
+| | What it is | Read time |
+|---|---|---|
+| 📄 **[Overview (PDF)](Agentic-PMO-Suite-Overview.pdf)** | One page: what the suite does, capability by capability, and why each matters | 2 min |
+| 🗺️ **[PfMO Function Map (PDF)](PfMO-Function-Map.pdf)** | One page: the 14 standard Portfolio Management Office functions, mapped against what this prototype covers today | 2 min |
+| 💻 **[Source (`pmo-agent-suite.html`)](pmo-agent-suite.html)** | The full single-file app | — |
+
+> **Status:** work in progress, a personal prototype. The `.docx` versions of both one-pagers are also in this folder if you'd like to edit or comment on them.
+
+---
+
 A single-file, agentic Program/Project Management Office (PMO) tool. Instead of one generic chatbot, it uses a set of purpose-built, named AI agents — each with its own system prompt — to draft every standard PMO artifact for a program, and to run intake triage and prioritization scoring.
 
 Built as a working tool and as a demonstration of agentic-AI PMO/TPM tooling design.
