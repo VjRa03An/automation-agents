@@ -1326,7 +1326,27 @@ Quantified data on file: ${p.initiativeType==='Platform'
     const names = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
     return names[i%12] + ' ' + String(Math.floor(i/12)).slice(2);
   }
+  // Earliest month a TPM can take on new work: free capacity (cap minus load) must stay at or above
+  // `need` percentage points from that month onward, counting programs that start later. Programs past
+  // their end date but not Closed, or with no end date, are treated as occupying the TPM until closed.
+  function nextCapacity(t, cap, spans, nowIdx, need){
+    const mine = spans.map(x=>({x, a:(x.p.tpmAllocations||[]).find(al=>al.tpmId===t.id)})).filter(y=>y.a).map(y=>({
+      name:y.x.p.name, pct:Number(y.a.pct)||0, s:y.x.s,
+      open:(y.x.overdue || y.x.e===null), e:(y.x.overdue || y.x.e===null) ? Infinity : y.x.e
+    }));
+    const loadAt = m => mine.reduce((sum,z)=> sum + (((z.s===null || m>=z.s) && m<=z.e) ? z.pct : 0), 0);
+    const finite = mine.reduce((arr,z)=>arr.concat([z.s,z.e]), []).filter(v=>v!==null && v!==Infinity);
+    const horizon = Math.max.apply(null, [nowIdx].concat(finite)) + 1;
+    const cands = [nowIdx].concat(mine.filter(z=>z.e!==Infinity && z.e+1>nowIdx).map(z=>z.e+1)).sort((a,b)=>a-b);
+    for(let c=0;c<cands.length;c++){
+      const m = cands[c]; let ok = true;
+      for(let tt=m; tt<=horizon; tt++){ if(cap - loadAt(tt) < need){ ok = false; break; } }
+      if(ok) return {month:m, free:cap-loadAt(m), now:m===nowIdx};
+    }
+    return {month:null, blockers: mine.filter(z=>z.open).map(z=>z.name)};
+  }
   function capacityHeatMap(){
+    const need = Math.max(0, Number(UI.capNeed===undefined?25:UI.capNeed)||0);
     const nowIdx = monthIdx(todayStr());
     const active = STATE.programs.filter(p=>p.phase!=='Closed' && (p.tpmAllocations||[]).length);
     const spans = active.map(p=>{
@@ -1355,9 +1375,9 @@ Quantified data on file: ${p.initiativeType==='Platform'
         });
         return {mi, load, parts, over: load > cap};
       });
-      return {t, cap, cells, peak: Math.max(0, ...cells.map(c=>c.load)), overMonths: cells.filter(c=>c.over).length};
+      return {t, cap, cells, peak: Math.max(0, ...cells.map(c=>c.load)), overMonths: cells.filter(c=>c.over).length, next: nextCapacity(t, cap, spans, nowIdx, need)};
     });
-    return {nowIdx, months, rows, overdue: spans.filter(x=>x.overdue).map(x=>x.p), undated: spans.filter(x=>x.undated).map(x=>x.p)};
+    return {need, nowIdx, months, rows, overdue: spans.filter(x=>x.overdue).map(x=>x.p), undated: spans.filter(x=>x.undated).map(x=>x.p)};
   }
   function heatCellStyle(load, cap){
     if(!load) return 'background:transparent;color:var(--text-faint);';
@@ -1366,6 +1386,11 @@ Quantified data on file: ${p.initiativeType==='Platform'
     if(r > 0.85) return 'background:rgba(232,168,56,0.50);color:#fff;';
     if(r > 0.5)  return 'background:rgba(60,190,130,0.40);color:#fff;';
     return 'background:rgba(60,190,130,0.18);color:var(--text);';
+  }
+  function nextCell(n){
+    if(n.month===null) return `<span style="color:var(--red);">Not until ${n.blockers.length ? escHtml(n.blockers.join(', ')) : 'allocations change'} close${n.blockers.length===1?'s':''}</span>`;
+    if(n.now) return `<span style="color:var(--green);">Available now \u00b7 ${n.free}% free</span>`;
+    return `<span style="color:var(--amber);">${monthLabel(n.month)} \u00b7 ${n.free}% free</span>`;
   }
   function renderCapacityHeatMap(){
     if(!STATE.tpms.length) return '';
@@ -1376,6 +1401,7 @@ Quantified data on file: ${p.initiativeType==='Platform'
       <tr>
         <td style="font-size:12.5px;padding:4px 10px 4px 0;white-space:nowrap;">${r.t.name}<div style="font-size:10.5px;color:var(--text-faint);font-family:var(--mono);">cap ${r.cap}%</div></td>
         ${r.cells.map(c=>`<td title="${c.parts.length ? c.parts.join(', ').replace(/"/g,'&quot;') : 'No allocation'}" style="${heatCellStyle(c.load, r.cap)}font-family:var(--mono);font-size:11px;text-align:center;padding:7px 2px;border:1px solid var(--bg);${c.mi===h.nowIdx?'outline:1px solid var(--accent);':''}">${c.load ? c.load : ''}</td>`).join('')}
+        <td style="padding:4px 0 4px 14px;font-size:12px;white-space:nowrap;">${nextCell(r.next)}</td>
       </tr>`).join('');
     const overRows = h.rows.filter(r=>r.overMonths);
     const overBox = overRows.length ? `
@@ -1394,9 +1420,10 @@ Quantified data on file: ${p.initiativeType==='Platform'
     return `
       <div class="pagehead" style="margin-bottom:10px;"><h1 style="font-size:15px;">Capacity Heat Map</h1></div>
       <div class="card">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;font-size:12.5px;color:var(--text-muted);">Next available = first month a TPM keeps at least <input id="capNeed" type="number" min="0" max="100" value="${h.need}" style="width:64px;margin:0;"> % of capacity free (below their cap) from then on.</div>
         <div style="overflow-x:auto;">
           <table style="border-collapse:collapse;width:100%;">
-            <thead><tr><th></th>${head}</tr></thead>
+            <thead><tr><th></th>${head}<th style="font-family:var(--mono);font-size:10px;text-align:left;padding:4px 0 4px 14px;color:var(--text-faint);">Next available</th></tr></thead>
             <tbody>${body}</tbody>
           </table>
         </div>
@@ -1404,7 +1431,7 @@ Quantified data on file: ${p.initiativeType==='Platform'
         ${overBox}
         ${overdueBox}
         ${undatedBox}
-        <div style="margin-top:12px;font-size:11.5px;color:var(--text-faint);">Each cell is a TPM's total allocation (%) across programs active that month, from program start/end dates. Hover a cell for the programs behind it. TPM capacity only \u2014 engineering and budget capacity aren't modeled.</div>
+        <div style="margin-top:12px;font-size:11.5px;color:var(--text-faint);">Each cell is a TPM's total allocation (%) across programs active that month, from program start/end dates. Hover a cell for the programs behind it. Programs past their end date but not Closed keep their TPM occupied until they are closed. TPM capacity only \u2014 engineering and budget capacity aren't modeled.</div>
       </div>`;
   }
 
@@ -2537,6 +2564,7 @@ Quantified data on file: ${p.initiativeType==='Platform'
     if(t.id==='actorInput'){ STATE.actor = t.value.trim(); saveState(); }
     else if(t.id==='auditType'){ UI.auditFilter.type = t.value; render(); }
     else if(t.id==='auditQuery'){ UI.auditFilter.q = t.value; render(); }
+    else if(t.id==='capNeed'){ UI.capNeed = Math.max(0, Math.min(100, Number(t.value)||0)); render(); }
   });
   document.getElementById('app').addEventListener('keydown', function(e){
     if(e.key==='Enter' && e.target && e.target.id==='auditQuery'){ UI.auditFilter.q = e.target.value; render(); }
