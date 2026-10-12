@@ -132,7 +132,7 @@
   const STATUSES = ['green','amber','red'];
 
   let STATE = null;
-  let UI = { gateDraft:{approver:'',rationale:''}, gateError:null, view:'tracker', programId:null, tab:'overview', loadingKey:null, formError:null, expandedIntake:null, approvingIntakeId:null };
+  let UI = { auditFilter:{type:'',q:''}, auditCsv:null, gateDraft:{approver:'',rationale:''}, gateError:null, view:'tracker', programId:null, tab:'overview', loadingKey:null, formError:null, expandedIntake:null, approvingIntakeId:null };
   const INTAKE_AGENT = 'intake-agent-v1';
   const PRIORITY_AGENT = 'prioritization-agent-v1';
   const TRANSCRIPT_AGENT = 'transcript-parser-agent-v1';
@@ -421,6 +421,7 @@
     }
     (STATE.programs||[]).forEach(ensureGateData);
     (STATE.programs||[]).forEach(ensureFinancials);
+    STATE.auditLog = STATE.auditLog || [];
     render();
   }
   async function saveState(){
@@ -788,6 +789,7 @@ Priority as submitted: ${item.priority}`;
           item.scoreSource = 'agent';
         }
       }
+      audit({type:'agent', entityId:item.id, entity:item.name, action:'Agent run: Intake triage', after:scoreSnap(item)});
       await saveState();
     }catch(e){
       item.triage = '_Generation failed. Check your connection and try again._';
@@ -861,6 +863,7 @@ Quantified data on file: ${p.initiativeType==='Platform'
           p.scoreSource = 'agent';
         }
       }
+      audit({type:'agent', entityId:p.id, entity:p.name, action:'Agent run: Prioritization', after:scoreSnap(p)});
       await saveState();
     }catch(e){
       p.priorityTriage = '_Generation failed. Check your connection and try again._';
@@ -889,6 +892,7 @@ Quantified data on file: ${p.initiativeType==='Platform'
       const text = (data.content||[]).filter(b=>b.type==='text').map(b=>b.text).join('\n\n');
       p.artifacts = p.artifacts || {};
       p.artifacts[type] = text || '_Agent returned no content \u2014 try again._';
+      { const meta = ARTIFACT_TYPES.find(a=>a.key===type); if(text) audit({type:'agent', entityId:p.id, entity:p.name, action:'Agent run: '+(meta?meta.label:type), after:meta?meta.agent:''}); }
       await saveState();
     }catch(e){
       p.artifacts = p.artifacts || {};
@@ -990,6 +994,7 @@ Quantified data on file: ${p.initiativeType==='Platform'
     p.gateLog = p.gateLog || [];
     p.gateLog.push({id:uid('gt'), gateId:g.id, gateName:g.name, from:g.from, to:g.to, decision, approver, rationale, date:todayStr(), unmet: decision==='approved' ? [] : unmet});
     if(decision==='approved' || decision==='exception') p.phase = g.to;
+    audit({type:'gate', entityId:p.id, entity:p.name, action:g.name+': '+DECISION_LABEL[decision], before:g.from, after:(decision==='held'?g.from:g.to), reason:rationale || ('Approver: '+approver)});
     UI.gateError = null;
     UI.gateDraft = {approver:'', rationale:''};
     saveState(); render();
@@ -1013,6 +1018,7 @@ Quantified data on file: ${p.initiativeType==='Platform'
       const text = (data.content||[]).filter(b=>b.type==='text').map(b=>b.text).join('\n\n');
       p.gateMemos = p.gateMemos || {};
       p.gateMemos[g.id] = text || '_Agent returned no content \u2014 try again._';
+      if(text) audit({type:'agent', entityId:p.id, entity:p.name, action:'Agent run: Gate readiness memo', after:g.name});
       await saveState();
     }catch(e){
       p.gateMemos = p.gateMemos || {};
@@ -1104,6 +1110,70 @@ Quantified data on file: ${p.initiativeType==='Platform'
       </div>`;
   }
 
+  // ---------------- Audit trail ----------------
+  // Append-only (no edit or delete in the UI) record of who changed what, when, and why.
+  // "Who" is the self-declared "Acting as" name: the app has no login. The log lives in the same
+  // saved state as everything else, so it is not tamper-proof.
+  function escHtml(s){ return String(s===undefined||s===null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+  function clip(v, n){ const s = String(v===undefined||v===null?'':v).replace(/\s+/g,' ').trim(); return s.length>(n||140) ? s.slice(0,(n||140)-1)+'\u2026' : s; }
+  function audit(o){
+    if(!STATE) return;
+    STATE.auditLog = STATE.auditLog || [];
+    STATE.auditLog.push({
+      id: uid('au'), ts: new Date().toISOString(),
+      actor: ((STATE.actor||'').trim()) || 'unspecified',
+      type: o.type || 'system', entityId: o.entityId || '', entity: o.entity || '',
+      action: o.action || '', before: clip(o.before), after: clip(o.after), reason: clip(o.reason, 300)
+    });
+    if(STATE.auditLog.length > 1000) STATE.auditLog = STATE.auditLog.slice(-1000);
+  }
+  function scoreSnap(o){
+    const s = computeIntakeScore(o);
+    return 'OKR ' + (o.okrTied==='yes' ? 'yes' : 'no') + (o.okrName ? ' ('+o.okrName+')' : '') + ', size ' + (o.size||'-') + ', complexity ' + (o.complexity||'-') + ', teams ' + ((o.teams||[]).length) + (o.global?', global':'') + ', ' + (o.initiativeType||'Product') + (s.scored ? ', score '+s.score+'/'+s.maxScore : ', not scored');
+  }
+
+  function renderAudit(){
+    const log = (STATE.auditLog||[]).slice().reverse();
+    const f = UI.auditFilter || {type:'', q:''};
+    const q = (f.q||'').toLowerCase();
+    const rows = log.filter(e=>(!f.type || e.type===f.type) && (!q || (e.entity+' '+e.action+' '+e.actor+' '+e.before+' '+e.after+' '+e.reason).toLowerCase().indexOf(q)>=0));
+    const types = ['program','intake','tpm','gate','finance','agent'];
+    const fmt = ts => { const d = new Date(ts); const p2 = n=>String(n).padStart(2,'0'); return d.getFullYear()+'-'+p2(d.getMonth()+1)+'-'+p2(d.getDate())+' '+p2(d.getHours())+':'+p2(d.getMinutes()); };
+    const body = rows.slice(0,200).map(e=>`
+      <tr>
+        <td style="font-family:var(--mono);font-size:11.5px;white-space:nowrap;">${fmt(e.ts)}</td>
+        <td style="font-size:12.5px;">${escHtml(e.actor)}</td>
+        <td style="font-size:12.5px;">${escHtml(e.entity)}<div style="font-size:10.5px;color:var(--text-faint);font-family:var(--mono);text-transform:uppercase;">${escHtml(e.type)}</div></td>
+        <td style="font-size:12.5px;">${escHtml(e.action)}</td>
+        <td style="font-size:12px;color:var(--text-muted);">${(e.before||e.after) ? `${e.before?`<span style="color:var(--text-faint);">${escHtml(e.before)}</span> \u2192 `:''}${escHtml(e.after)}` : ''}</td>
+        <td style="font-size:12px;color:var(--text-muted);">${escHtml(e.reason)}</td>
+      </tr>`).join('') || `<tr><td colspan="6" style="color:var(--text-faint);">${log.length ? 'No entries match the filter.' : 'Nothing recorded yet. Make a change, such as overriding a score, approving a gate, or running an agent, and it appears here.'}</td></tr>`;
+    const csvBox = UI.auditCsv ? `<div style="margin-top:12px;"><div style="font-size:12px;color:var(--text-muted);margin-bottom:6px;">Download was blocked here. Copy the CSV below:</div><textarea style="height:140px;font-family:var(--mono);font-size:11px;">${escHtml(UI.auditCsv)}</textarea></div>` : '';
+    return `
+      <div class="pagehead"><h1>Audit Log</h1><p>Who changed what, when, and why. Entries are recorded from the point this feature was added; earlier stage-gate history is on each program's Stage Gates tab.</p></div>
+      <div class="card">
+        <div style="border:1px solid var(--border);background:var(--surface-2);border-radius:8px;padding:8px 12px;margin-bottom:14px;font-size:12px;color:var(--text-muted);">
+          <span class="tag">limits</span> "Who" is the name typed into <em>Acting as</em> in the sidebar. There is no login, so it is self-declared. The log has no edit or delete in the app but is stored with the rest of the app's saved data, so it is not tamper-proof.
+        </div>
+        <div style="display:flex;gap:10px;align-items:end;flex-wrap:wrap;margin-bottom:12px;">
+          <div><label>Type</label><select id="auditType"><option value="">All</option>${types.map(t=>`<option value="${t}" ${f.type===t?'selected':''}>${t}</option>`).join('')}</select></div>
+          <div style="flex:1;min-width:180px;"><label>Search</label><input id="auditQuery" value="${escHtml(f.q)}" placeholder="name, action, person, reason (press Enter)"></div>
+          <button class="btn small ghost" data-action="audit-csv">Download CSV</button>
+        </div>
+        <div style="font-size:11.5px;color:var(--text-faint);margin-bottom:8px;">${rows.length} of ${log.length} entries${rows.length>200?' (showing the latest 200)':''}</div>
+        <table>
+          <thead><tr><th>When</th><th>Who</th><th>What</th><th>Action</th><th>Change</th><th>Reason</th></tr></thead>
+          <tbody>${body}</tbody>
+        </table>
+        ${csvBox}
+      </div>`;
+  }
+  function auditCsv(){
+    const q = v => '"' + String(v===undefined||v===null?'':v).replace(/"/g,'""') + '"';
+    const rows = [['timestamp','who','type','entity','action','before','after','reason']].concat((STATE.auditLog||[]).map(e=>[e.ts,e.actor,e.type,e.entity,e.action,e.before,e.after,e.reason]));
+    return rows.map(r=>r.map(q).join(',')).join('\n');
+  }
+
   // ---------------- Views ----------------
   function navIcon(name){
     const icons = {
@@ -1112,6 +1182,7 @@ Quantified data on file: ${p.initiativeType==='Platform'
       intake: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M4 4h16v12H8l-4 4V4z"/></svg>',
       team: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="9" cy="8" r="3"/><path d="M2 20c0-3.3 3-6 7-6s7 2.7 7 6"/><circle cx="17" cy="9" r="2.3"/><path d="M16 14.2c2.6.3 5 2 5 5.8"/></svg>',
       priority: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M4 19V10M12 19V5M20 19v-6"/></svg>',
+      audit: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M6 3h9l4 4v14H6z"/><path d="M9 12h7M9 16h7M9 8h3"/></svg>',
       roadmap: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M3 12h4l2-7 4 14 2-7h6"/></svg>'
     };
     return icons[name]||'';
@@ -1124,6 +1195,7 @@ Quantified data on file: ${p.initiativeType==='Platform'
       {key:'programs', label:'Programs'},
       {key:'intake', label:'Intake'},
       {key:'team', label:'TPM Team'},
+      {key:'audit', label:'Audit Log'},
       {key:'roadmap', label:'Roadmap & Scope'},
     ];
     return `
@@ -1132,6 +1204,7 @@ Quantified data on file: ${p.initiativeType==='Platform'
         <div class="rail-status"><span class="pip"></span>7 AGENTS ONLINE</div>
         <div class="wip-badge">WORK IN PROGRESS \u2014 PROTOTYPE</div>
         ${items.map(it=>`<div class="navbtn ${UI.view===it.key?'active':''}" data-action="nav" data-view="${it.key}">${navIcon(it.key)}${it.label}</div>`).join('')}
+        <div style="padding:14px 10px 0;"><label style="font-family:var(--mono);font-size:10px;color:var(--text-faint);text-transform:uppercase;letter-spacing:0.04em;">Acting as</label><input id="actorInput" value="${escHtml((STATE&&STATE.actor)||'')}" placeholder="your name" style="margin-top:4px;"></div>
       </div>`;
   }
 
@@ -1787,6 +1860,7 @@ Quantified data on file: ${p.initiativeType==='Platform'
               </div>
               <label style="display:flex;align-items:center;gap:6px;font-weight:400;color:var(--text);"><input type="checkbox" style="width:auto;margin:0;" name="global" ${i.global?'checked':''}> Teams are spread globally</label>
               <div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--border);">${renderInitiativeFields(i)}</div>
+              <label style="margin-top:10px;">Reason for override <span style="color:var(--text-faint);font-weight:400;">(required, recorded in the audit log)</span></label><input name="reason" required placeholder="Why are you changing the agent's assessment?">
               <button class="btn small" type="submit" style="margin-top:8px;">${i.scoreSource==='override' ? 'Update Override' : 'Apply Override'}</button>
             </form>
 
@@ -1889,7 +1963,7 @@ Quantified data on file: ${p.initiativeType==='Platform'
     {fn:'Benefits Realization', owns:'Confirms, after delivery, that the value promised at intake was actually achieved.', status:'Not Yet', proto:'The OKR Report is a point-in-time estimate at generation time; nothing closes the loop after launch.'},
     {fn:'Governance & Stage-Gates', owns:'Enforces formal go/no-go decisions at defined checkpoints, with documented exit criteria.', status:'Partial', proto:'Four phase gates with exit criteria (some checked from real program data, some attested by a human), a required approver and rationale, exceptions and holds, and a decision log; an agent drafts an advisory readiness memo. No role-based permissions, notifications, or configurable gate templates yet.'},
     {fn:'Change Control', owns:'Manages and documents changes to scope, schedule, or budget baselines.', status:'Not Yet', proto:"No scope-change log or re-baselining process exists yet."},
-    {fn:'Audit & Compliance', owns:'Maintains a defensible record of who decided what, and when.', status:'Not Yet', proto:"Overrides are badged and reversible; a timestamped who/when/why log doesn't exist yet."},
+    {fn:'Audit & Compliance', owns:'Maintains a defensible record of who decided what, and when.', status:'Partial', proto:'Audit log of who, when, what changed (before and after) and why, for score overrides, program edits, intake decisions, allocations, financial entries, gate decisions and agent runs; filterable, with CSV download. "Who" is self-declared (no login) and the log is not tamper-proof; no retention policy or external audit export.'},
     {fn:'Tooling & System Integration', owns:'Connects PfMO views to systems of record (ticketing, HRIS, financials) so data isn\u2019t re-entered by hand.', status:'Not Yet', proto:'Fully standalone \u2014 all data is seeded/manual; no real integrations.'},
   ];
   const STATUS_COLOR = {Built:'var(--green)', Partial:'var(--amber)', 'Not Yet':'var(--text-faint)'};
@@ -2048,7 +2122,8 @@ Quantified data on file: ${p.initiativeType==='Platform'
             </div>
             <label style="display:flex;align-items:center;gap:6px;font-weight:400;color:var(--text);"><input type="checkbox" style="width:auto;margin:0;" name="global" ${p.global?'checked':''}> Teams are spread globally</label>
             <div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--border);">${renderInitiativeFields(p)}</div>
-            <button class="btn small" type="submit" style="margin-top:8px;">${p.scoreSource==='override' ? 'Update Override' : 'Apply Override'}</button>
+            <label style="margin-top:10px;">Reason for override <span style="color:var(--text-faint);font-weight:400;">(required, recorded in the audit log)</span></label><input name="reason" required placeholder="Why are you changing the agent's assessment?">
+              <button class="btn small" type="submit" style="margin-top:8px;">${p.scoreSource==='override' ? 'Update Override' : 'Apply Override'}</button>
           </form>
         </div>
       `;
@@ -2120,6 +2195,7 @@ Quantified data on file: ${p.initiativeType==='Platform'
     else if(UI.view==='intake') mainHtml = renderIntake();
     else if(UI.view==='team') mainHtml = renderTeam();
     else if(UI.view==='roadmap') mainHtml = renderRoadmap();
+    else if(UI.view==='audit') mainHtml = renderAudit();
 
     app.innerHTML = `${renderRail()}<main>${mainHtml}<div class="footer-credit">PMO Agent Suite \u00b7 agents run on Claude \u00b7 built by Venkatesh Subramanyam</div></main>`;
     attachFormHandlers();
@@ -2140,6 +2216,7 @@ Quantified data on file: ${p.initiativeType==='Platform'
         targetDate:'', scoreSource:null, agentAssessment:null, priorityTriage:null
       };
       STATE.programs.push(p);
+      audit({type:'program', entityId:p.id, entity:p.name, action:'Program created', after:'Phase '+p.phase+', budget '+(p.budget||'n/a')});
       saveState();
       UI.view='programDetail'; UI.programId=p.id; UI.tab='overview';
       render();
@@ -2156,6 +2233,7 @@ Quantified data on file: ${p.initiativeType==='Platform'
         customerImpactPct: fd.get('customerImpactPct'), newCustomers: fd.get('newCustomers'), netNewRevenue: fd.get('netNewRevenue'), targetDate: fd.get('targetDate'),
         existingCustomerCoveragePct: fd.get('existingCustomerCoveragePct'), customersAtRiskPct: fd.get('customersAtRiskPct'), revenueAtRisk: fd.get('revenueAtRisk'), qualityDimensions: fd.getAll('qualityDimensions'),
         okrTied:'no', okrName:'', size:'M', teams:[], global:false, complexity:'Low', scoreSource:null, agentAssessment:null});
+      audit({type:'intake', entity:fd.get('name'), action:'Intake request submitted', after:'Requested by '+(fd.get('requestedBy')||'unknown')});
       saveState(); render();
     });
 
@@ -2164,6 +2242,7 @@ Quantified data on file: ${p.initiativeType==='Platform'
       e.preventDefault();
       const p = getProgram(psf.dataset.id);
       const fd = new FormData(psf);
+      const beforeSnap = scoreSnap(p);
       p.okrTied = fd.get('okrTied');
       p.okrName = fd.get('okrName');
       p.size = fd.get('size');
@@ -2179,6 +2258,7 @@ Quantified data on file: ${p.initiativeType==='Platform'
       p.revenueAtRisk = fd.get('revenueAtRisk');
       p.qualityDimensions = fd.getAll('qualityDimensions');
       p.scoreSource = 'override';
+      audit({type:'program', entityId:p.id, entity:p.name, action:'Score override', before:beforeSnap, after:scoreSnap(p), reason:fd.get('reason')});
       saveState(); render();
     });
 
@@ -2218,6 +2298,7 @@ Quantified data on file: ${p.initiativeType==='Platform'
       };
       STATE.programs.push(newProgram);
       item.approvedProgramId = newProgram.id;
+      audit({type:'intake', entityId:item.id, entity:item.name, action:'Intake approved, program created', after:(tpmId ? (getTpm(tpmId)||{}).name+' at '+pct+'%' : 'No TPM assigned')});
       UI.approvingIntakeId = null;
       UI.view = 'programDetail'; UI.programId = newProgram.id; UI.tab = 'charter';
       saveState(); render();
@@ -2228,6 +2309,8 @@ Quantified data on file: ${p.initiativeType==='Platform'
       e.preventDefault();
       const item = STATE.intake.find(i=>i.id===cf.dataset.id);
       const fd = new FormData(cf);
+      const cfields = ['executiveSponsor','budgetEstimate','requirements','successCriteria','scopeIn','scopeOut','constraints','knownRisks'];
+      const changed = cfields.filter(k=>String(item[k]||'')!==String(fd.get(k)||''));
       item.executiveSponsor = fd.get('executiveSponsor');
       item.budgetEstimate = fd.get('budgetEstimate');
       item.requirements = fd.get('requirements');
@@ -2237,6 +2320,7 @@ Quantified data on file: ${p.initiativeType==='Platform'
       item.constraints = fd.get('constraints');
       item.knownRisks = fd.get('knownRisks');
       item.contentDraftSource = 'override';
+      if(changed.length) audit({type:'intake', entityId:item.id, entity:item.name, action:'Charter inputs edited', after:'Changed: '+changed.join(', ')});
       saveState(); render();
     });
 
@@ -2245,6 +2329,7 @@ Quantified data on file: ${p.initiativeType==='Platform'
       e.preventDefault();
       const item = STATE.intake.find(i=>i.id===scf.dataset.id);
       const fd = new FormData(scf);
+      const beforeSnap = scoreSnap(item);
       item.okrTied = fd.get('okrTied');
       item.okrName = fd.get('okrName');
       item.size = fd.get('size');
@@ -2260,6 +2345,7 @@ Quantified data on file: ${p.initiativeType==='Platform'
       item.revenueAtRisk = fd.get('revenueAtRisk');
       item.qualityDimensions = fd.getAll('qualityDimensions');
       item.scoreSource = 'override';
+      audit({type:'intake', entityId:item.id, entity:item.name, action:'Score override', before:beforeSnap, after:scoreSnap(item), reason:fd.get('reason')});
       saveState(); render();
     });
 
@@ -2268,6 +2354,7 @@ Quantified data on file: ${p.initiativeType==='Platform'
       e.preventDefault();
       const fd = new FormData(ntf);
       STATE.tpms.push({id:uid('tpm'), name:fd.get('name'), capacityPct: Number(fd.get('capacityPct'))||100});
+      audit({type:'tpm', entity:fd.get('name'), action:'TPM added', after:'Capacity '+(Number(fd.get('capacityPct'))||100)+'%'});
       saveState(); render();
     });
 
@@ -2277,6 +2364,7 @@ Quantified data on file: ${p.initiativeType==='Platform'
       const p = getProgram(UI.programId);
       const fd = new FormData(eof);
       const oldPhase = p.phase;
+      const oldVals = Object.assign({}, p);
       Object.assign(p, {
         name: fd.get('name'), sponsor: fd.get('sponsor'), objective: fd.get('objective'), valueProp: fd.get('valueProp'),
         requirements: fd.get('requirements'), successCriteria: fd.get('successCriteria'), scopeIn: fd.get('scopeIn'), scopeOut: fd.get('scopeOut'), constraints: fd.get('constraints'), knownRisks: fd.get('knownRisks'),
@@ -2287,6 +2375,9 @@ Quantified data on file: ${p.initiativeType==='Platform'
         p.gateLog = p.gateLog || [];
         p.gateLog.push({id:uid('gt'), gateId:'manual', gateName:'Manual phase edit', from:oldPhase, to:p.phase, decision:'bypass', approver:'\u2014', rationale:'Phase changed from the Overview form, outside the gate workflow.', date:todayStr(), unmet:[]});
       }
+      ['name','sponsor','objective','valueProp','requirements','successCriteria','scopeIn','scopeOut','constraints','knownRisks','phase','status','startDate','endDate','budget'].forEach(k=>{
+        if(String(oldVals[k]||'')!==String(p[k]||'')) audit({type:'program', entityId:p.id, entity:p.name, action:'Edited '+k, before:oldVals[k], after:p[k]});
+      });
       saveState(); render();
     });
 
@@ -2299,7 +2390,10 @@ Quantified data on file: ${p.initiativeType==='Platform'
       if(!p || !month || !(amt>=0)) return;
       p.financials = p.financials || {actuals:[], percentComplete:''};
       p.financials.actuals = (p.financials.actuals||[]).filter(a=>a.month!==month);
+      const prev = (p.financials.actuals||[]).find(a=>a.month===month);
+      p.financials.actuals = p.financials.actuals.filter(a=>a.month!==month);
       p.financials.actuals.push({month, amount: Math.round(amt*1000)});
+      audit({type:'finance', entityId:p.id, entity:p.name, action:'Actual recorded for '+month, after:fmtMoney(Math.round(amt*1000))});
       saveState(); render();
     });
     const pcf = document.getElementById('pctCompleteForm');
@@ -2309,7 +2403,9 @@ Quantified data on file: ${p.initiativeType==='Platform'
       const fd = new FormData(pcf);
       const v = fd.get('pct');
       p.financials = p.financials || {actuals:[], percentComplete:''};
+      const prevPct = p.financials.percentComplete;
       p.financials.percentComplete = v==='' ? '' : Math.max(0, Math.min(100, Number(v)));
+      if(String(prevPct)!==String(p.financials.percentComplete)) audit({type:'finance', entityId:p.id, entity:p.name, action:'% complete updated', before:prevPct===''||prevPct===undefined?'not set':prevPct+'%', after:p.financials.percentComplete===''?'not set':p.financials.percentComplete+'%'});
       saveState(); render();
     });
 
@@ -2333,6 +2429,7 @@ Quantified data on file: ${p.initiativeType==='Platform'
       }
       p.tpmAllocations = p.tpmAllocations || [];
       p.tpmAllocations.push({tpmId, pct});
+      audit({type:'tpm', entityId:p.id, entity:p.name, action:'TPM allocated', after:(t?t.name:'unknown')+' at '+pct+'%'+(t && (tpmLoad(tpmId)>effectiveCap(t)) ? ' (over cap, confirmed)' : '')});
       saveState(); render();
     });
   }
@@ -2348,39 +2445,49 @@ Quantified data on file: ${p.initiativeType==='Platform'
     else if(action==='set-tab'){ UI.tab = el.dataset.key; UI.gateError = null; render(); }
     else if(action==='gate-toggle'){
       const p = getProgram(UI.programId);
-      if(p){ captureGateDraft(); p.gateChecks = p.gateChecks || {}; p.gateChecks[el.dataset.gate] = p.gateChecks[el.dataset.gate] || {}; p.gateChecks[el.dataset.gate][el.dataset.key] = !p.gateChecks[el.dataset.gate][el.dataset.key]; UI.gateError = null; saveState(); render(); }
+      if(p){ captureGateDraft(); p.gateChecks = p.gateChecks || {}; p.gateChecks[el.dataset.gate] = p.gateChecks[el.dataset.gate] || {}; p.gateChecks[el.dataset.gate][el.dataset.key] = !p.gateChecks[el.dataset.gate][el.dataset.key]; { const gd = GATES.find(x=>x.id===el.dataset.gate); const cr = gd && gd.criteria.find(c=>c.key===el.dataset.key); audit({type:'gate', entityId:p.id, entity:p.name, action:(p.gateChecks[el.dataset.gate][el.dataset.key]?'Attested':'Un-attested')+' criterion', after:(cr?cr.label:el.dataset.key)}); } UI.gateError = null; saveState(); render(); }
     }
     else if(action==='delete-actual'){
       const p = getProgram(UI.programId);
-      if(p && p.financials){ const list = finActuals(p); const target = list[Number(el.dataset.idx)]; if(target){ p.financials.actuals = p.financials.actuals.filter(a=>a.month!==target.month); saveState(); render(); } }
+      if(p && p.financials){ const list = finActuals(p); const target = list[Number(el.dataset.idx)]; if(target){ p.financials.actuals = p.financials.actuals.filter(a=>a.month!==target.month); audit({type:'finance', entityId:p.id, entity:p.name, action:'Actual removed for '+target.month, before:fmtMoney(Number(target.amount)||0)}); saveState(); render(); } }
     }
     else if(action==='gate-decide'){ const p = getProgram(UI.programId); if(p) decideGate(p, el.dataset.decision); }
+    else if(action==='audit-csv'){
+      const csv = auditCsv(); UI.auditCsv = null;
+      try{ const blob = new Blob([csv], {type:'text/csv'}); const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = 'pmo-audit-log.csv'; document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(url), 1000); }
+      catch(err){ UI.auditCsv = csv; render(); }
+    }
     else if(action==='gate-memo'){ captureGateDraft(); generateGateMemo(UI.programId); }
     else if(action==='generate'){ generateArtifact(UI.programId, el.dataset.key); }
     else if(action==='generate-priority'){ generateProgramPriority(el.dataset.id); }
     else if(action==='revert-program-score'){
       const p = getProgram(el.dataset.id);
       if(p && p.agentAssessment){
+        const b = scoreSnap(p);
         Object.assign(p, p.agentAssessment);
         p.scoreSource = 'agent';
+        audit({type:'program', entityId:p.id, entity:p.name, action:'Reverted to agent assessment', before:b, after:scoreSnap(p)});
         saveState(); render();
       }
     }
-    else if(action==='delete-program'){ STATE.programs = STATE.programs.filter(p=>p.id!==el.dataset.id); saveState(); render(); }
-    else if(action==='delete-tpm'){ STATE.tpms = STATE.tpms.filter(t=>t.id!==el.dataset.id); saveState(); render(); }
+    else if(action==='delete-program'){ const gone = getProgram(el.dataset.id); if(gone) audit({type:'program', entityId:gone.id, entity:gone.name, action:'Program deleted', before:'Phase '+gone.phase+', budget '+(gone.budget||'n/a')}); STATE.programs = STATE.programs.filter(p=>p.id!==el.dataset.id); saveState(); render(); }
+    else if(action==='delete-tpm'){ const gone = getTpm(el.dataset.id); if(gone) audit({type:'tpm', entity:gone.name, action:'TPM removed'}); STATE.tpms = STATE.tpms.filter(t=>t.id!==el.dataset.id); saveState(); render(); }
     else if(action==='revert-content'){
       const item = STATE.intake.find(i=>i.id===el.dataset.id);
       if(item && item.agentContentDraft){
         Object.assign(item, item.agentContentDraft);
         item.contentDraftSource = 'agent';
+        audit({type:'intake', entityId:item.id, entity:item.name, action:'Charter inputs reverted to agent draft'});
         saveState(); render();
       }
     }
     else if(action==='revert-score'){
       const item = STATE.intake.find(i=>i.id===el.dataset.id);
       if(item && item.agentAssessment){
+        const b = scoreSnap(item);
         Object.assign(item, item.agentAssessment);
         item.scoreSource = 'agent';
+        audit({type:'intake', entityId:item.id, entity:item.name, action:'Reverted to agent assessment', before:b, after:scoreSnap(item)});
         saveState(); render();
       }
     }
@@ -2392,8 +2499,19 @@ Quantified data on file: ${p.initiativeType==='Platform'
       render();
     }
     else if(action==='cancel-approve'){ UI.approvingIntakeId = null; render(); }
-    else if(action==='reject-intake'){ const item = STATE.intake.find(i=>i.id===el.dataset.id); item.status='rejected'; saveState(); render(); }
-    else if(action==='remove-alloc'){ const p = getProgram(UI.programId); p.tpmAllocations.splice(Number(el.dataset.idx),1); saveState(); render(); }
+    else if(action==='reject-intake'){ const item = STATE.intake.find(i=>i.id===el.dataset.id); item.status='rejected'; audit({type:'intake', entityId:item.id, entity:item.name, action:'Intake rejected'}); saveState(); render(); }
+    else if(action==='remove-alloc'){ const p = getProgram(UI.programId); const gone = p.tpmAllocations.splice(Number(el.dataset.idx),1)[0]; if(gone){ const t = getTpm(gone.tpmId); audit({type:'tpm', entityId:p.id, entity:p.name, action:'TPM allocation removed', before:(t?t.name:'unknown')+' at '+gone.pct+'%'}); } saveState(); render(); }
+  });
+
+  document.getElementById('app').addEventListener('change', function(e){
+    const t = e.target;
+    if(!t || !t.id) return;
+    if(t.id==='actorInput'){ STATE.actor = t.value.trim(); saveState(); }
+    else if(t.id==='auditType'){ UI.auditFilter.type = t.value; render(); }
+    else if(t.id==='auditQuery'){ UI.auditFilter.q = t.value; render(); }
+  });
+  document.getElementById('app').addEventListener('keydown', function(e){
+    if(e.key==='Enter' && e.target && e.target.id==='auditQuery'){ UI.auditFilter.q = e.target.value; render(); }
   });
 
   loadState();
