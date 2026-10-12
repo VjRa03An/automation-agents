@@ -1134,6 +1134,84 @@ Quantified data on file: ${p.initiativeType==='Platform'
       </div>`;
   }
 
+  // ---------------- OKR Alignment rollup ----------------
+  // Portfolio-level view built from existing program fields (okrTied, okrName, budget) and the
+  // rule-based OKR-vs-metrics check. It reports alignment as recorded; it does not verify OKR
+  // attainment (that would need live key-result data).
+  function parseBudgetNum(b){
+    const m = String(b||'').replace(/,/g,'').match(/\$?\s*([\d.]+)\s*([KMB])?/i);
+    if(!m) return 0;
+    const mult = {K:1e3, M:1e6, B:1e9}[(m[2]||'').toUpperCase()] || 1;
+    return (parseFloat(m[1])||0) * mult;
+  }
+  function fmtMoney(n){
+    if(n >= 1e6) return '$' + (n/1e6).toFixed(1).replace(/\.0$/,'') + 'M';
+    if(n >= 1e3) return '$' + Math.round(n/1e3) + 'K';
+    return '$' + Math.round(n);
+  }
+  function okrRollup(){
+    const progs = STATE.programs;
+    const tied = progs.filter(p=>p.okrTied==='yes' && p.okrName);
+    const untied = progs.filter(p=>!(p.okrTied==='yes' && p.okrName));
+    const flagged = tied.map(p=>({p, msg:checkOkrMetricAlignment(p)})).filter(x=>x.msg);
+    const flaggedIds = new Set(flagged.map(x=>x.p.id));
+    const consistent = tied.filter(p=>!flaggedIds.has(p.id));
+    const byOkr = {};
+    tied.forEach(p=>{
+      const k = p.okrName;
+      byOkr[k] = byOkr[k] || {okr:k, programs:[], budget:0};
+      byOkr[k].programs.push(p);
+      byOkr[k].budget += parseBudgetNum(p.budget);
+    });
+    const groups = Object.values(byOkr).sort((a,b)=>b.budget-a.budget);
+    const totalBudget = progs.reduce((s,p)=>s+parseBudgetNum(p.budget),0);
+    const untiedBudget = untied.reduce((s,p)=>s+parseBudgetNum(p.budget),0);
+    const intakeTied = STATE.intake.filter(i=>i.okrTied==='yes').length;
+    const pct = n => progs.length ? Math.round(n/progs.length*100) : 0;
+    return {total:progs.length, tied, untied, flagged, consistent, groups, totalBudget, untiedBudget,
+            tiedPct:pct(tied.length), consistentPct:pct(consistent.length),
+            intakeTotal:STATE.intake.length, intakeTied};
+  }
+  function renderOkrRollup(){
+    const r = okrRollup();
+    if(!r.total) return '';
+    const col = v => v>=90 ? 'var(--green)' : (v>=60 ? 'var(--amber)' : 'var(--red)');
+    const stat = (val, label, color) => `<div style="min-width:120px;"><div style="font-family:var(--mono);font-size:24px;font-weight:600;color:${color};">${val}</div><div style="font-size:11.5px;color:var(--text-muted);">${label}</div></div>`;
+    const groupRows = r.groups.map(g=>{
+      const share = r.totalBudget ? Math.round(g.budget/r.totalBudget*100) : 0;
+      return `<div style="margin-bottom:10px;">
+        <div style="display:flex;align-items:center;gap:12px;">
+          <span style="flex:1;font-size:13px;">${g.okr}</span>
+          <div class="barwrap" style="width:120px;"><div class="bar" style="width:${share}%;background:var(--accent);"></div></div>
+          <span style="font-family:var(--mono);font-size:11.5px;color:var(--text-muted);width:92px;text-align:right;">${fmtMoney(g.budget)} \u00b7 ${share}%</span>
+        </div>
+        <div style="font-size:11.5px;color:var(--text-faint);margin-top:2px;">${g.programs.map(p=>`<span class="rowlink" data-action="open-program" data-id="${p.id}" style="color:var(--accent);cursor:pointer;">${p.name}</span>`).join(' \u00b7 ')}</div>
+      </div>`;
+    }).join('') || `<div style="font-size:12.5px;color:var(--text-faint);">No program is tied to an OKR yet.</div>`;
+    const flagRows = r.flagged.map(x=>`
+      <div style="border:1px solid var(--amber);background:rgba(220,160,40,0.07);border-radius:8px;padding:8px 12px;margin-top:8px;font-size:12.5px;line-height:1.55;">
+        <strong class="rowlink" data-action="open-program" data-id="${x.p.id}" style="cursor:pointer;">${x.p.name}</strong> \u2014 ${x.msg}
+      </div>`).join('');
+    const untiedRows = r.untied.length ? `
+      <div style="border:1px solid var(--red);background:rgba(225,90,90,0.07);border-radius:8px;padding:8px 12px;margin-top:8px;font-size:12.5px;line-height:1.55;">
+        <strong>No OKR tie (${fmtMoney(r.untiedBudget)} of budget):</strong> ${r.untied.map(p=>`<span class="rowlink" data-action="open-program" data-id="${p.id}" style="cursor:pointer;color:var(--accent);">${p.name}</span>`).join(', ')}
+      </div>` : '';
+    return `
+      <div class="pagehead" style="margin-bottom:10px;"><h1 style="font-size:15px;">OKR Alignment</h1></div>
+      <div class="card">
+        <div style="display:flex;gap:28px;flex-wrap:wrap;margin-bottom:16px;">
+          ${stat(r.tiedPct+'%', `programs tied to an OKR (${r.tied.length}/${r.total})`, col(r.tiedPct))}
+          ${stat(r.consistentPct+'%', `tied and metrics consistent (${r.consistent.length}/${r.total})`, col(r.consistentPct))}
+          ${stat(r.intakeTied+'/'+r.intakeTotal, 'intake requests tied to an OKR', 'var(--text)')}
+        </div>
+        <div style="font-family:var(--mono);font-size:10px;color:var(--text-faint);text-transform:uppercase;letter-spacing:0.04em;margin-bottom:8px;">Budget by OKR (share of total portfolio budget)</div>
+        ${groupRows}
+        ${flagRows}
+        ${untiedRows}
+        <div style="margin-top:12px;font-size:11.5px;color:var(--text-faint);">Alignment as recorded at intake and scoring. This does not measure OKR attainment \u2014 that needs live key-result data.</div>
+      </div>`;
+  }
+
   function renderTracker(){
     const maxScore = 5+5+2+2+9;
     const rows = STATE.programs.map(p=>{
@@ -1176,6 +1254,7 @@ Quantified data on file: ${p.initiativeType==='Platform'
         </table>
       </div>
       ${priorityCard}
+      ${renderOkrRollup()}
       <div class="pagehead" style="margin-bottom:10px;"><h1 style="font-size:15px;">TPM Capacity</h1></div>
       <div class="card"><table><tbody>${tpmRows(STATE)}</tbody></table></div>
     `;
@@ -1548,7 +1627,7 @@ Quantified data on file: ${p.initiativeType==='Platform'
     {fn:'Resource & Capacity Management', owns:'Tracks who/what is allocated where, and prevents silent over-commitment of scarce delivery capacity.', status:'Partial', proto:"TPM allocation is capped at 80% of capacity and enforced automatically. Broader engineering/budget capacity isn't modeled."},
     {fn:'Risk, Issue & Knowledge Management', owns:'Surfaces and mitigates risk, and carries lessons from past programs forward instead of relearning them.', status:'Partial', proto:'Per-program risk register plus a seeded pattern library matched from prior programs \u2014 not yet fed by a live, closed-loop post-mortem process.'},
     {fn:'Dependency Management', owns:'Tracks what one program needs from another, and sequences work accordingly.', status:'Partial', proto:"Tracked within each program; no system-enforced graph linking one program's dependency to another's actual deliverable."},
-    {fn:'Portfolio Reporting & Rollups', owns:'Gives leadership one aggregate view of portfolio health, not a dozen separate decks.', status:'Partial', proto:'A tracker shows per-program RAG/budget/TPM load; no rolled-up \u201c% of portfolio OKR-aligned\u201d or capacity heat map yet.'},
+    {fn:'Portfolio Reporting & Rollups', owns:'Gives leadership one aggregate view of portfolio health, not a dozen separate decks.', status:'Partial', proto:'A tracker shows per-program RAG/budget/TPM load, plus an OKR alignment rollup (% tied, % tied and metrics-consistent, budget by OKR, flagged mismatches). No capacity heat map or financial rollup yet.'},
     {fn:'Financial Management', owns:'Tracks budget vs. actuals, burn rate, and earned value across the portfolio.', status:'Not Yet', proto:'Budget is a static field today \u2014 no actuals, forecasting, or EVM (CPI/SPI).'},
     {fn:'Benefits Realization', owns:'Confirms, after delivery, that the value promised at intake was actually achieved.', status:'Not Yet', proto:'The OKR Report is a point-in-time estimate at generation time; nothing closes the loop after launch.'},
     {fn:'Governance & Stage-Gates', owns:'Enforces formal go/no-go decisions at defined checkpoints, with documented exit criteria.', status:'Partial', proto:'Four phase gates with exit criteria (some checked from real program data, some attested by a human), a required approver and rationale, exceptions and holds, and a decision log; an agent drafts an advisory readiness memo. No role-based permissions, notifications, or configurable gate templates yet.'},
