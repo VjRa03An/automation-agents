@@ -420,6 +420,7 @@
       STATE = seedState();
     }
     (STATE.programs||[]).forEach(ensureGateData);
+    (STATE.programs||[]).forEach(ensureFinancials);
     render();
   }
   async function saveState(){
@@ -667,7 +668,7 @@ Phase: ${p.phase}
 Overall RAG status: ${p.status.toUpperCase()}
 Timeline: ${p.startDate || 'TBD'} to ${p.endDate || 'TBD'}
 Budget: ${p.budget || 'TBD'}
-Assigned TPM(s): ${allocs}
+${financialSnapshotLine(p)}Assigned TPM(s): ${allocs}
 Target Date: ${p.targetDate || 'TBD'}`;
   }
 
@@ -681,7 +682,7 @@ Target Date: ${p.targetDate || 'TBD'}`;
     const map = {
       charter: `You are a Charter Agent for an enterprise PMO. Draft a Program Charter with sections: Purpose, Objectives (3-5 bullets), Scope (In / Out of scope), Success Criteria, Key Stakeholders (brief RACI table), High-Level Timeline, Budget Summary, Assumptions & Constraints, Governance & Escalation Path. Where the context below already states requirements, success criteria, scope, constraints, sponsor, or budget, use that information directly rather than inventing your own \u2014 only fill gaps the context leaves open, and note explicitly if a section has no grounding to work from. ${common}\n\n${ctx}`,
       plan: `You are a Project Plan Agent for an enterprise PMO. Draft a phase-based Project Plan: a markdown table of milestones (Phase, Milestone, Target, Deliverable), followed by a short "Key Dependencies" list. Where the context states high-level requirements, build milestones and deliverables directly around those requirements rather than inventing generic ones \u2014 each stated requirement should be traceable to at least one milestone. If the context includes a "Structured Cross-Program Dependency," list that as the very first item under Key Dependencies, named explicitly (which program, what it needs, what happens if delayed) \u2014 it is system-tracked, not just a note, and should never be dropped or vaguely paraphrased. After that, list any other known risks/dependencies reported at intake, then add further plausible ones. If no requirements are given, say so and build the plan from the objective/value proposition alone, noting it's a rougher estimate as a result. ${common}\n\n${ctx}`,
-      status: `You are a Status Reporting Agent for an enterprise PMO. Draft a single-period Status Report with: Overall RAG status and one-line rationale, Accomplishments This Period (bullets), Planned Next Period (bullets), Key Risks/Issues (bullets), Decisions Needed From Sponsor, Key Metrics snapshot (small table). Ground the RAG rationale and Key Risks/Issues in any known risks/dependencies and constraints already on file, listing those specifically before adding further plausible ones. The Key Metrics snapshot should reference the program's actual quantified targets (customer impact, revenue, or coverage/churn/risk figures) from the context rather than inventing unrelated metrics \u2014 show current progress toward those specific numbers, not generic placeholders. ${common}\n\n${ctx}`,
+      status: `You are a Status Reporting Agent for an enterprise PMO. Draft a single-period Status Report with: Overall RAG status and one-line rationale, Accomplishments This Period (bullets), Planned Next Period (bullets), Key Risks/Issues (bullets), Decisions Needed From Sponsor, Key Metrics snapshot (small table). Ground the RAG rationale and Key Risks/Issues in any known risks/dependencies and constraints already on file, listing those specifically before adding further plausible ones. The Key Metrics snapshot should reference the program's actual quantified targets (customer impact, revenue, or coverage/churn/risk figures) from the context rather than inventing unrelated metrics \u2014 show current progress toward those specific numbers, not generic placeholders. If the context includes a "Financial snapshot," include a budget/spend row in the Key Metrics table using those exact figures and mention any financial flags in Key Risks/Issues; never invent spend numbers. ${common}\n\n${ctx}`,
       risk: `You are a Risk Register Agent for an enterprise PMO. Produce a markdown table with columns: ID, Risk Description, Likelihood (H/M/L), Impact (H/M/L), Mitigation, Owner, Status. Priority order for rows: (1) any risks or dependencies already reported at intake \u2014 include those as specific rows first, don't paraphrase them into something generic; (2) any risk patterns matched from similar past programs, listed below \u2014 include these next, adapting the mitigation to this program's specifics, and note in the Status or a short parenthetical that it's a recurring pattern from prior programs; (3) further realistic risks appropriate to this program's domain and current phase, to reach 5-7 total. ${common}\n\n${ctx}${riskPatternContext}`,
       dependency: `You are a Dependency Tracker Agent for an enterprise PMO. Produce a markdown table with columns: ID, Dependency, Owning Team, Needed By, Status, Impact if Delayed. If the context includes a "Structured Cross-Program Dependency," make that the first row, naming the other program explicitly in the Dependency column (not just "another team") and using its actual stated impact. Then include any other dependencies already reported at intake, then add further realistic cross-team dependencies to reach 4-6 total. ${common}\n\n${ctx}`,
       okr: `You are an OKR Reporting Agent for an enterprise PMO. Produce 1 Objective with 3-4 Key Results relevant to this program, each with a plausible current progress percentage and a one-line commentary. Format as a markdown table (Key Result, Target, Current, Commentary). If the context gives a named OKR this program is tied to, use that exact OKR as the Objective rather than inventing a different one \u2014 if it says no OKR is evident, say so plainly as the Objective and note that Key Results below are therefore speculative. Key Results should be built from the program's actual quantified targets (customer impact %, new customers, net new revenue, or coverage/churn-risk/revenue-at-risk figures) rather than generic invented metrics \u2014 turn each real number on file into a Key Result with a plausible current-progress estimate toward it. ${common}\n\n${ctx}`,
@@ -1307,6 +1308,165 @@ Quantified data on file: ${p.initiativeType==='Platform'
       </div>`;
   }
 
+  // ---------------- Financials ----------------
+  // Budget vs. actuals with earned-value metrics. Inputs are manual: monthly actuals entered by a
+  // person and a self-reported % complete. All numbers below are computed by rules, not by an agent.
+  // The seeded actuals are illustrative sample data. There is no finance-system integration.
+  function finActuals(p){ return ((p.financials||{}).actuals||[]).slice().sort((a,b)=>a.month<b.month?-1:1); }
+  function finMetrics(p){
+    const f = p.financials || {};
+    const actuals = finActuals(p);
+    const budget = parseBudgetNum(p.budget);
+    const spent = actuals.reduce((s,a)=>s+(Number(a.amount)||0),0);
+    const hasData = actuals.length > 0 && budget > 0;
+    const pct = (f.percentComplete===undefined || f.percentComplete==='' || f.percentComplete===null) ? null : Number(f.percentComplete);
+    const nowIdx = monthIdx(todayStr());
+    const s = monthIdx(p.startDate), e = monthIdx(p.endDate);
+    let frac = null;
+    if(s!==null && e!==null && e>=s){
+      const total = e - s + 1;
+      frac = Math.max(0, Math.min(total, nowIdx - s)) / total;
+    }
+    const pv = frac===null ? null : budget*frac;
+    const ev = pct===null ? null : budget*pct/100;
+    const cpi = (ev!==null && spent>0) ? ev/spent : null;
+    const spi = (ev!==null && pv) ? ev/pv : null;
+    const eac = (cpi && cpi>0) ? budget/cpi : null;
+    const vac = eac!==null ? budget - eac : null;
+    const last3 = actuals.slice(-3);
+    const burn = last3.length ? last3.reduce((a,x)=>a+(Number(x.amount)||0),0)/last3.length : 0;
+    const remaining = budget - spent;
+    const runway = (burn>0 && remaining>0) ? remaining/burn : null;
+    const flags = [];
+    if(hasData){
+      if(remaining <= 0) flags.push({level:'red', text:'Budget fully consumed ('+fmtMoney(spent)+' spent of '+fmtMoney(budget)+').'});
+      if(cpi!==null && cpi<0.8) flags.push({level:'red', text:'Cost efficiency is poor (CPI '+cpi.toFixed(2)+'): each $1 spent has delivered about $'+cpi.toFixed(2)+' of planned value.'});
+      else if(cpi!==null && cpi<0.9) flags.push({level:'amber', text:'Cost efficiency is slipping (CPI '+cpi.toFixed(2)+').'});
+      if(spi!==null && spi<0.8) flags.push({level:'red', text:'Well behind schedule (SPI '+spi.toFixed(2)+'): delivered value is '+Math.round(spi*100)+'% of what the timeline called for by now.'});
+      else if(spi!==null && spi<0.9) flags.push({level:'amber', text:'Behind schedule (SPI '+spi.toFixed(2)+').'});
+      if(eac!==null && eac>budget*1.1) flags.push({level:'amber', text:'Forecast at completion '+fmtMoney(eac)+' is '+Math.round((eac/budget-1)*100)+'% over the '+fmtMoney(budget)+' budget.'});
+      const bad = (cpi!==null && cpi<0.9) || (spi!==null && spi<0.8);
+      if(p.status==='green' && bad) flags.push({level:'amber', text:'RAG is green but the financial indicators disagree. The RAG may understate the problem.'});
+    }
+    const worst = flags.some(x=>x.level==='red') ? 'red' : (flags.length ? 'amber' : 'green');
+    return {hasData, budget, spent, remaining, pct, frac, pv, ev, cpi, spi, eac, vac, burn, runway, flags, worst, actuals, overdue:(e!==null && e<nowIdx)};
+  }
+  function fmtIdx(v, d){ return v===null||v===undefined ? '\u2014' : v.toFixed(d===undefined?2:d); }
+  function idxColor(v, good, ok){ return v===null ? 'var(--text-faint)' : (v>=good ? 'var(--green)' : (v>=ok ? 'var(--amber)' : 'var(--red)')); }
+
+  function financialSnapshotLine(p){
+    const m = finMetrics(p);
+    if(!m.hasData) return '';
+    return 'Financial snapshot (system-computed from entered actuals; use these figures exactly, do not invent others): budget '+fmtMoney(m.budget)+', spent '+fmtMoney(m.spent)+' ('+Math.round(m.spent/m.budget*100)+'% of budget), '+(m.pct!==null?'self-reported '+m.pct+'% complete':'% complete not reported')+', burn about '+fmtMoney(m.burn)+'/month'+(m.cpi!==null?', CPI '+m.cpi.toFixed(2):'')+(m.spi!==null?', SPI '+m.spi.toFixed(2):'')+(m.eac!==null?', forecast at completion '+fmtMoney(m.eac):'')+'.'+(m.flags.length?' Flags: '+m.flags.map(x=>x.text).join(' '):'')+'\n';
+  }
+
+  function ensureFinancials(p){
+    if(p.financials !== undefined) return;
+    const n = p.name || '';
+    const mk = (start, arr) => arr.map((k,i)=>{ const idx = monthIdx(start)+i; const y=Math.floor(idx/12), mo=(idx%12)+1; return {month:y+'-'+String(mo).padStart(2,'0'), amount:k*1000}; });
+    if(n.indexOf('Atlas')===0) p.financials = {sample:true, percentComplete:70, actuals: mk('2026-01',[250,300,350,400,420,430,450,460,470])};
+    else if(n.indexOf('Nova')===0) p.financials = {sample:true, percentComplete:25, actuals: mk('2026-03',[40,60,70,80,90,90,90])};
+    else if(n.indexOf('Helix')===0) p.financials = {sample:true, percentComplete:30, actuals: mk('2026-02',[30,50,60,70,70,70,60,50])};
+    else p.financials = {actuals:[], percentComplete:''};
+  }
+
+  function renderFinancials(p){
+    const m = finMetrics(p);
+    const f = p.financials || {};
+    const kpi = (label, val, color, sub) => `<div style="min-width:112px;"><div style="font-family:var(--mono);font-size:20px;font-weight:600;color:${color||'var(--text)'};">${val}</div><div style="font-size:11.5px;color:var(--text-muted);">${label}</div>${sub?`<div style="font-size:10.5px;color:var(--text-faint);">${sub}</div>`:''}</div>`;
+    const sampleNote = f.sample ? `<div style="border:1px solid var(--border);background:var(--surface-2);border-radius:8px;padding:8px 12px;margin-bottom:12px;font-size:12px;color:var(--text-muted);"><span class="tag">sample data</span> These actuals are illustrative, seeded for the prototype. Real use would enter or import actuals from a finance system.</div>` : '';
+    const flags = m.flags.map(x=>`<div style="border:1px solid var(--${x.level});background:${x.level==='red'?'rgba(225,90,90,0.07)':'rgba(220,160,40,0.07)'};border-radius:8px;padding:8px 12px;margin-top:8px;font-size:12.5px;line-height:1.55;">${x.text}</div>`).join('');
+    const maxAct = Math.max(1, ...m.actuals.map(a=>Number(a.amount)||0));
+    const bars = m.actuals.map((a,i)=>`
+      <tr>
+        <td style="font-family:var(--mono);font-size:11.5px;width:80px;">${a.month}</td>
+        <td><div class="barwrap"><div class="bar" style="width:${Math.round((Number(a.amount)||0)/maxAct*100)}%;background:var(--accent);"></div></div></td>
+        <td style="font-family:var(--mono);font-size:12px;width:80px;text-align:right;">${fmtMoney(Number(a.amount)||0)}</td>
+        <td style="width:60px;text-align:right;"><span class="pillbtn" data-action="delete-actual" data-idx="${i}">remove</span></td>
+      </tr>`).join('') || `<tr><td colspan="4" style="color:var(--text-faint);">No actuals entered yet.</td></tr>`;
+    const summary = m.hasData ? `
+      <div style="display:flex;gap:26px;flex-wrap:wrap;margin-bottom:6px;">
+        ${kpi('Budget', fmtMoney(m.budget))}
+        ${kpi('Spent to date', fmtMoney(m.spent), null, Math.round(m.spent/m.budget*100)+'% of budget')}
+        ${kpi('Remaining', fmtMoney(Math.max(0,m.remaining)), m.remaining<=0?'var(--red)':null)}
+        ${kpi('Reported complete', m.pct===null?'\u2014':m.pct+'%', null, 'self-reported')}
+        ${kpi('Burn / month', fmtMoney(m.burn), null, 'last 3 months')}
+        ${kpi('Runway', m.runway===null?'\u2014':m.runway.toFixed(1)+' mo', null, 'remaining \u00f7 burn')}
+      </div>
+      <div style="display:flex;gap:26px;flex-wrap:wrap;margin:16px 0 4px;padding-top:14px;border-top:1px solid var(--border);">
+        ${kpi('CPI', fmtIdx(m.cpi), idxColor(m.cpi,0.9,0.8), 'value earned \u00f7 cost')}
+        ${kpi('SPI', fmtIdx(m.spi), idxColor(m.spi,0.9,0.8), m.overdue?'past planned end':'value earned \u00f7 planned')}
+        ${kpi('Forecast at completion', m.eac===null?'\u2014':fmtMoney(m.eac), m.eac!==null && m.eac>m.budget*1.1?'var(--amber)':null, 'budget \u00f7 CPI')}
+        ${kpi('Variance at completion', m.vac===null?'\u2014':(m.vac<0?'-':'+')+fmtMoney(Math.abs(m.vac)), m.vac!==null && m.vac<0?'var(--red)':'var(--green)')}
+      </div>
+      ${flags}` : `<div class="empty-state">${m.budget>0 ? 'Enter at least one month of actuals to see burn rate and earned-value metrics.' : 'Set a budget on the Overview tab (for example $1.2M), then enter monthly actuals.'}</div>`;
+    return `
+      <div class="card">
+        ${sampleNote}
+        ${summary}
+      </div>
+      <div class="card">
+        <h3 style="margin-top:0;font-family:var(--disp);font-size:14px;">Monthly Actuals</h3>
+        <table><tbody>${bars}</tbody></table>
+        <form id="addActualForm" style="margin-top:12px;">
+          <div class="grid2">
+            <div><label>Month</label><input name="month" type="month" required></div>
+            <div><label>Amount spent ($K)</label><input name="amountK" type="number" step="any" min="0" required placeholder="e.g. 250"></div>
+          </div>
+          <button class="btn small" type="submit">Add / Replace Month</button>
+        </form>
+        <form id="pctCompleteForm" style="margin-top:14px;padding-top:12px;border-top:1px solid var(--border);">
+          <div class="grid2">
+            <div><label>% complete (self-reported)</label><input name="pct" type="number" min="0" max="100" step="any" value="${f.percentComplete===undefined?'':f.percentComplete}"></div>
+            <div></div>
+          </div>
+          <button class="btn small ghost" type="submit">Save % Complete</button>
+        </form>
+        <div style="margin-top:12px;font-size:11.5px;color:var(--text-faint);">CPI = earned value \u00f7 actual cost. SPI = earned value \u00f7 planned value, where planned value is budget \u00d7 share of the start-to-end window elapsed before this month. Earned value = budget \u00d7 reported % complete. Forecast at completion = budget \u00f7 CPI. These are standard earned-value measures, but they depend on manually entered actuals and a self-reported % complete.</div>
+      </div>`;
+  }
+
+  function renderFinancialRollup(){
+    const rows = STATE.programs.map(p=>({p, m:finMetrics(p)}));
+    const withData = rows.filter(x=>x.m.hasData);
+    if(!withData.length) return '';
+    const totBudget = withData.reduce((s,x)=>s+x.m.budget,0);
+    const totSpent = withData.reduce((s,x)=>s+x.m.spent,0);
+    const totEac = withData.reduce((s,x)=>s+(x.m.eac!==null?x.m.eac:x.m.budget),0);
+    const totVac = totBudget - totEac;
+    const stat = (val,label,color)=>`<div style="min-width:120px;"><div style="font-family:var(--mono);font-size:22px;font-weight:600;color:${color||'var(--text)'};">${val}</div><div style="font-size:11.5px;color:var(--text-muted);">${label}</div></div>`;
+    const body = rows.map(x=>{
+      const m = x.m;
+      if(!m.hasData) return `<tr class="rowlink" data-action="open-program" data-id="${x.p.id}"><td>${x.p.name}</td><td colspan="7" style="color:var(--text-faint);font-size:12px;">No actuals entered</td></tr>`;
+      return `<tr class="rowlink" data-action="open-program" data-id="${x.p.id}">
+        <td>${x.p.name}</td>
+        <td style="font-family:var(--mono);font-size:12px;">${fmtMoney(m.budget)}</td>
+        <td style="font-family:var(--mono);font-size:12px;">${fmtMoney(m.spent)} <span style="color:var(--text-faint);">(${Math.round(m.spent/m.budget*100)}%)</span></td>
+        <td style="font-family:var(--mono);font-size:12px;">${m.pct===null?'\u2014':m.pct+'%'}</td>
+        <td style="font-family:var(--mono);font-size:12px;color:${idxColor(m.cpi,0.9,0.8)};">${fmtIdx(m.cpi)}</td>
+        <td style="font-family:var(--mono);font-size:12px;color:${idxColor(m.spi,0.9,0.8)};">${fmtIdx(m.spi)}</td>
+        <td style="font-family:var(--mono);font-size:12px;">${m.eac===null?'\u2014':fmtMoney(m.eac)}</td>
+        <td><span class="tag" style="color:var(--${m.worst});border-color:var(--${m.worst});">${m.worst==='green'?'on track':(m.worst==='amber'?'watch':'at risk')}</span></td>
+      </tr>`;
+    }).join('');
+    const sample = withData.some(x=>x.p.financials && x.p.financials.sample);
+    return `
+      <div class="pagehead" style="margin-bottom:10px;"><h1 style="font-size:15px;">Financials</h1></div>
+      <div class="card">
+        <div style="display:flex;gap:28px;flex-wrap:wrap;margin-bottom:14px;">
+          ${stat(fmtMoney(totBudget),'budget (programs with actuals)')}
+          ${stat(fmtMoney(totSpent),'spent to date', null)}
+          ${stat(fmtMoney(totEac),'forecast at completion', totEac>totBudget*1.05?'var(--amber)':null)}
+          ${stat((totVac<0?'-':'+')+fmtMoney(Math.abs(totVac)),'variance at completion', totVac<0?'var(--red)':'var(--green)')}
+        </div>
+        <table>
+          <thead><tr><th>Program</th><th>Budget</th><th>Spent</th><th>% Done</th><th>CPI</th><th>SPI</th><th>Forecast</th><th>Signal</th></tr></thead>
+          <tbody>${body}</tbody>
+        </table>
+        <div style="margin-top:12px;font-size:11.5px;color:var(--text-faint);">${sample?'Sample data: actuals are illustrative. ':''}Computed from manually entered monthly actuals and self-reported % complete; no finance-system integration.</div>
+      </div>`;
+  }
+
   function renderTracker(){
     const maxScore = 5+5+2+2+9;
     const rows = STATE.programs.map(p=>{
@@ -1353,6 +1513,7 @@ Quantified data on file: ${p.initiativeType==='Platform'
       <div class="pagehead" style="margin-bottom:10px;"><h1 style="font-size:15px;">TPM Capacity</h1></div>
       <div class="card"><table><tbody>${tpmRows(STATE)}</tbody></table></div>
       ${renderCapacityHeatMap()}
+      ${renderFinancialRollup()}
     `;
   }
   function tpmRows(){
@@ -1723,8 +1884,8 @@ Quantified data on file: ${p.initiativeType==='Platform'
     {fn:'Resource & Capacity Management', owns:'Tracks who/what is allocated where, and prevents silent over-commitment of scarce delivery capacity.', status:'Partial', proto:"TPM allocation is capped at 80% of capacity and enforced automatically, with a month-by-month TPM heat map built from program dates. Engineering and budget capacity aren't modeled."},
     {fn:'Risk, Issue & Knowledge Management', owns:'Surfaces and mitigates risk, and carries lessons from past programs forward instead of relearning them.', status:'Partial', proto:'Per-program risk register plus a seeded pattern library matched from prior programs \u2014 not yet fed by a live, closed-loop post-mortem process.'},
     {fn:'Dependency Management', owns:'Tracks what one program needs from another, and sequences work accordingly.', status:'Partial', proto:"Tracked within each program; no system-enforced graph linking one program's dependency to another's actual deliverable."},
-    {fn:'Portfolio Reporting & Rollups', owns:'Gives leadership one aggregate view of portfolio health, not a dozen separate decks.', status:'Partial', proto:'A tracker shows per-program RAG/budget/TPM load, plus an OKR alignment rollup (% tied, % tied and metrics-consistent, budget by OKR, flagged mismatches). No financial rollup or exportable reports yet.'},
-    {fn:'Financial Management', owns:'Tracks budget vs. actuals, burn rate, and earned value across the portfolio.', status:'Not Yet', proto:'Budget is a static field today \u2014 no actuals, forecasting, or EVM (CPI/SPI).'},
+    {fn:'Portfolio Reporting & Rollups', owns:'Gives leadership one aggregate view of portfolio health, not a dozen separate decks.', status:'Partial', proto:'A tracker shows per-program RAG/budget/TPM load, plus an OKR alignment rollup (% tied, % tied and metrics-consistent, budget by OKR, flagged mismatches). Financials roll up here too. No exportable reports yet.'},
+    {fn:'Financial Management', owns:'Tracks budget vs. actuals, burn rate, and earned value across the portfolio.', status:'Partial', proto:'Budget vs. actuals, burn rate and runway, forecast at completion, and CPI/SPI per program and rolled up, plus a RAG-vs-financials disagreement flag. Built on manually entered monthly actuals and self-reported % complete (seed data is illustrative). No finance-system feed, cost categories, or phased forecasts.'},
     {fn:'Benefits Realization', owns:'Confirms, after delivery, that the value promised at intake was actually achieved.', status:'Not Yet', proto:'The OKR Report is a point-in-time estimate at generation time; nothing closes the loop after launch.'},
     {fn:'Governance & Stage-Gates', owns:'Enforces formal go/no-go decisions at defined checkpoints, with documented exit criteria.', status:'Partial', proto:'Four phase gates with exit criteria (some checked from real program data, some attested by a human), a required approver and rationale, exceptions and holds, and a decision log; an agent drafts an advisory readiness memo. No role-based permissions, notifications, or configurable gate templates yet.'},
     {fn:'Change Control', owns:'Manages and documents changes to scope, schedule, or budget baselines.', status:'Not Yet', proto:"No scope-change log or re-baselining process exists yet."},
@@ -1754,7 +1915,7 @@ Quantified data on file: ${p.initiativeType==='Platform'
         <div style="font-family:var(--mono);font-size:11px;color:var(--amber);letter-spacing:0.03em;margin-bottom:6px;">STATUS: WORK IN PROGRESS \u2014 NOT A FINISHED PRODUCT</div>
         <div style="font-size:12.5px;color:var(--text);line-height:1.6;">
           Of ${PFMO_FUNCTION_MAP.length} standard PfMO functions: <strong>${builtCount} fully built</strong>, <strong>${partialCount} partially covered</strong>, <strong>${notYetCount} not yet attempted</strong> \u2014 roughly <strong>${weighted}% weighted completion</strong> against the full PfMO role.
-          The gap is deliberate scope, not an oversight: the functions below that are genuinely hard to fake (financial tracking, closed-loop benefits realization, real system integration) are the ones not yet attempted.
+          The gap is deliberate scope, not an oversight: the functions below that are genuinely hard to fake (closed-loop benefits realization, real system integration) are the ones not yet attempted.
         </div>
       </div>
       <div class="card">
@@ -1769,7 +1930,7 @@ Quantified data on file: ${p.initiativeType==='Platform'
   function renderProgramDetail(){
     const p = getProgram(UI.programId);
     if(!p){ UI.view='programs'; return renderProgramsList(); }
-    const tabs = [{key:'overview', label:'Overview'}, {key:'priority', label:'Priority'}, {key:'gates', label:'Stage Gates'}, ...ARTIFACT_TYPES];
+    const tabs = [{key:'overview', label:'Overview'}, {key:'priority', label:'Priority'}, {key:'gates', label:'Stage Gates'}, {key:'financials', label:'Financials'}, ...ARTIFACT_TYPES];
     const tabsHtml = tabs.map(t=>`<div class="tab ${UI.tab===t.key?'active':''}" data-action="set-tab" data-key="${t.key}">${t.label}</div>`).join('');
 
     let body = '';
@@ -1824,6 +1985,8 @@ Quantified data on file: ${p.initiativeType==='Platform'
           </form>
         </div>
       `;
+    } else if(UI.tab==='financials'){
+      body = renderFinancials(p);
     } else if(UI.tab==='gates'){
       body = renderGates(p);
     } else if(UI.tab==='priority'){
@@ -2127,6 +2290,29 @@ Quantified data on file: ${p.initiativeType==='Platform'
       saveState(); render();
     });
 
+    const aff = document.getElementById('addActualForm');
+    if(aff) aff.addEventListener('submit', e=>{
+      e.preventDefault();
+      const p = getProgram(UI.programId);
+      const fd = new FormData(aff);
+      const month = fd.get('month'); const amt = Number(fd.get('amountK'));
+      if(!p || !month || !(amt>=0)) return;
+      p.financials = p.financials || {actuals:[], percentComplete:''};
+      p.financials.actuals = (p.financials.actuals||[]).filter(a=>a.month!==month);
+      p.financials.actuals.push({month, amount: Math.round(amt*1000)});
+      saveState(); render();
+    });
+    const pcf = document.getElementById('pctCompleteForm');
+    if(pcf) pcf.addEventListener('submit', e=>{
+      e.preventDefault();
+      const p = getProgram(UI.programId);
+      const fd = new FormData(pcf);
+      const v = fd.get('pct');
+      p.financials = p.financials || {actuals:[], percentComplete:''};
+      p.financials.percentComplete = v==='' ? '' : Math.max(0, Math.min(100, Number(v)));
+      saveState(); render();
+    });
+
     const aaf = document.getElementById('addAllocForm');
     if(aaf) aaf.addEventListener('submit', e=>{
       e.preventDefault();
@@ -2163,6 +2349,10 @@ Quantified data on file: ${p.initiativeType==='Platform'
     else if(action==='gate-toggle'){
       const p = getProgram(UI.programId);
       if(p){ captureGateDraft(); p.gateChecks = p.gateChecks || {}; p.gateChecks[el.dataset.gate] = p.gateChecks[el.dataset.gate] || {}; p.gateChecks[el.dataset.gate][el.dataset.key] = !p.gateChecks[el.dataset.gate][el.dataset.key]; UI.gateError = null; saveState(); render(); }
+    }
+    else if(action==='delete-actual'){
+      const p = getProgram(UI.programId);
+      if(p && p.financials){ const list = finActuals(p); const target = list[Number(el.dataset.idx)]; if(target){ p.financials.actuals = p.financials.actuals.filter(a=>a.month!==target.month); saveState(); render(); } }
     }
     else if(action==='gate-decide'){ const p = getProgram(UI.programId); if(p) decideGate(p, el.dataset.decision); }
     else if(action==='gate-memo'){ captureGateDraft(); generateGateMemo(UI.programId); }
