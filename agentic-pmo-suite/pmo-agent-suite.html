@@ -422,6 +422,7 @@
     (STATE.programs||[]).forEach(ensureGateData);
     (STATE.programs||[]).forEach(ensureFinancials);
     STATE.auditLog = STATE.auditLog || [];
+    ensureAuditSamples();
     render();
   }
   async function saveState(){
@@ -1132,6 +1133,32 @@ Quantified data on file: ${p.initiativeType==='Platform'
     return 'OKR ' + (o.okrTied==='yes' ? 'yes' : 'no') + (o.okrName ? ' ('+o.okrName+')' : '') + ', size ' + (o.size||'-') + ', complexity ' + (o.complexity||'-') + ', teams ' + ((o.teams||[]).length) + (o.global?', global':'') + ', ' + (o.initiativeType||'Product') + (s.scored ? ', score '+s.score+'/'+s.maxScore : ', not scored');
   }
 
+  // Illustrative leadership overrides so the Audit Log is not empty in a demo. They are flagged
+  // sample:true and labeled "sample" in the UI; they are not records of real decisions.
+  function ensureAuditSamples(){
+    if(STATE.auditSamplesSeeded) return;
+    STATE.auditSamplesSeeded = true;
+    STATE.auditLog = STATE.auditLog || [];
+    const find = pre => STATE.programs.find(p=>(p.name||'').indexOf(pre)===0);
+    const add = e => STATE.auditLog.push(Object.assign({id:uid('au'), sample:true, entityId:'', before:'', after:'', reason:''}, e));
+    const helix = find('Helix'), nova = find('Nova'), atlas = find('Atlas');
+    if(helix){
+      const was = Object.assign({}, helix, {size:'L', global:false});
+      add({ts:'2026-09-15T14:20:00.000Z', actor:'Chief Legal Officer', type:'program', entityId:helix.id, entity:helix.name, action:'Score override', before:clip(scoreSnap(was)), after:clip(scoreSnap(helix)), reason:'Enterprise renewals contractually depend on data-residency compliance. Agent underweighted size and global reach.'});
+    }
+    if(nova){
+      const was = Object.assign({}, nova, {complexity:'Low'});
+      add({ts:'2026-08-04T16:05:00.000Z', actor:'Chief Product Officer', type:'program', entityId:nova.id, entity:nova.name, action:'Score override', before:clip(scoreSnap(was)), after:clip(scoreSnap(nova)), reason:'Portal revamp touches authentication and billing flows; agent underestimated complexity.'});
+    }
+    if(atlas){
+      add({ts:'2026-04-15T15:00:00.000Z', actor:'PMO Steering Committee', type:'gate', entityId:atlas.id, entity:atlas.name, action:'Plan Approval Gate: Approved with exception', before:'Planning', after:'Execution', reason:'Proceed to build now; dependency tracker to be finalized within two weeks because API gateway sequencing is still being negotiated.'});
+    }
+    if(helix){
+      add({ts:'2026-09-12T15:00:00.000Z', actor:'Chief Legal Officer', type:'gate', entityId:helix.id, entity:helix.name, action:'Business Case Gate: Held', before:'Discovery', after:'Discovery', reason:'Subprocessor audit is incomplete, so scope is not yet bounded. Re-review once the audit lands.'});
+    }
+    STATE.auditLog.sort((a,b)=>a.ts<b.ts?-1:(a.ts>b.ts?1:0));
+  }
+
   function renderAudit(){
     const log = (STATE.auditLog||[]).slice().reverse();
     const f = UI.auditFilter || {type:'', q:''};
@@ -1142,7 +1169,7 @@ Quantified data on file: ${p.initiativeType==='Platform'
     const body = rows.slice(0,200).map(e=>`
       <tr>
         <td style="font-family:var(--mono);font-size:11.5px;white-space:nowrap;">${fmt(e.ts)}</td>
-        <td style="font-size:12.5px;">${escHtml(e.actor)}</td>
+        <td style="font-size:12.5px;">${escHtml(e.actor)}${e.sample?' <span class="tag">sample</span>':''}</td>
         <td style="font-size:12.5px;">${escHtml(e.entity)}<div style="font-size:10.5px;color:var(--text-faint);font-family:var(--mono);text-transform:uppercase;">${escHtml(e.type)}</div></td>
         <td style="font-size:12.5px;">${escHtml(e.action)}</td>
         <td style="font-size:12px;color:var(--text-muted);">${(e.before||e.after) ? `${e.before?`<span style="color:var(--text-faint);">${escHtml(e.before)}</span> \u2192 `:''}${escHtml(e.after)}` : ''}</td>
@@ -1150,7 +1177,7 @@ Quantified data on file: ${p.initiativeType==='Platform'
       </tr>`).join('') || `<tr><td colspan="6" style="color:var(--text-faint);">${log.length ? 'No entries match the filter.' : 'Nothing recorded yet. Make a change, such as overriding a score, approving a gate, or running an agent, and it appears here.'}</td></tr>`;
     const csvBox = UI.auditCsv ? `<div style="margin-top:12px;"><div style="font-size:12px;color:var(--text-muted);margin-bottom:6px;">If the download did not start (the published viewer blocks downloads), copy the CSV from here:</div><textarea style="height:140px;font-family:var(--mono);font-size:11px;">${escHtml(UI.auditCsv)}</textarea></div>` : '';
     return `
-      <div class="pagehead"><h1>Audit Log</h1><p>Who changed what, when, and why. Entries are recorded from the point this feature was added; earlier stage-gate history is on each program's Stage Gates tab.</p></div>
+      <div class="pagehead"><h1>Audit Log</h1><p>Who changed what, when, and why. Entries tagged sample are illustrative leadership overrides seeded for the prototype; everything else is recorded live from the point this feature was added.</p></div>
       <div class="card">
         <div style="border:1px solid var(--border);background:var(--surface-2);border-radius:8px;padding:8px 12px;margin-bottom:14px;font-size:12px;color:var(--text-muted);">
           <span class="tag">limits</span> "Who" is the name typed into <em>Acting as</em> in the sidebar. There is no login, so it is self-declared. The log has no edit or delete in the app but is stored with the rest of the app's saved data, so it is not tamper-proof.
@@ -1170,7 +1197,7 @@ Quantified data on file: ${p.initiativeType==='Platform'
   }
   function auditCsv(){
     const q = v => '"' + String(v===undefined||v===null?'':v).replace(/"/g,'""') + '"';
-    const rows = [['timestamp','who','type','entity','action','before','after','reason']].concat((STATE.auditLog||[]).map(e=>[e.ts,e.actor,e.type,e.entity,e.action,e.before,e.after,e.reason]));
+    const rows = [['timestamp','who','type','entity','action','before','after','reason','sample']].concat((STATE.auditLog||[]).map(e=>[e.ts,e.actor,e.type,e.entity,e.action,e.before,e.after,e.reason,e.sample?'yes':'']));
     return rows.map(r=>r.map(q).join(',')).join('\n');
   }
 
