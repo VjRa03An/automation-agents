@@ -368,7 +368,7 @@
       okrTied:'yes', okrName:'Reduce platform operating cost 15% (FY26 Eng OKR)', size:'XXL', teams:['Data','UI','Backend','Integration','Service'], global:true, complexity:'High',
       initiativeType:'Platform', existingCustomerCoveragePct:80, customersAtRiskPct:60, revenueAtRisk:'$25M', qualityDimensions:['Maintainability','Reliability','Availability'],
       targetDate:'End of 2026', scoreSource:'agent', agentAssessment:null, priorityTriage:null};
-    const p2 = {id:uid('prg'), name:'Nova Customer Portal Revamp', sponsor:'Chief Product Officer', objective:'Redesign the self-serve customer portal to reduce support ticket volume and improve NPS.', phase:'Planning', status:'green', budget:'$1.8M', startDate:'2026-03', endDate:'2026-09', tpmAllocations:[{tpmId:t2.id, pct:40},{tpmId:t3.id, pct:30}], artifacts:{},
+    const p2 = {id:uid('prg'), name:'Nova Customer Portal Revamp', sponsor:'Chief Product Officer', objective:'Redesign the self-serve customer portal to reduce support ticket volume and improve NPS.', phase:'Planning', status:'green', budget:'$1.8M', startDate:'2026-03', endDate:'2026-11', tpmAllocations:[{tpmId:t2.id, pct:40},{tpmId:t3.id, pct:30}], artifacts:{},
       valueProp:'A redesigned self-serve portal is expected to reach 60% of the existing customer base, add 50 new customers currently blocked by portal usability gaps, and generate $2M in net new revenue by end of 2026 through improved self-serve plan upgrades.',
       technicalScope:'Rebuild the customer portal front-end on the current design system, with a new self-serve plan-management flow and in-app support deflection.',
       requirements:'- Redesigned account/billing dashboard\n- Self-serve plan upgrade/downgrade flow\n- In-app help center with deflection analytics\n- Mobile-responsive layout',
@@ -378,7 +378,7 @@
       knownRisks:'',
       okrTied:'yes', okrName:'Improve NPS +10 points (FY26 Product OKR)', size:'L', teams:['UI','Backend'], global:false, complexity:'Medium',
       initiativeType:'Product', customerImpactPct:60, newCustomers:50, netNewRevenue:'$2M', targetDate:'End of 2026', scoreSource:'agent', agentAssessment:null, priorityTriage:null};
-    const p3 = {id:uid('prg'), name:'Helix Compliance Program (HIPAA/GDPR)', sponsor:'Chief Legal Officer', objective:'Bring core data platform into HIPAA and GDPR data-residency compliance ahead of enterprise renewals.', phase:'Discovery', status:'red', budget:'$900K', startDate:'2026-02', endDate:'2026-08', tpmAllocations:[{tpmId:t3.id, pct:40},{tpmId:t2.id, pct:30}], artifacts:{},
+    const p3 = {id:uid('prg'), name:'Helix Compliance Program (HIPAA/GDPR)', sponsor:'Chief Legal Officer', objective:'Bring core data platform into HIPAA and GDPR data-residency compliance ahead of enterprise renewals.', phase:'Discovery', status:'red', budget:'$900K', startDate:'2026-02', endDate:'2026-12', tpmAllocations:[{tpmId:t3.id, pct:40},{tpmId:t2.id, pct:30}], artifacts:{},
       valueProp:'20% of existing customers are on data-residency-sensitive contracts and cannot renew without HIPAA/GDPR compliance attestation; 15% are actively at risk of churn over this gap, representing $8M in revenue at risk if unaddressed before their renewal dates.',
       technicalScope:'Data residency controls, audit logging, and access-control changes across the Data and Integration layers of the core platform.',
       requirements:'- Regional data residency enforcement for EU/US customer data\n- Full audit log of PII access\n- Data processing agreements reflected in system access controls\n- Third-party subprocessor review',
@@ -419,6 +419,7 @@
     }catch(e){
       STATE = seedState();
     }
+    ensureDemoRefresh();
     (STATE.programs||[]).forEach(ensureGateData);
     (STATE.programs||[]).forEach(ensureFinancials);
     STATE.auditLog = STATE.auditLog || [];
@@ -1594,6 +1595,45 @@ Quantified data on file: ${p.initiativeType==='Platform'
       </div>`;
   }
 
+  // One-time data refresh for the demo portfolio: moves Nova's and Helix's sample end dates out (only when
+  // they still hold the original sample values, so a person's own edits are never overwritten) and adds two
+  // clearly named sample programs with later end dates.
+  function ensureDemoRefresh(){
+    const byName = pre => STATE.programs.find(p=>(p.name||'').indexOf(pre)===0);
+    const nova = byName('Nova'), helix = byName('Helix');
+    if(nova && nova.endDate==='2026-09') nova.endDate = '2026-11';
+    if(helix && helix.endDate==='2026-08') helix.endDate = '2026-12';
+    if(STATE.sampleProjectsSeeded) return;
+    STATE.sampleProjectsSeeded = true;
+    const tpm = name => (STATE.tpms||[]).find(t=>t.name===name);
+    const vs = tpm('VS'), mt = tpm('MT');
+    const mk = (name, sponsor, phase, budget, start, end, alloc, okr) => ({
+      id: uid('prg'), name, sponsor, phase, status:'green', budget, startDate:start, endDate:end,
+      objective:'Illustrative sample program that shows a longer-running initiative on the tracker, capacity and gate views.',
+      valueProp:'', technicalScope:'', requirements:'', successCriteria:'', scopeIn:'', scopeOut:'', constraints:'', knownRisks:'',
+      tpmAllocations: alloc, artifacts:{},
+      okrTied:'yes', okrName:okr, size:'S', teams:['UI'], global:false, complexity:'Low',
+      initiativeType:'Product', customerImpactPct:'', newCustomers:'', netNewRevenue:'',
+      existingCustomerCoveragePct:'', customersAtRiskPct:'', revenueAtRisk:'', qualityDimensions:[],
+      targetDate:'', scoreSource:null, agentAssessment:null, priorityTriage:null
+    });
+    STATE.programs.push(mk('Sample Project 1', 'Sample Sponsor', 'Planning', '$600K', '2026-09', '2027-01', vs?[{tpmId:vs.id, pct:10}]:[], 'Improve NPS +10 points (FY26 Product OKR)'));
+    STATE.programs.push(mk('Sample Project 2', 'Sample Sponsor', 'Discovery', '$450K', '2026-10', '2027-03', mt?[{tpmId:mt.id, pct:10}]:[], 'Enterprise renewal readiness (FY26 GTM OKR)'));
+  }
+  function endCell(p){
+    const e = monthIdx(p.endDate);
+    if(e===null) return '<span style="color:var(--text-faint);">\u2014</span>';
+    const names = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    const label = names[e%12] + ' ' + Math.floor(e/12);
+    const now = monthIdx(todayStr());
+    let flag = '';
+    if(p.phase!=='Closed'){
+      if(e < now) flag = ' <span class="tag" style="color:var(--red);border-color:var(--red);">overdue</span>';
+      else if(e - now <= 1) flag = ' <span class="tag" style="color:var(--amber);border-color:var(--amber);">due soon</span>';
+    }
+    return '<span style="font-family:var(--mono);font-size:12px;">' + label + '</span>' + flag;
+  }
+
   function renderTracker(){
     const maxScore = 5+5+2+2+9;
     const rows = STATE.programs.map(p=>{
@@ -1607,11 +1647,12 @@ Quantified data on file: ${p.initiativeType==='Platform'
         <td>${p.name}</td>
         <td>${ragBadge(p.status)}</td>
         <td><span class="tag">${p.phase}</span></td>
+        <td style="white-space:nowrap;">${endCell(p)}</td>
         <td style="font-family:var(--mono);font-size:12px;">${scoreCell}</td>
         <td style="font-size:12px;color:var(--text-muted)">${allocStr}</td>
         <td style="font-size:12px;color:var(--text-muted)">${p.budget||'\u2014'}</td>
       </tr>`;
-    }).join('') || `<tr><td colspan="7"><div class="empty-state">No programs yet. Add one from the Programs tab.</div></td></tr>`;
+    }).join('') || `<tr><td colspan="8"><div class="empty-state">No programs yet. Add one from the Programs tab.</div></td></tr>`;
 
     const top3 = STATE.programs.map(p=>({p, s:computeIntakeScore(p)})).filter(x=>x.s.scored).sort((a,b)=>b.s.score-a.s.score).slice(0,3);
     const priorityCard = top3.length ? `
@@ -1631,7 +1672,7 @@ Quantified data on file: ${p.initiativeType==='Platform'
       <div class="pagehead"><h1>Portfolio Tracker</h1><p>Consolidated view across all active programs and TPM capacity. TPMs are capped at ${Math.round(MAX_ALLOCATION_RATIO*100)}% utilization to preserve buffer capacity.</p></div>
       <div class="card">
         <table>
-          <thead><tr><th>ID</th><th>Program</th><th>RAG</th><th>Phase</th><th>Score</th><th>TPM Allocation</th><th>Budget</th></tr></thead>
+          <thead><tr><th>ID</th><th>Program</th><th>RAG</th><th>Phase</th><th>End</th><th>Score</th><th>TPM Allocation</th><th>Budget</th></tr></thead>
           <tbody>${rows}</tbody>
         </table>
       </div>
