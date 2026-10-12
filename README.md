@@ -7,6 +7,8 @@ Built with Python, GitHub Actions, and the Claude API.
 ## What's in here
 
 ### `agentic-pmo-suite/`
+[![Try the app](https://img.shields.io/badge/Try_the_app-live_demo-2ea44f?style=for-the-badge)](https://vjra03an.github.io/automation-agents/agentic-pmo-suite/pmo-agent-suite.html)
+
 A single-file agentic PMO tool: named AI agents (Charter, Project Plan, Status Report, Risk Register, Dependency Tracker, OKR Report, Landing Page, Intake, Prioritization) that draft every standard PMO artifact for a program from a shared, grounded context object, plus intake triage, OKR-gated prioritization scoring, and TPM capacity governance. See its own README for details and the current limitation on running it outside Claude.ai.
 
 ### `forex-agent/`

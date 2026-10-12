@@ -1,5 +1,9 @@
 # Agentic PMO Suite
 
+[![Try the app](https://img.shields.io/badge/Try_the_app-live_demo-2ea44f?style=for-the-badge)](https://vjra03an.github.io/automation-agents/agentic-pmo-suite/pmo-agent-suite.html)
+
+*Work in progress. Opens with sample data; the "Generate with AI" buttons need the Claude API and will not run in the hosted version.*
+
 ## Start here
 
 | | What it is | Read time |
