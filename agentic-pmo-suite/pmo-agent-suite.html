@@ -132,7 +132,7 @@
   const STATUSES = ['green','amber','red'];
 
   let STATE = null;
-  let UI = { view:'tracker', programId:null, tab:'overview', loadingKey:null, formError:null, expandedIntake:null, approvingIntakeId:null };
+  let UI = { gateDraft:{approver:'',rationale:''}, gateError:null, view:'tracker', programId:null, tab:'overview', loadingKey:null, formError:null, expandedIntake:null, approvingIntakeId:null };
   const INTAKE_AGENT = 'intake-agent-v1';
   const PRIORITY_AGENT = 'prioritization-agent-v1';
   const TRANSCRIPT_AGENT = 'transcript-parser-agent-v1';
@@ -419,6 +419,7 @@
     }catch(e){
       STATE = seedState();
     }
+    (STATE.programs||[]).forEach(ensureGateData);
     render();
   }
   async function saveState(){
@@ -897,6 +898,211 @@ Quantified data on file: ${p.initiativeType==='Platform'
     render();
   }
 
+  // ---------------- Stage Gates ----------------
+  // Four phase-transition gates. Each has exit criteria: "auto" criteria are computed from
+  // real program data (artifacts generated, OKR tie, RAG, allocations); "manual" criteria are
+  // human attestations. Decisions are logged with approver/date/rationale. This is a lightweight
+  // workflow: no role-based permissions, notifications, or configurable gate templates yet.
+  const GATES = [
+    {id:'g1', name:'Business Case Gate', from:'Discovery', to:'Planning', criteria:[
+      {key:'charter', label:'Charter drafted', auto:p=>!!(p.artifacts||{}).charter},
+      {key:'value', label:'Objective and value proposition documented', auto:p=>!!(p.objective && p.valueProp)},
+      {key:'okr', label:'Tied to a company OKR', auto:p=>p.okrTied==='yes'},
+      {key:'sponsor', label:'Executive sponsor named', auto:p=>!!p.sponsor},
+      {key:'bizcase', label:'Business case reviewed with sponsor', auto:null}
+    ]},
+    {id:'g2', name:'Plan Approval Gate', from:'Planning', to:'Execution', criteria:[
+      {key:'plan', label:'Project plan drafted', auto:p=>!!(p.artifacts||{}).plan},
+      {key:'risk', label:'Risk register drafted', auto:p=>!!(p.artifacts||{}).risk},
+      {key:'dep', label:'Dependency tracker drafted', auto:p=>!!(p.artifacts||{}).dependency},
+      {key:'tpm', label:'TPM allocated', auto:p=>(p.tpmAllocations||[]).length>0},
+      {key:'okrcheck', label:'No unresolved OKR-vs-metrics mismatch', auto:p=>!checkOkrMetricAlignment(p)},
+      {key:'budget', label:'Budget approved by finance', auto:null}
+    ]},
+    {id:'g3', name:'Launch Readiness Gate', from:'Execution', to:'Closing', criteria:[
+      {key:'status', label:'Status report current', auto:p=>!!(p.artifacts||{}).status},
+      {key:'rag', label:'Program RAG is not red', auto:p=>p.status!=='red'},
+      {key:'uat', label:'Acceptance testing signed off', auto:null},
+      {key:'handover', label:'Operational handover and support plan agreed', auto:null}
+    ]},
+    {id:'g4', name:'Closure Gate', from:'Closing', to:'Closed', criteria:[
+      {key:'lessons', label:'Lessons learned captured', auto:null},
+      {key:'benefits', label:'Benefits review scheduled', auto:null},
+      {key:'finance', label:'Final spend reconciled to budget', auto:null}
+    ]}
+  ];
+  const DECISION_LABEL = {approved:'Approved', exception:'Approved with exception', held:'Held', bypass:'Phase changed outside gate'};
+  const DECISION_COLOR = {approved:'var(--green)', exception:'var(--amber)', held:'var(--red)', bypass:'var(--text-faint)'};
+
+  function currentGate(p){ return GATES.find(g=>g.from===p.phase) || null; }
+  function gateCriteriaStatus(p, g){
+    const checks = (p.gateChecks||{})[g.id] || {};
+    return g.criteria.map(c=>({key:c.key, label:c.label, type:c.auto?'auto':'manual', met: c.auto ? !!c.auto(p) : !!checks[c.key]}));
+  }
+  function gateChip(p){
+    const g = currentGate(p);
+    if(!g) return '<span class="tag">No further gates</span>';
+    const st = gateCriteriaStatus(p, g);
+    const met = st.filter(s=>s.met).length;
+    return `<span class="tag" style="color:${met===st.length?'var(--green)':'var(--amber)'};border-color:${met===st.length?'var(--green)':'var(--amber)'};">Next gate: ${g.name} \u00b7 ${met}/${st.length} met</span>`;
+  }
+
+  // Backfill gate history for the seeded demo programs (also covers state saved by earlier versions).
+  function ensureGateData(p){
+    if(p.gateLog !== undefined) return;
+    p.gateChecks = p.gateChecks || {};
+    const n = p.name || '';
+    if(n.indexOf('Atlas')===0){
+      p.gateLog = [
+        {id:uid('gt'), gateId:'g1', gateName:'Business Case Gate', from:'Discovery', to:'Planning', decision:'approved', approver:'VP Engineering', rationale:'Release-risk case accepted; OKR tie confirmed.', date:'2026-02-10', unmet:[]},
+        {id:uid('gt'), gateId:'g2', gateName:'Plan Approval Gate', from:'Planning', to:'Execution', decision:'exception', approver:'PMO Steering Committee', rationale:'Proceed to build now; dependency tracker to be finalized within two weeks because API gateway sequencing is still being negotiated.', date:'2026-04-15', unmet:['Dependency tracker drafted']}
+      ];
+    } else if(n.indexOf('Nova')===0){
+      p.gateLog = [
+        {id:uid('gt'), gateId:'g1', gateName:'Business Case Gate', from:'Discovery', to:'Planning', decision:'approved', approver:'Chief Product Officer', rationale:'Support-ticket reduction target is credible and OKR-tied.', date:'2026-03-05', unmet:[]}
+      ];
+    } else if(n.indexOf('Helix')===0){
+      p.gateLog = [
+        {id:uid('gt'), gateId:'g1', gateName:'Business Case Gate', from:'Discovery', to:'Planning', decision:'held', approver:'Chief Legal Officer', rationale:'Subprocessor audit is incomplete, so scope is not yet bounded. Re-review once the audit lands.', date:'2026-09-12', unmet:['Business case reviewed with sponsor']}
+      ];
+    } else {
+      p.gateLog = [];
+    }
+  }
+
+  function captureGateDraft(){
+    const a = document.getElementById('gateApprover'), r = document.getElementById('gateRationale');
+    UI.gateDraft = {approver: a ? a.value : ((UI.gateDraft||{}).approver||''), rationale: r ? r.value : ((UI.gateDraft||{}).rationale||'')};
+  }
+
+  function decideGate(p, decision){
+    captureGateDraft();
+    const g = currentGate(p);
+    if(!g) return;
+    const approver = (UI.gateDraft.approver||'').trim();
+    const rationale = (UI.gateDraft.rationale||'').trim();
+    const st = gateCriteriaStatus(p, g);
+    const unmet = st.filter(s=>!s.met).map(s=>s.label);
+    if(!approver){ UI.gateError = 'Enter the approver\u2019s name \u2014 every gate decision is attributed to a person.'; render(); return; }
+    if(decision==='approved' && unmet.length){ UI.gateError = 'Unmet criteria remain. Use "Approve with exception" and record why, or hold the gate.'; render(); return; }
+    if((decision==='exception' || decision==='held') && !rationale){ UI.gateError = 'A rationale is required for an exception or a hold.'; render(); return; }
+    p.gateLog = p.gateLog || [];
+    p.gateLog.push({id:uid('gt'), gateId:g.id, gateName:g.name, from:g.from, to:g.to, decision, approver, rationale, date:todayStr(), unmet: decision==='approved' ? [] : unmet});
+    if(decision==='approved' || decision==='exception') p.phase = g.to;
+    UI.gateError = null;
+    UI.gateDraft = {approver:'', rationale:''};
+    saveState(); render();
+  }
+
+  async function generateGateMemo(programId){
+    const p = getProgram(programId);
+    const g = p && currentGate(p);
+    if(!g) return;
+    const st = gateCriteriaStatus(p, g);
+    UI.loadingKey = 'gatememo';
+    render();
+    const prompt = `You are a Gate Readiness Agent for an enterprise PMO. Write a brief readiness memo for the "${g.name}" (${g.from} to ${g.to}) for the program below. Use exactly these headers: "Recommendation" (one of Go / Conditional Go / No-Go, with one sentence of reasoning), "What Is Ready", "Gaps and Owners" (who should close each gap and by when), "Conditions If Conditional". Base it only on the criteria status and context given \u2014 do not invent facts. You are advising only; a named human approver makes the decision.\n\nCriteria status:\n${st.map(s=>`- [${s.met?'met':'NOT met'}] ${s.label} (${s.type==='auto'?'checked from program data':'manual attestation'})`).join('\n')}\n\n${programContext(p)}`;
+    try{
+      const response = await fetch("https://api.anthropic.com/v1/messages", {
+        method:"POST",
+        headers:{"Content-Type":"application/json"},
+        body: JSON.stringify({model:"claude-sonnet-5", max_tokens:900, messages:[{role:"user", content: prompt}]})
+      });
+      const data = await response.json();
+      const text = (data.content||[]).filter(b=>b.type==='text').map(b=>b.text).join('\n\n');
+      p.gateMemos = p.gateMemos || {};
+      p.gateMemos[g.id] = text || '_Agent returned no content \u2014 try again._';
+      await saveState();
+    }catch(e){
+      p.gateMemos = p.gateMemos || {};
+      p.gateMemos[g.id] = '_Generation failed. Check your connection and try again._';
+      console.error(e);
+    }
+    UI.loadingKey = null;
+    render();
+  }
+
+  function renderGates(p){
+    const g = currentGate(p);
+    const curIdx = PHASES.indexOf(p.phase);
+    const stepper = PHASES.map((ph,i)=>{
+      const done = i < curIdx, cur = i === curIdx;
+      const col = cur ? 'var(--accent)' : (done ? 'var(--green)' : 'var(--text-faint)');
+      return `<span style="font-family:var(--mono);font-size:11px;color:${col};border:1px solid ${col};border-radius:4px;padding:3px 8px;${cur?'background:var(--surface-2);font-weight:600;':''}">${done?'\u2713 ':''}${ph}</span>${i<PHASES.length-1?'<span style="color:var(--text-faint);margin:0 4px;">\u2192</span>':''}`;
+    }).join('');
+
+    const draft = UI.gateDraft || {approver:'', rationale:''};
+    let gateBody = '';
+    if(!g){
+      gateBody = `<div class="empty-state">This program is Closed \u2014 there are no further gates.</div>`;
+    } else {
+      const st = gateCriteriaStatus(p, g);
+      const metCount = st.filter(s=>s.met).length;
+      const allMet = metCount === st.length;
+      const memo = (p.gateMemos||{})[g.id];
+      const memoLoading = UI.loadingKey === 'gatememo';
+      const critRows = st.map(s=>{
+        const icon = s.met ? '<span style="color:var(--green);">\u25cf</span>' : '<span style="color:var(--text-faint);">\u25cb</span>';
+        const attr = s.type==='manual' ? `data-action="gate-toggle" data-gate="${g.id}" data-key="${s.key}" style="cursor:pointer;"` : '';
+        return `<div ${attr} style="display:flex;align-items:center;gap:10px;padding:7px 0;border-bottom:1px solid var(--border);font-size:13px;">
+          ${icon}<span style="flex:1;color:${s.met?'var(--text)':'var(--text-muted)'};">${s.label}</span>
+          <span class="tag">${s.type==='auto' ? 'checked from data' : (s.met ? 'attested \u00b7 click to undo' : 'click to attest')}</span>
+        </div>`;
+      }).join('');
+      gateBody = `
+        <div class="card">
+          <div style="display:flex;align-items:baseline;gap:12px;flex-wrap:wrap;margin-bottom:10px;">
+            <h3 style="margin:0;font-family:var(--disp);font-size:15px;">${g.name}</h3>
+            <span style="color:var(--text-muted);font-size:12.5px;">${g.from} \u2192 ${g.to}</span>
+            <span class="tag" style="color:${allMet?'var(--green)':'var(--amber)'};border-color:${allMet?'var(--green)':'var(--amber)'};">${metCount}/${st.length} criteria met</span>
+          </div>
+          ${critRows}
+          <div style="margin-top:16px;padding-top:14px;border-top:1px solid var(--border);">
+            <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;flex-wrap:wrap;">
+              <button class="btn small ghost" data-action="gate-memo" ${memoLoading?'disabled':''}>${memoLoading ? 'Drafting\u2026' : (memo ? 'Redraft readiness memo' : 'Draft readiness memo (agent)')}</button>
+              <span style="font-size:11.5px;color:var(--text-faint);">The agent advises; a named human decides.</span>
+            </div>
+            ${memo ? `<div class="artifact-body" style="margin-bottom:14px;"><span class="tag" style="color:var(--accent);border-color:var(--accent);">agent-drafted \u00b7 advisory</span>${window.marked ? marked.parse(memo) : memo}</div>` : ''}
+            ${UI.gateError ? `<div style="border:1px solid var(--red);background:rgba(225,90,90,0.07);border-radius:8px;padding:8px 12px;margin-bottom:10px;font-size:12.5px;color:var(--text);">${UI.gateError}</div>` : ''}
+            <div class="grid2">
+              <div><label>Approver (name / role)</label><input id="gateApprover" value="${(draft.approver||'').replace(/"/g,'&quot;')}" placeholder="e.g. PMO Steering Committee"></div>
+              <div></div>
+            </div>
+            <label>Rationale <span style="color:var(--text-faint);font-weight:400;">(required for exception or hold)</span></label>
+            <textarea id="gateRationale" placeholder="Why this decision?">${(draft.rationale||'').replace(/</g,'&lt;')}</textarea>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;">
+              <button class="btn small" data-action="gate-decide" data-decision="approved" ${allMet?'':'style="opacity:0.45;"'}>Approve \u2192 ${g.to}</button>
+              <button class="btn small ghost" data-action="gate-decide" data-decision="exception">Approve with exception</button>
+              <button class="btn small ghost" data-action="gate-decide" data-decision="held">Hold</button>
+            </div>
+          </div>
+        </div>`;
+    }
+
+    const log = (p.gateLog||[]).slice().reverse();
+    const logRows = log.length ? log.map(e=>`
+      <tr>
+        <td style="font-family:var(--mono);font-size:11.5px;white-space:nowrap;">${e.date}</td>
+        <td>${e.gateName}<div style="font-size:11px;color:var(--text-faint);">${e.from} \u2192 ${e.to}</div></td>
+        <td><span class="tag" style="color:${DECISION_COLOR[e.decision]};border-color:${DECISION_COLOR[e.decision]};">${DECISION_LABEL[e.decision]}</span></td>
+        <td style="font-size:12.5px;">${e.approver}</td>
+        <td style="font-size:12px;color:var(--text-muted);">${e.rationale||''}${(e.unmet&&e.unmet.length) ? `<div style="font-size:11px;color:var(--amber);margin-top:3px;">Unmet at decision: ${e.unmet.join('; ')}</div>` : ''}</td>
+      </tr>`).join('') : `<tr><td colspan="5" style="color:var(--text-faint);">No gate decisions recorded yet.</td></tr>`;
+
+    return `
+      <div class="card">
+        <div style="display:flex;align-items:center;flex-wrap:wrap;row-gap:6px;">${stepper}</div>
+      </div>
+      ${gateBody}
+      <div class="card">
+        <h3 style="margin-top:0;font-family:var(--disp);font-size:14px;">Gate Decision Log</h3>
+        <table>
+          <thead><tr><th>Date</th><th>Gate</th><th>Decision</th><th>Approver</th><th>Rationale</th></tr></thead>
+          <tbody>${logRows}</tbody>
+        </table>
+      </div>`;
+  }
+
   // ---------------- Views ----------------
   function navIcon(name){
     const icons = {
@@ -1345,7 +1551,7 @@ Quantified data on file: ${p.initiativeType==='Platform'
     {fn:'Portfolio Reporting & Rollups', owns:'Gives leadership one aggregate view of portfolio health, not a dozen separate decks.', status:'Partial', proto:'A tracker shows per-program RAG/budget/TPM load; no rolled-up \u201c% of portfolio OKR-aligned\u201d or capacity heat map yet.'},
     {fn:'Financial Management', owns:'Tracks budget vs. actuals, burn rate, and earned value across the portfolio.', status:'Not Yet', proto:'Budget is a static field today \u2014 no actuals, forecasting, or EVM (CPI/SPI).'},
     {fn:'Benefits Realization', owns:'Confirms, after delivery, that the value promised at intake was actually achieved.', status:'Not Yet', proto:'The OKR Report is a point-in-time estimate at generation time; nothing closes the loop after launch.'},
-    {fn:'Governance & Stage-Gates', owns:'Enforces formal go/no-go decisions at defined checkpoints, with documented exit criteria.', status:'Not Yet', proto:"Phase is tracked as a field; there's no formal gate-approval workflow."},
+    {fn:'Governance & Stage-Gates', owns:'Enforces formal go/no-go decisions at defined checkpoints, with documented exit criteria.', status:'Partial', proto:'Four phase gates with exit criteria (some checked from real program data, some attested by a human), a required approver and rationale, exceptions and holds, and a decision log; an agent drafts an advisory readiness memo. No role-based permissions, notifications, or configurable gate templates yet.'},
     {fn:'Change Control', owns:'Manages and documents changes to scope, schedule, or budget baselines.', status:'Not Yet', proto:"No scope-change log or re-baselining process exists yet."},
     {fn:'Audit & Compliance', owns:'Maintains a defensible record of who decided what, and when.', status:'Not Yet', proto:"Overrides are badged and reversible; a timestamped who/when/why log doesn't exist yet."},
     {fn:'Tooling & System Integration', owns:'Connects PfMO views to systems of record (ticketing, HRIS, financials) so data isn\u2019t re-entered by hand.', status:'Not Yet', proto:'Fully standalone \u2014 all data is seeded/manual; no real integrations.'},
@@ -1388,7 +1594,7 @@ Quantified data on file: ${p.initiativeType==='Platform'
   function renderProgramDetail(){
     const p = getProgram(UI.programId);
     if(!p){ UI.view='programs'; return renderProgramsList(); }
-    const tabs = [{key:'overview', label:'Overview'}, {key:'priority', label:'Priority'}, ...ARTIFACT_TYPES];
+    const tabs = [{key:'overview', label:'Overview'}, {key:'priority', label:'Priority'}, {key:'gates', label:'Stage Gates'}, ...ARTIFACT_TYPES];
     const tabsHtml = tabs.map(t=>`<div class="tab ${UI.tab===t.key?'active':''}" data-action="set-tab" data-key="${t.key}">${t.label}</div>`).join('');
 
     let body = '';
@@ -1443,6 +1649,8 @@ Quantified data on file: ${p.initiativeType==='Platform'
           </form>
         </div>
       `;
+    } else if(UI.tab==='gates'){
+      body = renderGates(p);
     } else if(UI.tab==='priority'){
       const s = computeIntakeScore(p);
       const maxScore = 5+5+2+2+9;
@@ -1557,7 +1765,7 @@ Quantified data on file: ${p.initiativeType==='Platform'
       <span class="backlink" data-action="nav" data-view="programs">\u2190 Back to Programs</span>
       <div class="pagehead">
         <h1>${p.name}</h1>
-        <p>${p.sponsor ? p.sponsor+' \u00b7 ' : ''}${ragBadge(p.status)} &nbsp; <span class="tag">${p.phase}</span></p>
+        <p>${p.sponsor ? p.sponsor+' \u00b7 ' : ''}${ragBadge(p.status)} &nbsp; <span class="tag">${p.phase}</span> &nbsp; ${gateChip(p)}</p>
       </div>
       <div class="tabs">${tabsHtml}</div>
       ${body}
@@ -1730,12 +1938,17 @@ Quantified data on file: ${p.initiativeType==='Platform'
       e.preventDefault();
       const p = getProgram(UI.programId);
       const fd = new FormData(eof);
+      const oldPhase = p.phase;
       Object.assign(p, {
         name: fd.get('name'), sponsor: fd.get('sponsor'), objective: fd.get('objective'), valueProp: fd.get('valueProp'),
         requirements: fd.get('requirements'), successCriteria: fd.get('successCriteria'), scopeIn: fd.get('scopeIn'), scopeOut: fd.get('scopeOut'), constraints: fd.get('constraints'), knownRisks: fd.get('knownRisks'),
         phase: fd.get('phase'), status: fd.get('status'), startDate: fd.get('startDate'),
         endDate: fd.get('endDate'), budget: fd.get('budget')
       });
+      if(p.phase !== oldPhase){
+        p.gateLog = p.gateLog || [];
+        p.gateLog.push({id:uid('gt'), gateId:'manual', gateName:'Manual phase edit', from:oldPhase, to:p.phase, decision:'bypass', approver:'\u2014', rationale:'Phase changed from the Overview form, outside the gate workflow.', date:todayStr(), unmet:[]});
+      }
       saveState(); render();
     });
 
@@ -1770,8 +1983,14 @@ Quantified data on file: ${p.initiativeType==='Platform'
     if(action==='nav'){ UI.view = el.dataset.view; UI.programId=null; render(); }
     else if(action==='toggle-dictation'){ toggleDictation(); }
     else if(action==='parse-transcript'){ parseTranscriptAndFill(); }
-    else if(action==='open-program'){ UI.view='programDetail'; UI.programId=el.dataset.id; UI.tab='overview'; render(); }
-    else if(action==='set-tab'){ UI.tab = el.dataset.key; render(); }
+    else if(action==='open-program'){ UI.view='programDetail'; UI.programId=el.dataset.id; UI.tab='overview'; UI.gateError=null; UI.gateDraft={approver:'',rationale:''}; render(); }
+    else if(action==='set-tab'){ UI.tab = el.dataset.key; UI.gateError = null; render(); }
+    else if(action==='gate-toggle'){
+      const p = getProgram(UI.programId);
+      if(p){ captureGateDraft(); p.gateChecks = p.gateChecks || {}; p.gateChecks[el.dataset.gate] = p.gateChecks[el.dataset.gate] || {}; p.gateChecks[el.dataset.gate][el.dataset.key] = !p.gateChecks[el.dataset.gate][el.dataset.key]; UI.gateError = null; saveState(); render(); }
+    }
+    else if(action==='gate-decide'){ const p = getProgram(UI.programId); if(p) decideGate(p, el.dataset.decision); }
+    else if(action==='gate-memo'){ captureGateDraft(); generateGateMemo(UI.programId); }
     else if(action==='generate'){ generateArtifact(UI.programId, el.dataset.key); }
     else if(action==='generate-priority'){ generateProgramPriority(el.dataset.id); }
     else if(action==='revert-program-score'){
