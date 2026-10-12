@@ -1148,7 +1148,7 @@ Quantified data on file: ${p.initiativeType==='Platform'
         <td style="font-size:12px;color:var(--text-muted);">${(e.before||e.after) ? `${e.before?`<span style="color:var(--text-faint);">${escHtml(e.before)}</span> \u2192 `:''}${escHtml(e.after)}` : ''}</td>
         <td style="font-size:12px;color:var(--text-muted);">${escHtml(e.reason)}</td>
       </tr>`).join('') || `<tr><td colspan="6" style="color:var(--text-faint);">${log.length ? 'No entries match the filter.' : 'Nothing recorded yet. Make a change, such as overriding a score, approving a gate, or running an agent, and it appears here.'}</td></tr>`;
-    const csvBox = UI.auditCsv ? `<div style="margin-top:12px;"><div style="font-size:12px;color:var(--text-muted);margin-bottom:6px;">Download was blocked here. Copy the CSV below:</div><textarea style="height:140px;font-family:var(--mono);font-size:11px;">${escHtml(UI.auditCsv)}</textarea></div>` : '';
+    const csvBox = UI.auditCsv ? `<div style="margin-top:12px;"><div style="font-size:12px;color:var(--text-muted);margin-bottom:6px;">If the download did not start (the published viewer blocks downloads), copy the CSV from here:</div><textarea style="height:140px;font-family:var(--mono);font-size:11px;">${escHtml(UI.auditCsv)}</textarea></div>` : '';
     return `
       <div class="pagehead"><h1>Audit Log</h1><p>Who changed what, when, and why. Entries are recorded from the point this feature was added; earlier stage-gate history is on each program's Stage Gates tab.</p></div>
       <div class="card">
@@ -2453,9 +2453,10 @@ Quantified data on file: ${p.initiativeType==='Platform'
     }
     else if(action==='gate-decide'){ const p = getProgram(UI.programId); if(p) decideGate(p, el.dataset.decision); }
     else if(action==='audit-csv'){
-      const csv = auditCsv(); UI.auditCsv = null;
+      const csv = auditCsv(); UI.auditCsv = csv;
       try{ const blob = new Blob([csv], {type:'text/csv'}); const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = 'pmo-audit-log.csv'; document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(url), 1000); }
-      catch(err){ UI.auditCsv = csv; render(); }
+      catch(err){ /* copy box below is the fallback */ }
+      render();
     }
     else if(action==='gate-memo'){ captureGateDraft(); generateGateMemo(UI.programId); }
     else if(action==='generate'){ generateArtifact(UI.programId, el.dataset.key); }
