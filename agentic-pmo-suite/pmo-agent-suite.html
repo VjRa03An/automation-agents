@@ -352,6 +352,34 @@
   function uid(prefix){ return (prefix||'id')+'-'+Math.random().toString(36).slice(2,8); }
   function todayStr(){ return new Date().toISOString().slice(0,10); }
 
+
+  // ---------- Rigor meter (right-sizing process per program) ----------
+  const RIGOR_COMPLEXITY = {Low:0, Medium:1, High:2};
+  const RIGOR_INTEGRATION = {'None':0, 'Internal teams':1, 'External partner':2};
+  const RIGOR_RELEASE = {'Maintenance':0, 'Enhancement':1, 'New build':2};
+  const RIGOR_LAYERS = ['Front end','Back end','Middleware','Data','Reporting'];
+  const RIGOR_LEVELS = ['Low','Medium','High'];
+  const RIGOR_COLOR = {Low:'var(--green)', Medium:'var(--amber)', High:'var(--red)'};
+  const RIGOR_PROCESS = {
+    High: ['Stage gates with formal sign-off','Steering committee, bi-weekly','Full RAID log, owners and dates','Formal change control','Weekly executive status'],
+    Medium: ['Milestone reviews at key points','RAID-lite: top risks and dependencies','Bi-weekly status','Change log, decided at Director level'],
+    Low: ['Short iterations; ship early and learn (“go ugly early”)','Team-level tracking in Jira','Status in the team channel','Escalate only when blocked'],
+  };
+  function defaultRigor(p){
+    return {complexity: RIGOR_COMPLEXITY[p.complexity]!==undefined ? p.complexity : 'Medium', integration:'Internal teams', layers:['Back end'], release:'Enhancement', override:null};
+  }
+  function getRigor(p){ if(!p.rigor) p.rigor = defaultRigor(p); return p.rigor; }
+  function computeRigor(p){
+    const r = getRigor(p);
+    const n = (r.layers||[]).length;
+    const layerPts = n>=4 ? 2 : n>=2 ? 1 : 0;
+    const score = (RIGOR_COMPLEXITY[r.complexity]||0) + (RIGOR_INTEGRATION[r.integration]||0) + layerPts + (RIGOR_RELEASE[r.release]||0);
+    const computed = score>=6 ? 'High' : score>=3 ? 'Medium' : 'Low';
+    const level = r.override || computed;
+    return {score, max:8, computed, level, overridden: !!r.override && r.override!==computed};
+  }
+  function rigorSnap(p){ const r=getRigor(p), c=computeRigor(p); return c.level+' rigor ('+c.score+'/8: '+r.complexity+' complexity, '+r.integration+', '+(r.layers||[]).length+' layer(s), '+r.release+')'; }
+
   function seedState(){
     const t1 = {id:uid('tpm'), name:'VS', capacityPct:100};
     const t2 = {id:uid('tpm'), name:'PR', capacityPct:100};
@@ -389,6 +417,9 @@
       okrTied:'yes', okrName:'Enterprise renewal readiness (FY26 GTM OKR)', size:'XL', teams:['Data','Integration'], global:true, complexity:'Medium',
       initiativeType:'Platform', existingCustomerCoveragePct:20, customersAtRiskPct:15, revenueAtRisk:'$8M', qualityDimensions:['Reliability'],
       targetDate:'End of 2026', scoreSource:'agent', agentAssessment:null, priorityTriage:null};
+    p1.rigor = {complexity:'High', integration:'Internal teams', layers:['Back end','Middleware','Data','Reporting'], release:'New build', override:null};
+    p2.rigor = {complexity:'Medium', integration:'Internal teams', layers:['Front end','Back end'], release:'Enhancement', override:null};
+    p3.rigor = {complexity:'Medium', integration:'External partner', layers:['Back end','Data','Reporting'], release:'Enhancement', override:null};
     return {
       tpms:[t1,t2,t3],
       programs:[p1,p2,p3],
@@ -1211,6 +1242,7 @@ Quantified data on file: ${p.initiativeType==='Platform'
       team: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="9" cy="8" r="3"/><path d="M2 20c0-3.3 3-6 7-6s7 2.7 7 6"/><circle cx="17" cy="9" r="2.3"/><path d="M16 14.2c2.6.3 5 2 5 5.8"/></svg>',
       priority: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M4 19V10M12 19V5M20 19v-6"/></svg>',
       audit: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M6 3h9l4 4v14H6z"/><path d="M9 12h7M9 16h7M9 8h3"/></svg>',
+      rigor: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M4 16a8 8 0 0 1 16 0"/><path d="M12 16l4-5"/><circle cx="12" cy="16" r="1.2"/></svg>',
       roadmap: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M3 12h4l2-7 4 14 2-7h6"/></svg>'
     };
     return icons[name]||'';
@@ -1220,6 +1252,7 @@ Quantified data on file: ${p.initiativeType==='Platform'
     const items = [
       {key:'tracker', label:'Portfolio Tracker'},
       {key:'priority', label:'Priority Ranking'},
+      {key:'rigor', label:'Rigor Meter'},
       {key:'programs', label:'Programs'},
       {key:'intake', label:'Intake'},
       {key:'team', label:'TPM Team'},
@@ -2063,6 +2096,42 @@ Quantified data on file: ${p.initiativeType==='Platform'
   ];
   const STATUS_COLOR = {Built:'var(--green)', Partial:'var(--amber)', 'Not Yet':'var(--text-faint)'};
 
+  function renderRigor(){
+    const sel = (pid, field, opts, val)=>`<select class="rigor-sel" data-rigor-id="${pid}" data-rigor-field="${field}" style="background:var(--surface-2);color:var(--text);border:1px solid var(--border);border-radius:5px;font-size:11.5px;padding:3px 4px;min-width:${field==='complexity'?78:128}px;">${opts.map(o=>`<option ${o===val?'selected':''}>${o}</option>`).join('')}</select>`;
+    const rows = STATE.programs.map(p=>{
+      const r = getRigor(p); const c = computeRigor(p);
+      const chips = RIGOR_LAYERS.map(l=>{ const on=(r.layers||[]).includes(l); return `<span class="pillbtn" data-action="toggle-layer" data-id="${p.id}" data-layer="${l}" style="${on?'color:var(--accent);border-color:var(--accent);':''}margin:0 3px 3px 0;">${l}</span>`; }).join('');
+      const idx = RIGOR_LEVELS.indexOf(c.level);
+      const badge = c.overridden ? `<span class="tag" style="color:var(--amber);border-color:var(--amber);">leader override</span> <span class="pillbtn" data-action="revert-rigor" data-id="${p.id}">revert to ${c.computed}</span>` : `<span class="tag">meter</span>`;
+      return `<tr>
+        <td style="font-weight:600;max-width:220px;">${p.name}</td>
+        <td>${sel(p.id,'complexity',Object.keys(RIGOR_COMPLEXITY),r.complexity)}</td>
+        <td>${sel(p.id,'integration',Object.keys(RIGOR_INTEGRATION),r.integration)}</td>
+        <td style="max-width:230px;">${chips}</td>
+        <td>${sel(p.id,'release',Object.keys(RIGOR_RELEASE),r.release)}</td>
+        <td style="font-family:var(--mono);font-size:12px;">${c.score}/${c.max}</td>
+        <td style="min-width:150px;">
+          <input type="range" min="0" max="2" step="1" value="${idx}" class="rigor-slider" data-rigor-id="${p.id}" style="width:110px;accent-color:${RIGOR_COLOR[c.level]};">
+          <div><span class="tag" style="color:${RIGOR_COLOR[c.level]};border-color:${RIGOR_COLOR[c.level]};font-size:11px;">${c.level} rigor</span> ${badge}</div>
+        </td>
+      </tr>`;
+    }).join('');
+    const counts = RIGOR_LEVELS.map(l=>STATE.programs.filter(p=>computeRigor(p).level===l).length);
+    const levelCards = ['High','Medium','Low'].map(l=>`
+      <div class="card" style="flex:1;min-width:220px;border-top:3px solid ${RIGOR_COLOR[l]};">
+        <div style="font-family:var(--disp);font-weight:600;margin-bottom:4px;">${l} rigor <span style="color:var(--text-faint);font-size:12px;font-weight:400;">· ${counts[RIGOR_LEVELS.indexOf(l)]} program(s)</span></div>
+        <ul style="margin:6px 0 0 16px;padding:0;color:var(--text-muted);font-size:12.5px;line-height:1.6;">${RIGOR_PROCESS[l].map(x=>`<li>${x}</li>`).join('')}</ul>
+      </div>`).join('');
+    return `
+      <div class="pagehead"><h1>Rigor Meter</h1><p>One method doesn’t fit every program. Each program is scored on complexity, integration, the parts of the stack it touches, and release type (0–8). The score sets the rigor level, and the level sets the recommended process. A leader can move the slider to override; the override is badged and always revertible.</p></div>
+      <div class="card" style="overflow-x:auto;"><table>
+        <thead><tr><th>Program</th><th>Complexity</th><th>Integration</th><th>Stack layers</th><th>Release type</th><th>Score</th><th>Rigor level</th></tr></thead>
+        <tbody>${rows}</tbody></table>
+        <div style="font-size:11.5px;color:var(--text-faint);margin-top:10px;font-family:var(--mono);">Scoring: complexity 0–2 · integration 0–2 · stack layers (1 → 0, 2–3 → 1, 4–5 → 2) · release type 0–2 · High ≥ 6 · Medium 3–5 · Low ≤ 2</div>
+      </div>
+      <div style="display:flex;gap:14px;flex-wrap:wrap;">${levelCards}</div>`;
+  }
+
   function renderRoadmap(){
     const builtCount = PFMO_FUNCTION_MAP.filter(r=>r.status==='Built').length;
     const partialCount = PFMO_FUNCTION_MAP.filter(r=>r.status==='Partial').length;
@@ -2290,6 +2359,7 @@ Quantified data on file: ${p.initiativeType==='Platform'
     else if(UI.view==='intake') mainHtml = renderIntake();
     else if(UI.view==='team') mainHtml = renderTeam();
     else if(UI.view==='roadmap') mainHtml = renderRoadmap();
+    else if(UI.view==='rigor') mainHtml = renderRigor();
     else if(UI.view==='audit') mainHtml = renderAudit();
 
     app.innerHTML = `${renderRail()}<main>${mainHtml}<div class="footer-credit">PMO Agent Suite \u00b7 agents run on Claude \u00b7 built by Venkatesh Subramanyam</div></main>`;
@@ -2534,6 +2604,8 @@ Quantified data on file: ${p.initiativeType==='Platform'
     if(!el) return;
     const action = el.dataset.action;
     if(action==='nav'){ UI.view = el.dataset.view; UI.programId=null; render(); }
+    else if(action==='toggle-layer'){ const p=getProgram(el.dataset.id); const r=getRigor(p); const before=rigorSnap(p); const l=el.dataset.layer; r.layers = r.layers.includes(l) ? r.layers.filter(x=>x!==l) : r.layers.concat([l]); audit({type:'program', entityId:p.id, entity:p.name, action:'Rigor input changed: stack layers', before, after:rigorSnap(p)}); saveState(); render(); }
+    else if(action==='revert-rigor'){ const p=getProgram(el.dataset.id); const before=rigorSnap(p); getRigor(p).override=null; audit({type:'program', entityId:p.id, entity:p.name, action:'Rigor override reverted to meter', before, after:rigorSnap(p)}); saveState(); render(); }
     else if(action==='toggle-dictation'){ toggleDictation(); }
     else if(action==='parse-transcript'){ parseTranscriptAndFill(); }
     else if(action==='open-program'){ UI.view='programDetail'; UI.programId=el.dataset.id; UI.tab='overview'; UI.gateError=null; UI.gateDraft={approver:'',rationale:''}; render(); }
@@ -2609,6 +2681,13 @@ Quantified data on file: ${p.initiativeType==='Platform'
   });
   document.getElementById('app').addEventListener('keydown', function(e){
     if(e.key==='Enter' && e.target && e.target.id==='auditQuery'){ UI.auditFilter.q = e.target.value; render(); }
+  });
+
+  document.getElementById('app').addEventListener('change', function(e){
+    const el = e.target;
+    if(!el || !el.classList) return;
+    if(el.classList.contains('rigor-sel')){ const p=getProgram(el.dataset.rigorId); const before=rigorSnap(p); getRigor(p)[el.dataset.rigorField]=el.value; audit({type:'program', entityId:p.id, entity:p.name, action:'Rigor input changed: '+el.dataset.rigorField, before, after:rigorSnap(p)}); saveState(); render(); }
+    else if(el.classList.contains('rigor-slider')){ const p=getProgram(el.dataset.rigorId); const r=getRigor(p); const before=rigorSnap(p); const lvl=RIGOR_LEVELS[Number(el.value)]; const computed=computeRigor(Object.assign({}, p, {rigor:Object.assign({}, r, {override:null})})).computed; r.override = (lvl===computed) ? null : lvl; audit({type:'program', entityId:p.id, entity:p.name, action: r.override ? 'Rigor override: leader set '+lvl : 'Rigor override cleared', before, after:rigorSnap(p)}); saveState(); render(); }
   });
 
   loadState();

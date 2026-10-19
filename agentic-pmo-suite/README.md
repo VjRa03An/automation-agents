@@ -10,7 +10,7 @@
 |---|---|---|
 | 📄 **[Overview (PDF)](Agentic-PMO-Suite-Overview.pdf)** | One page: what the suite does, capability by capability, and why each matters | 2 min |
 | 🗺️ **[PfMO Function Map (PDF)](PfMO-Function-Map.pdf)** | One page: the 14 standard Portfolio Management Office functions, mapped against what this prototype covers today | 2 min |
-| ▶️ **[Try the app](https://vjra03an.github.io/automation-agents/agentic-pmo-suite/pmo-agent-suite.html)** | Click through the portfolio tracker, priority ranking, intake and TPM capacity views with sample data | 5 min |
+| ▶️ **[Try the app](https://vjra03an.github.io/automation-agents/agentic-pmo-suite/pmo-agent-suite.html)** | Click through the portfolio tracker, priority ranking, **rigor meter**, intake and TPM capacity views with sample data | 5 min |
 | 💻 **[Source (`pmo-agent-suite.html`)](pmo-agent-suite.html)** | The full single-file app | — |
 
 > **Status:** work in progress, a personal prototype. In the hosted version the screens, scoring and overrides all work; the "Generate with AI" buttons need the Claude API and won't run there (see *Known limitation* below). The `.docx` versions of both one-pagers are also in this folder if you'd like to edit or comment on them.
@@ -33,6 +33,12 @@ Built as a working tool and as a demonstration of agentic-AI PMO/TPM tooling des
     - **Platform** initiatives are scored on existing-customer coverage %, customers at risk of churn, and revenue at risk — so infrastructure/reliability work isn't structurally penalized just because it doesn't generate new revenue directly.
   - Every agent-generated score can be overridden by a PMO/engineering leader, with the override clearly badged and always revertible back to the agent's original assessment — the system never silently overwrites a human decision.
 - **TPM capacity governance** — no TPM can be allocated above 80% of their stated capacity; both the Intake approval flow and manual allocation changes are gated on this.
+- **Rigor meter (right-sized process)** — one method doesn't fit every program. Each program is scored on four parameters: complexity, integration (none, internal teams, or an external partner), the parts of the stack it touches (front end, back end, middleware, data, reporting), and release type (maintenance, enhancement, new build). The 0–8 score sets a rigor level, and each level comes with a recommended process:
+  - **High** (score 6–8): stage gates with formal sign-off, a steering committee, a full RAID log, formal change control, weekly executive status.
+  - **Medium** (3–5): milestone reviews, RAID-lite, bi-weekly status, a change log decided at Director level.
+  - **Low** (0–2): short iterations that ship early and learn ("go ugly early"), team-level tracking, status in the team channel.
+
+  A leader can move a slider to override the level; like score overrides, it is badged, always revertible, and recorded in the Audit Log. The approach comes from a rigor meter I first built as Director of Quality & Process at Genesys, where 3-week maintenance releases carried waterfall overhead and long-running work ran full waterfall when it should have iterated.
 - **Seven grounded artifact agents**, one per program, each generating from a shared program-context object (objective, value proposition, requirements, success criteria, scope, constraints, known risks, quantified impact metrics) rather than inventing content from scratch:
   1. Charter
   2. Project Plan
