@@ -38,6 +38,8 @@ Built as a working tool and as a demonstration of agentic-AI PMO/TPM tooling des
   - **Medium** (3–5): milestone reviews, RAID-lite, bi-weekly status, a change log decided at Director level.
   - **Low** (0–2): short iterations that ship early and learn ("go ugly early"), team-level tracking, status in the team channel.
 
+  The rigor profile is **captured at intake**: every request is scored when it's submitted, shown in the intake list and on a pipeline view, and **inherited by the program on approval**, so programs enter execution with their process already decided.
+
   A leader can move a slider to override the level; like score overrides, it is badged, always revertible, and recorded in the Audit Log. The approach comes from a rigor meter I first built as Director of Quality & Process at Genesys, where 3-week maintenance releases carried waterfall overhead and long-running work ran full waterfall when it should have iterated.
 - **Seven grounded artifact agents**, one per program, each generating from a shared program-context object (objective, value proposition, requirements, success criteria, scope, constraints, known risks, quantified impact metrics) rather than inventing content from scratch:
   1. Charter
