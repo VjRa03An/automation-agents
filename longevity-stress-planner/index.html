@@ -20,6 +20,7 @@ body{margin:0}img{max-width:100%}[hidden]{display:none!important}
   --good: #11743a; --warn: #a45a07; --bad: #b42318; --bad-soft: #fbe9e7;
   --s1: #2a78d6; --s2: #eb6834; --s3: #1baf7a;
   --band-rec: rgba(180, 35, 24, .11); --band-recov: rgba(12, 102, 82, .07);
+  --mine-bg: #fff4d6; --mine-line: #d9a21b; --mine-ink: #7a5300;
   --f-display: "IBM Plex Sans Condensed", "Arial Narrow", system-ui, sans-serif;
   --f-body: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
   --f-mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
@@ -29,13 +30,13 @@ body{margin:0}img{max-width:100%}[hidden]{display:none!important}
   --accent: #46b99a; --accent-ink: #04211a; --accent-soft: #173a31;
   --good: #4cc27a; --warn: #e3a04a; --bad: #f07a6c; --bad-soft: #3a1d1a;
   --s1: #3987e5; --s2: #d95926; --s3: #199e70;
-  --band-rec: rgba(240, 122, 108, .13); --band-recov: rgba(70, 185, 154, .08); color-scheme: dark; } }
+  --band-rec: rgba(240, 122, 108, .13); --band-recov: rgba(70, 185, 154, .08); --mine-bg: #33290f; --mine-line: #b58a24; --mine-ink: #f0c56a; color-scheme: dark; } }
 :root[data-theme="dark"] {
   --bg: #0e1412; --panel: #151d1a; --sunk: #1c2622; --ink: #e6ece9; --ink-2: #a9b5af; --ink-3: #7e8a84; --line: #2a3530;
   --accent: #46b99a; --accent-ink: #04211a; --accent-soft: #173a31;
   --good: #4cc27a; --warn: #e3a04a; --bad: #f07a6c; --bad-soft: #3a1d1a;
   --s1: #3987e5; --s2: #d95926; --s3: #199e70;
-  --band-rec: rgba(240, 122, 108, .13); --band-recov: rgba(70, 185, 154, .08); color-scheme: dark; }
+  --band-rec: rgba(240, 122, 108, .13); --band-recov: rgba(70, 185, 154, .08); --mine-bg: #33290f; --mine-line: #b58a24; --mine-ink: #f0c56a; color-scheme: dark; }
 
 * { box-sizing: border-box; }
 body { background: var(--bg); color: var(--ink); font-family: var(--f-body); font-size: 14px; line-height: 1.45; }
@@ -93,6 +94,15 @@ details.sec[open] > summary::after { content: "–"; }
 .x { border: 0; background: transparent; color: var(--ink-3); cursor: pointer; font-size: 16px; height: 30px; }
 .x:hover { color: var(--bad); }
 .presets { display: flex; flex-wrap: wrap; gap: 6px; }
+
+/* Fields each household must fill in */
+.f input[data-mine], .f select[data-mine], .list.mine input, .list.mine select { background: var(--mine-bg); border-color: var(--mine-line); }
+.f input[data-mine]:focus, .f select[data-mine]:focus, .list.mine input:focus { border-color: var(--accent); }
+.key { display: flex; flex-wrap: wrap; gap: 6px 16px; font-size: 12px; color: var(--ink-2); margin-top: 8px; align-items: center; }
+.key span { display: inline-flex; align-items: center; gap: 6px; }
+.key i { width: 22px; height: 14px; border-radius: 3px; border: 1px solid var(--line); background: var(--bg); display: inline-block; }
+.key i.mine { background: var(--mine-bg); border-color: var(--mine-line); }
+.dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--mine-line); margin-right: 6px; vertical-align: 1px; }
 
 /* Results */
 .results { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
@@ -155,6 +165,7 @@ tr.short td:first-child { background: var(--bad-soft); }
       <h1>Longevity Stress Planner</h1>
       <p>Project a household's savings year by year, then hit it with recessions, a survivor year and taxes to see whether the money lasts.</p>
       <div class="example-flag" id="exampleFlag">● Showing an example household. Replace the inputs with your own numbers.</div>
+      <div class="key"><span><i class="mine"></i>Your numbers: replace these with your own</span><span><i></i>Assumptions: fine to leave as they are, or adjust to test</span></div>
     </div>
     <div class="toolbar">
       <button class="btn" id="btnReset" type="button">Reset to example</button>
@@ -167,37 +178,37 @@ tr.short td:first-child { background: var(--bad-soft); }
     <!-- ================= INPUTS ================= -->
     <form class="inputs" id="form" autocomplete="off" onsubmit="return false">
       <details class="sec" open>
-        <summary><h2>Household</h2><span class="hint" id="hintHouse"></span></summary>
+        <summary><h2><span class="dot" aria-hidden="true"></span>Household</h2><span class="hint" id="hintHouse"></span></summary>
         <div class="body">
           <div class="f"><span class="lbl">Filing status</span>
             <div class="seg" role="group" aria-label="Filing status"><button type="button" data-filing="MFJ">Married, joint</button><button type="button" data-filing="Single">Single</button></div>
           </div>
           <div class="sub" id="nameA">Person A</div>
           <div class="row">
-            <div class="f"><label for="a_name">Name</label><input id="a_name" data-path="a.name" type="text"></div>
-            <div class="f"><label for="a_by">Birth year · month</label><div class="row"><input id="a_by" data-path="a.birthYear" type="number" step="1"><input id="a_bm" data-path="a.birthMonth" type="number" min="1" max="12" aria-label="Birth month"></div></div>
+            <div class="f"><label for="a_name">Name</label><input id="a_name" data-mine data-path="a.name" type="text"></div>
+            <div class="f"><label for="a_by">Birth year · month</label><div class="row"><input id="a_by" data-mine data-path="a.birthYear" type="number" step="1"><input id="a_bm" data-mine data-path="a.birthMonth" type="number" min="1" max="12" aria-label="Birth month"></div></div>
           </div>
           <div class="row">
-            <div class="f"><label for="a_sal">Salary (today's $/yr)</label><input id="a_sal" data-path="a.salary" type="number" step="1000"></div>
-            <div class="f"><label for="a_ret">Last year of salary is before</label><input id="a_ret" data-path="a.retireYear" type="number" step="1"></div>
+            <div class="f"><label for="a_sal">Salary (today's $/yr)</label><input id="a_sal" data-mine data-path="a.salary" type="number" step="1000"></div>
+            <div class="f"><label for="a_ret">Last year of salary is before</label><input id="a_ret" data-mine data-path="a.retireYear" type="number" step="1"></div>
           </div>
           <div class="row">
-            <div class="f"><label for="a_ss">Social Security at full retirement age ($/mo)</label><input id="a_ss" data-path="a.ssFRA" type="number" step="10"></div>
-            <div class="f"><label for="a_claim">Claim at age</label><input id="a_claim" data-path="a.ssClaimAge" type="number" min="62" max="70" step="1"></div>
+            <div class="f"><label for="a_ss">Social Security at full retirement age ($/mo)</label><input id="a_ss" data-mine data-path="a.ssFRA" type="number" step="10"></div>
+            <div class="f"><label for="a_claim">Claim at age</label><input id="a_claim" data-mine data-path="a.ssClaimAge" type="number" min="62" max="70" step="1"></div>
           </div>
           <div id="spouseBlock" class="body" style="padding:0">
             <div class="sub" id="nameB">Person B</div>
             <div class="row">
-              <div class="f"><label for="b_name">Name</label><input id="b_name" data-path="b.name" type="text"></div>
-              <div class="f"><label for="b_by">Birth year · month</label><div class="row"><input id="b_by" data-path="b.birthYear" type="number" step="1"><input id="b_bm" data-path="b.birthMonth" type="number" min="1" max="12" aria-label="Birth month"></div></div>
+              <div class="f"><label for="b_name">Name</label><input id="b_name" data-mine data-path="b.name" type="text"></div>
+              <div class="f"><label for="b_by">Birth year · month</label><div class="row"><input id="b_by" data-mine data-path="b.birthYear" type="number" step="1"><input id="b_bm" data-mine data-path="b.birthMonth" type="number" min="1" max="12" aria-label="Birth month"></div></div>
             </div>
             <div class="row">
-              <div class="f"><label for="b_sal">Salary (today's $/yr)</label><input id="b_sal" data-path="b.salary" type="number" step="1000"></div>
-              <div class="f"><label for="b_ret">Last year of salary is before</label><input id="b_ret" data-path="b.retireYear" type="number" step="1"></div>
+              <div class="f"><label for="b_sal">Salary (today's $/yr)</label><input id="b_sal" data-mine data-path="b.salary" type="number" step="1000"></div>
+              <div class="f"><label for="b_ret">Last year of salary is before</label><input id="b_ret" data-mine data-path="b.retireYear" type="number" step="1"></div>
             </div>
             <div class="row">
-              <div class="f"><label for="b_ss">Social Security at full retirement age ($/mo)</label><input id="b_ss" data-path="b.ssFRA" type="number" step="10"></div>
-              <div class="f"><label for="b_claim">Claim at age</label><input id="b_claim" data-path="b.ssClaimAge" type="number" min="62" max="70" step="1"></div>
+              <div class="f"><label for="b_ss">Social Security at full retirement age ($/mo)</label><input id="b_ss" data-mine data-path="b.ssFRA" type="number" step="10"></div>
+              <div class="f"><label for="b_claim">Claim at age</label><input id="b_claim" data-mine data-path="b.ssClaimAge" type="number" min="62" max="70" step="1"></div>
             </div>
           </div>
           <div class="row">
@@ -209,55 +220,55 @@ tr.short td:first-child { background: var(--bad-soft); }
       </details>
 
       <details class="sec" open>
-        <summary><h2>Savings</h2><span class="hint" id="hintSave"></span></summary>
+        <summary><h2><span class="dot" aria-hidden="true"></span>Savings</h2><span class="hint" id="hintSave"></span></summary>
         <div class="body">
           <div class="row">
-            <div class="f"><label for="ira">Traditional IRA / 401(k)</label><input id="ira" data-path="accounts.ira" type="number" step="10000"></div>
-            <div class="f"><label for="roth">Roth IRA</label><input id="roth" data-path="accounts.roth" type="number" step="10000"></div>
+            <div class="f"><label for="ira">Traditional IRA / 401(k)</label><input id="ira" data-mine data-path="accounts.ira" type="number" step="10000"></div>
+            <div class="f"><label for="roth">Roth IRA</label><input id="roth" data-mine data-path="accounts.roth" type="number" step="10000"></div>
           </div>
           <div class="row">
-            <div class="f"><label for="taxable">Taxable brokerage + cash</label><input id="taxable" data-path="accounts.taxable" type="number" step="10000"></div>
-            <div class="f"><label for="basis">Cost basis (% of value)</label><input id="basis" data-path="accounts.taxableBasisPct" data-type="pct" type="number" step="5"></div>
+            <div class="f"><label for="taxable">Taxable brokerage + cash</label><input id="taxable" data-mine data-path="accounts.taxable" type="number" step="10000"></div>
+            <div class="f"><label for="basis">Cost basis (% of value)</label><input id="basis" data-mine data-path="accounts.taxableBasisPct" data-type="pct" type="number" step="5"></div>
           </div>
           <div class="row">
-            <div class="f"><label for="pension">Pension / annuity ($/yr)</label><input id="pension" data-path="pension.annual" type="number" step="1000"></div>
-            <div class="f"><label for="pensionY">Pension starts</label><input id="pensionY" data-path="pension.startYear" type="number"></div>
+            <div class="f"><label for="pension">Pension / annuity ($/yr)</label><input id="pension" data-mine data-path="pension.annual" type="number" step="1000"></div>
+            <div class="f"><label for="pensionY">Pension starts</label><input id="pensionY" data-mine data-path="pension.startYear" type="number"></div>
           </div>
           <div class="row">
-            <div class="f"><label for="magi">Recent income (MAGI) for Medicare lookback</label><input id="magi" data-path="priorMagi" type="number" step="5000"></div>
-            <div class="f" id="ownerField"><label for="owner">IRA owner (for RMDs)</label><select id="owner" data-path="iraOwner"><option value="a">Person A</option><option value="b">Person B</option></select></div>
+            <div class="f"><label for="magi">Recent income (MAGI) for Medicare lookback</label><input id="magi" data-mine data-path="priorMagi" type="number" step="5000"></div>
+            <div class="f" id="ownerField"><label for="owner">IRA owner (for RMDs)</label><select id="owner" data-mine data-path="iraOwner"><option value="a">Person A</option><option value="b">Person B</option></select></div>
           </div>
         </div>
       </details>
 
       <details class="sec" open>
-        <summary><h2>Spending</h2><span class="hint" id="hintSpend"></span></summary>
+        <summary><h2><span class="dot" aria-hidden="true"></span>Spending</h2><span class="hint" id="hintSpend"></span></summary>
         <div class="body">
           <div class="row">
-            <div class="f"><label for="spend">Annual spending (today's $)</label><input id="spend" data-path="spending.base" type="number" step="1000"></div>
+            <div class="f"><label for="spend">Annual spending (today's $)</label><input id="spend" data-mine data-path="spending.base" type="number" step="1000"></div>
             <div class="f"><label for="infl">Inflation</label><input id="infl" data-path="inflation" data-type="pct" type="number" step="0.1"></div>
           </div>
           <div class="row three">
             <div class="f"><label for="trimAge">Cut spending at age</label><input id="trimAge" data-path="spending.lateTrimAge" type="number"></div>
             <div class="f"><label for="trimPct">by</label><input id="trimPct" data-path="spending.lateTrimPct" data-type="pct" type="number" step="1"></div>
-            <div class="f"><label for="state">State tax rate</label><input id="state" data-path="stateRate" data-type="pct" type="number" step="0.1"></div>
+            <div class="f"><label for="state">State tax rate</label><input id="state" data-mine data-path="stateRate" data-type="pct" type="number" step="0.1"></div>
           </div>
           <div class="sub">Spending phases</div>
           <p class="note">Replace base spending for a stretch of years, such as years living abroad. Today's dollars.</p>
-          <div class="list" id="list-phases"></div>
+          <div class="list mine" id="list-phases"></div>
           <button type="button" class="btn small" data-add="phases">Add phase</button>
           <div class="sub">Extra costs</div>
           <p class="note">Added on top of spending: rent, travel, long-term care, a car. Use a negative amount for savings.</p>
-          <div class="list" id="list-adjustments"></div>
+          <div class="list mine" id="list-adjustments"></div>
           <button type="button" class="btn small" data-add="adjustments">Add cost</button>
         </div>
       </details>
 
       <details class="sec">
-        <summary><h2>One-time money events</h2><span class="hint" id="hintOne"></span></summary>
+        <summary><h2><span class="dot" aria-hidden="true"></span>One-time money events</h2><span class="hint" id="hintOne"></span></summary>
         <div class="body">
           <p class="note">A stock or business sale, inheritance, severance, or a big purchase. Sale proceeds land in the taxable account after tax.</p>
-          <div class="list" id="list-oneTime"></div>
+          <div class="list mine" id="list-oneTime"></div>
           <button type="button" class="btn small" data-add="oneTime">Add event</button>
         </div>
       </details>

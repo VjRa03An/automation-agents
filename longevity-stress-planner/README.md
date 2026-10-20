@@ -31,6 +31,11 @@ Open the [live demo](https://vjra03an.github.io/automation-agents/longevity-stre
 
 The page opens with a **made-up example household** so you can see how it works. Press **Start blank** and enter your own numbers, starting with Social Security amounts from your statement at ssa.gov/myaccount.
 
+Fields are color-coded:
+
+- **Amber fields are your numbers.** Names, birth years, salary, Social Security, account balances, pension, spending, state tax, and the spending phases, extra costs and one-time events lists. Replace every one of these. Sections that contain them are marked with an amber dot.
+- **Plain fields are assumptions.** Inflation, market returns, the glide path, recessions, survivor settings, Roth conversions and Monte Carlo volatility. They have sensible defaults; leave them or change them to test a scenario.
+
 ## Files
 
 | File | What it is |
