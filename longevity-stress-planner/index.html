@@ -952,16 +952,17 @@ tr.short td:first-child { background: var(--bad-soft); }
 
   function renderVerdict() {
     const r = res, last = r.rows[r.rows.length - 1], nm = p.a.name || 'Person A';
+    const isYou = /^you$/i.test(nm.trim()), poss = isYou ? 'your' : `${nm}'s`;
     const stamp = $('#stamp');
     if (r.success) {
       stamp.textContent = 'Lasts'; stamp.className = 'stamp ok';
-      $('#vHead').textContent = `Money lasts to ${nm}'s age ${p.endAge} with ${money(r.endReal)} left in today's dollars`;
+      $('#vHead').textContent = `Money lasts to ${poss} age ${p.endAge} with ${money(r.endReal)} left in today's dollars`;
       const nRec = p.stress.enabled ? p.stress.events.length : 0;
       $('#vSub').textContent = `${full(r.endBalance)} in ${last.year} dollars` + (nRec ? `, after ${nRec} recession${nRec > 1 ? 's' : ''}. Without them: ${money(base.endBalance)}.` : '. No recessions applied.');
     } else {
       const sr = r.rows.find(x => x.year === r.shortfallYear);
       stamp.textContent = 'Runs short'; stamp.className = 'stamp fail';
-      $('#vHead').textContent = `Savings run out in ${r.shortfallYear}, when ${nm} is ${sr.ageA ?? '—'}`;
+      $('#vHead').textContent = `Savings run out in ${r.shortfallYear}, when ${isYou ? 'you are' : nm + ' is'} ${sr.ageA ?? '—'}`;
       $('#vSub').textContent = `Total shortfall of ${money(r.totalShort)} through ${last.year}. ` + (base && base.success ? 'Without the recessions the plan lasts.' : 'The plan falls short even without recessions.');
     }
     const afterTax = last.roth + last.taxable + last.ira * 0.76;
