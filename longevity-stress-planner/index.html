@@ -165,9 +165,12 @@ tr.short td:first-child { background: var(--bad-soft); }
       <h1>Longevity Stress Planner</h1>
       <p>Project a household's savings year by year, then hit it with recessions, a survivor year and taxes to see whether the money lasts.</p>
       <div class="example-flag" id="exampleFlag">● Showing an example household. Replace the inputs with your own numbers.</div>
+      <div class="example-flag" id="copyNote" hidden style="color:var(--accent)"></div>
       <div class="key"><span><i class="mine"></i>Your numbers: replace these with your own</span><span><i></i>Assumptions: fine to leave as they are, or adjust to test</span></div>
     </div>
     <div class="toolbar">
+      <button class="btn primary" id="btnSavePlan" type="button" title="Download your inputs as a .json file">Save my plan</button>
+      <button class="btn" id="btnSaveCopy" type="button" title="Download this planner as one HTML file with your numbers built in">Save a personal copy</button>
       <button class="btn" id="btnReset" type="button">Reset to example</button>
       <button class="btn" id="btnBlank" type="button">Start blank</button>
       <a class="btn ghost" href="#scenarios">Scenarios ↓</a>
@@ -400,7 +403,7 @@ tr.short td:first-child { background: var(--bad-soft); }
         <div class="tablewrap" style="margin-top:10px;max-height:none"><table class="cmp" id="cmp"></table></div>
         <div class="io" style="margin-top:14px">
           <div class="sub">Move to another device or share with someone</div>
-          <p class="note" style="margin:4px 0 8px">Copy the current inputs as text, then paste them into this planner anywhere.</p>
+          <p class="note" style="margin:4px 0 8px">Use <b>Save my plan</b> at the top to keep a file, or copy the inputs as text and paste them into this planner anywhere.</p>
           <div class="toolbar" style="margin-bottom:8px"><button type="button" class="btn small" id="btnCopy">Copy inputs</button><button type="button" class="btn small" id="btnPaste">Load pasted inputs</button><label class="btn small" for="fileIn" style="cursor:pointer">Open a .json file</label><input id="fileIn" type="file" accept=".json,application/json" hidden></div>
           <textarea id="ioText" aria-label="Inputs as text" placeholder="Paste copied inputs here"></textarea>
         </div>
@@ -421,6 +424,7 @@ tr.short td:first-child { background: var(--bad-soft); }
 </div>
 <div class="toast" id="toast" hidden></div>
 
+<script id="embeddedPlan" type="application/json">null</script>
 <script>
 // Retirement projection engine — rebuilt from the Sept 2026 longevity model.
 // Pure functions, no DOM. Year-by-year, nominal dollars.
@@ -771,6 +775,8 @@ tr.short td:first-child { background: var(--bad-soft); }
 <script>
 (function () {
   'use strict';
+  // Snapshot of this page as delivered, before anything renders; used for "Save a personal copy".
+  const PRISTINE = '<!doctype html>\n' + document.documentElement.outerHTML;
   const E = window.RetireEngine;
   const $ = s => document.querySelector(s), $$ = s => Array.from(document.querySelectorAll(s));
   const KEY = 'lsp:draft:v1', SKEY = 'lsp:scenarios:v1';
@@ -814,7 +820,11 @@ tr.short td:first-child { background: var(--bad-soft); }
     return [];
   }
 
-  let p = store.get(KEY) || EXAMPLE();
+  // A personal copy carries its plan inside the file; its edits are kept under its own key.
+  let EMB = null; try { EMB = JSON.parse(document.getElementById('embeddedPlan').textContent); } catch (e) { EMB = null; }
+  const DKEY = EMB && EMB.copyId ? KEY + ':' + EMB.copyId : KEY;
+  const SCKEY = EMB && EMB.copyId ? SKEY + ':' + EMB.copyId : SKEY;
+  let p = store.get(DKEY) || (EMB && EMB.inputs ? JSON.parse(JSON.stringify(EMB.inputs)) : null) || EXAMPLE();
   let dollars = 'nominal';
 
   // ---------- path helpers ----------
@@ -920,7 +930,7 @@ tr.short td:first-child { background: var(--bad-soft); }
   let res = null, base = null, mc = null, mcTimer = null, calcTimer = null;
   function changed() {
     if (p._example) { delete p._example; $('#exampleFlag').hidden = true; }
-    store.set(KEY, p);
+    store.set(DKEY, p);
     clearTimeout(calcTimer); calcTimer = setTimeout(() => renderResults(true), 120);
   }
   function run(q) { try { return E.project(normalize(q)); } catch (e) { console.error(e); return null; } }
@@ -1102,7 +1112,7 @@ tr.short td:first-child { background: var(--bad-soft); }
   }
 
   // ---------- scenarios ----------
-  let scen = store.get(SKEY) || [];
+  let scen = store.get(SCKEY) || (EMB && Array.isArray(EMB.scenarios) ? EMB.scenarios : []);
   let pendingDelete = null;
   function renderCompare() {
     const rowsHtml = [['Current inputs', p, -1]].concat(scen.map((s, i) => [s.name, s.p, i])).map(([name, q, i]) => {
@@ -1122,13 +1132,13 @@ tr.short td:first-child { background: var(--bad-soft); }
     const q = JSON.parse(JSON.stringify(p)); delete q._example;
     const i = scen.findIndex(s => s.name === name);
     if (i >= 0) scen[i] = { name, p: q }; else scen.push({ name, p: q });
-    store.set(SKEY, scen); $('#scName').value = ''; renderCompare(); toast(`Saved “${name}”`);
+    store.set(SCKEY, scen); $('#scName').value = ''; renderCompare(); toast(`Saved “${name}”`);
   });
   $('#cmp').addEventListener('click', e => {
     const t = e.target.closest('button'); if (!t) return;
-    if (t.dataset.load != null) { p = JSON.parse(JSON.stringify(scen[+t.dataset.load].p)); store.set(KEY, p); bindStatic(); renderResults(true); toast(`Loaded “${scen[+t.dataset.load].name}”`); }
+    if (t.dataset.load != null) { p = JSON.parse(JSON.stringify(scen[+t.dataset.load].p)); store.set(DKEY, p); bindStatic(); renderResults(true); toast(`Loaded “${scen[+t.dataset.load].name}”`); }
     else if (t.dataset.askdel != null) { pendingDelete = +t.dataset.askdel; renderCompare(); }
-    else if (t.dataset.del != null) { const n = scen[+t.dataset.del].name; scen.splice(+t.dataset.del, 1); pendingDelete = null; store.set(SKEY, scen); renderCompare(); toast(`Deleted “${n}”`); }
+    else if (t.dataset.del != null) { const n = scen[+t.dataset.del].name; scen.splice(+t.dataset.del, 1); pendingDelete = null; store.set(SCKEY, scen); renderCompare(); toast(`Deleted “${n}”`); }
     else if (t.dataset.cancel != null) { pendingDelete = null; renderCompare(); }
   });
 
@@ -1144,14 +1154,42 @@ tr.short td:first-child { background: var(--bad-soft); }
       const o = JSON.parse(txt); const q = o.inputs || o;
       if (!q.a || !q.accounts || !q.spending) throw new Error('missing');
       const d = BLANK(); p = Object.assign(d, q); ['a', 'b', 'accounts', 'spending', 'returns', 'glide', 'stress', 'roth', 'mc', 'pension'].forEach(k => p[k] = Object.assign(BLANK()[k], q[k] || {}));
-      store.set(KEY, p); bindStatic(); renderResults(true); toast('Inputs loaded');
+      if (Array.isArray(o.scenarios)) { o.scenarios.forEach(sc => { if (!sc || !sc.name || !sc.p) return; const k = scen.findIndex(x => x.name === sc.name); if (k >= 0) scen[k] = sc; else scen.push(sc); }); store.set(SCKEY, scen); }
+      store.set(DKEY, p); bindStatic(); renderResults(true); toast('Plan loaded');
     } catch (e) { toast('Those inputs could not be read. Paste the full text from “Copy inputs”.'); }
   }
   $('#btnPaste').addEventListener('click', () => loadText($('#ioText').value));
   $('#fileIn').addEventListener('change', e => { const file = e.target.files[0]; if (!file) return; const fr = new FileReader(); fr.onload = () => loadText(String(fr.result)); fr.readAsText(file); e.target.value = ''; });
 
-  $('#btnReset').addEventListener('click', () => { p = EXAMPLE(); store.set(KEY, p); bindStatic(); renderResults(true); toast('Example household loaded'); });
-  $('#btnBlank').addEventListener('click', () => { p = BLANK(); store.set(KEY, p); bindStatic(); renderResults(true); toast('Cleared. Enter your own numbers.'); });
+  // ---------- save to files (works on the downloaded / GitHub version) ----------
+  function payload() {
+    const q = JSON.parse(JSON.stringify(p)); delete q._example;
+    return { app: 'longevity-stress-planner', v: 1, savedAt: new Date().toISOString(), inputs: q, scenarios: scen };
+  }
+  function fileStem() {
+    const names = [p.a.name, p.filing === 'MFJ' ? p.b.name : ''].filter(Boolean).join('-').toLowerCase().replace(/[^a-z0-9-]+/g, '') || 'my';
+    return `retirement-plan-${names}-${new Date().toISOString().slice(0, 10)}`;
+  }
+  function download(name, text, type) {
+    try {
+      const url = URL.createObjectURL(new Blob([text], { type }));
+      const a = document.createElement('a'); a.href = url; a.download = name; document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 5000);
+      toast('Saved ' + name);
+    } catch (e) { toast('Your browser blocked the download. Use “Copy inputs” instead.'); }
+  }
+  const btnPlan = $('#btnSavePlan'), btnCopyFile = $('#btnSaveCopy');
+  if (btnPlan) btnPlan.addEventListener('click', () => download(fileStem() + '.json', JSON.stringify(payload(), null, 1), 'application/json'));
+  if (btnCopyFile) btnCopyFile.addEventListener('click', () => {
+    const data = payload(); data.copyId = (EMB && EMB.copyId) || ('c' + Date.now().toString(36));
+    const json = JSON.stringify(data).replace(/</g, '\\u003c');
+    const html = PRISTINE.replace(/(<script id="embeddedPlan" type="application\/json">)[\s\S]*?(<\/script>)/, (m, a, b) => a + json + b);
+    download(fileStem() + '.html', html, 'text/html');
+  });
+  if (EMB && EMB.savedAt) { const t = $('#copyNote'); if (t) { t.hidden = false; t.textContent = `Your personal copy, saved ${new Date(EMB.savedAt).toLocaleDateString()}. Save it again after changes to keep them in the file.`; } }
+
+  $('#btnReset').addEventListener('click', () => { p = EXAMPLE(); store.set(DKEY, p); bindStatic(); renderResults(true); toast('Example household loaded'); });
+  $('#btnBlank').addEventListener('click', () => { p = BLANK(); store.set(DKEY, p); bindStatic(); renderResults(true); toast('Cleared. Enter your own numbers.'); });
 
   let toastT = null;
   function toast(msg) { const t = $('#toast'); t.textContent = msg; t.hidden = false; clearTimeout(toastT); toastT = setTimeout(() => t.hidden = true, 2600); }

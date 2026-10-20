@@ -27,7 +27,16 @@ It grew out of a real household's retirement spreadsheet (a concentrated stock s
 
 ## Using it
 
-Open the [live demo](https://vjra03an.github.io/automation-agents/longevity-stress-planner/), or download `index.html` and open it in any browser. It runs entirely in the browser: no server, no account, and nothing you type leaves your machine. Saved scenarios live in that browser's local storage.
+Open the [live demo](https://vjra03an.github.io/automation-agents/longevity-stress-planner/), or download `index.html` and open it in any browser. It runs entirely in the browser: no server, no account, and nothing you type leaves your machine.
+
+### Saving your plan
+
+The browser remembers your inputs between visits, but clearing browser data or switching computers loses them. To keep your plan safe, use the two buttons at the top of the page:
+
+- **Save my plan** downloads your inputs and saved scenarios as a small `.json` file. Reopen it any time with **Open a .json file** in the Scenarios section.
+- **Save a personal copy** downloads the whole planner as one `.html` file with your numbers built in. Double-click it and it opens straight to your plan, even offline. After making changes, save a copy again to keep them in the file.
+
+Both files hold your financial details, so store them somewhere private.
 
 The page opens with a **made-up example household** so you can see how it works. Press **Start blank** and enter your own numbers, starting with Social Security amounts from your statement at ssa.gov/myaccount.
 
