@@ -10,6 +10,7 @@
 |---|---|---|
 | 📄 **[Overview (PDF)](Agentic-PMO-Suite-Overview.pdf)** | One page: what the suite does, capability by capability, and why each matters | 2 min |
 | 🗺️ **[PfMO Function Map (PDF)](PfMO-Function-Map.pdf)** | One page: the 14 standard Portfolio Management Office functions, mapped against what this prototype covers today | 2 min |
+| 🧭 **[Path to Product (PDF)](Agentic-PMO-Path-to-Product.pdf)** | One page: the seven gaps between this prototype and a production tool, and a phased plan with exit gates | 2 min |
 | ▶️ **[Try the app](https://vjra03an.github.io/automation-agents/agentic-pmo-suite/pmo-agent-suite.html)** | Click through the portfolio tracker, priority ranking, **rigor meter**, intake and TPM capacity views with sample data | 5 min |
 | 💻 **[Source (`pmo-agent-suite.html`)](pmo-agent-suite.html)** | The full single-file app | — |
 
