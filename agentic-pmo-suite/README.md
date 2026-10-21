@@ -15,6 +15,18 @@
 
 > **Status:** work in progress, a personal prototype. In the hosted version the screens, scoring and overrides all work; the "Generate with AI" buttons need the Claude API and won't run there (see *Known limitation* below). The `.docx` versions of both one-pagers are also in this folder if you'd like to edit or comment on them.
 
+## Quick tour (5 minutes)
+
+[Open the app](https://vjra03an.github.io/automation-agents/agentic-pmo-suite/pmo-agent-suite.html). It loads with sample programs, TPMs and intake requests, so you can click around right away. Nothing you do is saved; reload to start over.
+
+1. **See the portfolio.** Start on **Portfolio Tracker** for status, budget and TPM allocation across all programs. Then open **Priority Ranking** to see every program and request ranked by the same scoring rubric, with the cut line set by TPM capacity.
+2. **Submit a request.** Go to **Intake** and fill in **Submit New Request**: a name, a short description, the sponsor, a rough budget, and the rigor questions (complexity, integration, stack layers, release type). The request is scored right away and gets a rigor level.
+3. **Review it like a PMO lead.** Click any request in the Intake list to see its score breakdown. Override a score if you disagree; the override is badged and can always be reverted.
+4. **Approve it.** Click **approve** and assign a TPM. The app blocks any assignment that would put a TPM above 80% capacity (check **TPM Team** to see why). The approved request becomes a program and **keeps its rigor level**, so it starts with its process already decided.
+5. **Check the process and the trail.** Open **Rigor Meter** to see each program's level and recommended process; move the slider to override it. Then open **Audit Log**: every score, override, approval and rigor change is recorded with who made it (set your name under **Acting as**).
+
+**Want more?** Open any program from **Programs** to see the seven document agents (charter, plan, status report, risk register and more). The **Generate with AI** buttons need the Claude API, so they don't run in this hosted version; see *Known limitation* below.
+
 ---
 
 A single-file, agentic Program/Project Management Office (PMO) tool. Instead of one generic chatbot, it uses a set of purpose-built, named AI agents — each with its own system prompt — to draft every standard PMO artifact for a program, and to run intake triage and prioritization scoring.
