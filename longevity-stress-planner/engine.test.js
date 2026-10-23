@@ -43,7 +43,7 @@ const s = plan(); s.a.deathAge = 78;
 assert.ok(E.project(s).rows.filter(r => r.year > 1964 + 78).every(r => r.status === 'Single'));
 
 
-// ---------- Young Adult rules ----------
+// ---------- Climb Up (early retirement) rules ----------
 // Payroll tax: 7.65% on $100,000 single wages
 const young = () => ({ ...plan(), filing: 'Single', startYear: 2026, endAge: 95,
   a: { birthYear: 1993, birthMonth: 6, retireAge: 55, salary: 100000, raise: 0, yearsWorked: 10, k401Pct: 0.30, roth401kPct: 0, matchPct: 0.04, rothIra: 9000, ssFRA: '', ssClaimAge: 67, deathAge: '' },

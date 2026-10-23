@@ -4,10 +4,10 @@ Two versions share one projection engine:
 
 | Version | For | Answers | Try it |
 |---|---|---|---|
-| **Not So Old Adult** | People near or in retirement | Does the money last to 95 through recessions, taxes, Medicare and a spouse's death? | [![Not So Old Adult](https://img.shields.io/badge/Open-Not_So_Old_Adult-2ea44f)](https://vjra03an.github.io/automation-agents/longevity-stress-planner/) |
-| **Young Adult** | People still building savings | What's the earliest age I can stop working (financial independence / FIRE)? | [![Young Adult](https://img.shields.io/badge/Open-Young_Adult-0c6652)](https://vjra03an.github.io/automation-agents/longevity-stress-planner/young-adult/) |
+| **Glide Down** | People near or in retirement | *Will my money last?* Does it last to 95 through recessions, taxes, Medicare and a spouse's death? | [![Glide Down](https://img.shields.io/badge/Open-Glide_Down-2ea44f)](https://vjra03an.github.io/automation-agents/longevity-stress-planner/) |
+| **Climb Up** | People still building savings | *When can I stop working?* Finds the earliest age you can retire (financial independence / FIRE). | [![Climb Up](https://img.shields.io/badge/Open-Climb_Up-0c6652)](https://vjra03an.github.io/automation-agents/longevity-stress-planner/young-adult/) |
 
-## Young Adult version
+## Climb Up: when can I stop working?
 
 Built for someone in their 20s–40s. It adds what an early retirement depends on:
 
@@ -23,7 +23,7 @@ Built for someone in their 20s–40s. It adds what an early retirement depends o
 
 Not modeled: 72(t) payments, HSA accounts, Roth IRA income limits, kids on the ACA plan, and Medicaid eligibility.
 
-## Not So Old Adult version
+## Glide Down: will my money last?
 
 A single-page retirement planner that projects a household's savings year by year and then stress-tests the plan: market recessions with rebounds, a spouse's death, Roth conversions, Medicare surcharges and taxes. It answers one question: **does the money last, and how close is it?**
 
@@ -72,8 +72,8 @@ Fields are color-coded:
 
 | File | What it is |
 |---|---|
-| `index.html` | The Not So Old Adult version, complete in one file (engine included). |
-| `young-adult/index.html` | The Young Adult version, complete in one file. |
+| `index.html` | Glide Down, complete in one file (engine included). |
+| `young-adult/index.html` | Climb Up, complete in one file. |
 | `engine.js` | The projection engine on its own: taxes, IRMAA, Social Security, RMDs, glide path, recessions and Monte Carlo. Pure JavaScript with no dependencies; works in Node or the browser. |
 | `engine.test.js` | Sanity checks against known 2026 figures. Run `node engine.test.js`. |
 
