@@ -7,6 +7,15 @@ Two versions share one projection engine:
 | **Glide Down** | People near or in retirement | *Will my money last?* Does it last to 95 through recessions, taxes, Medicare and a spouse's death? | [![Glide Down](https://img.shields.io/badge/Open-Glide_Down-2ea44f)](https://vjra03an.github.io/automation-agents/longevity-stress-planner/) |
 | **Climb Up** | People still building savings | *When can I stop working?* Finds the earliest age you can retire (financial independence / FIRE). | [![Climb Up](https://img.shields.io/badge/Open-Climb_Up-0c6652)](https://vjra03an.github.io/automation-agents/longevity-stress-planner/young-adult/) |
 
+### Share these links
+
+Anyone can open them in a browser, with no account or install:
+
+- **Climb Up** (when can I stop working?): https://vjra03an.github.io/automation-agents/longevity-stress-planner/young-adult/
+- **Glide Down** (will my money last?): https://vjra03an.github.io/automation-agents/longevity-stress-planner/
+
+Each page also links to the other at the top.
+
 ## Climb Up: when can I stop working?
 
 Built for someone in their 20s–40s. It adds what an early retirement depends on:
@@ -50,7 +59,7 @@ It grew out of a real household's retirement spreadsheet (a concentrated stock s
 
 ## Using it
 
-Open the [live demo](https://vjra03an.github.io/automation-agents/longevity-stress-planner/), or download `index.html` and open it in any browser. It runs entirely in the browser: no server, no account, and nothing you type leaves your machine.
+Open [Climb Up](https://vjra03an.github.io/automation-agents/longevity-stress-planner/young-adult/) or [Glide Down](https://vjra03an.github.io/automation-agents/longevity-stress-planner/), or download either `index.html` and open it in any browser. It runs entirely in the browser: no server, no account, and nothing you type leaves your machine.
 
 ### Saving your plan
 

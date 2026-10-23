@@ -21,9 +21,13 @@ A set of independent Gmail automation scripts:
 - **`auto_delete.py`** — Gmail cleanup with dry-run, confirm-delete, and empty-trash modes (manual trigger only, by design — this one's destructive, so it doesn't run on a schedule).
 
 ### `longevity-stress-planner/`
-[![Try the app](https://img.shields.io/badge/Try_the_app-live_demo-2ea44f?style=for-the-badge)](https://vjra03an.github.io/automation-agents/longevity-stress-planner/)
+[![Climb Up](https://img.shields.io/badge/Climb_Up-when_can_I_stop_working%3F-0c6652?style=for-the-badge)](https://vjra03an.github.io/automation-agents/longevity-stress-planner/young-adult/) [![Glide Down](https://img.shields.io/badge/Glide_Down-will_my_money_last%3F-2ea44f?style=for-the-badge)](https://vjra03an.github.io/automation-agents/longevity-stress-planner/)
 
 A single-page retirement planner in two versions: **[Climb Up](https://vjra03an.github.io/automation-agents/longevity-stress-planner/young-adult/)** (when can I stop working?) for people still saving, and **[Glide Down](https://vjra03an.github.io/automation-agents/longevity-stress-planner/)** (will my money last?) for people near or in retirement. It projects savings year by year and stress-tests the plan against recessions (with rebound years), a spouse's death, Roth conversions, Medicare IRMAA surcharges and 2026 federal taxes, plus a 500-run Monte Carlo. Runs entirely in the browser with no setup; opens with a made-up example household. Works as a template: fill in your own numbers, then save them as a file or as your own copy of the planner. See its own README for features and assumptions.
+
+Shareable links:
+- Climb Up: https://vjra03an.github.io/automation-agents/longevity-stress-planner/young-adult/
+- Glide Down: https://vjra03an.github.io/automation-agents/longevity-stress-planner/
 
 ### `gas-tracker-pwa/`
 A small installable web app (PWA) for tracking nearby gas prices, deployed via Netlify with a serverless proxy function.
