@@ -42,4 +42,32 @@ assert.strictEqual(stressed.rows[stressed.rows.length - 1].year, 1964 + 95);
 const s = plan(); s.a.deathAge = 78;
 assert.ok(E.project(s).rows.filter(r => r.year > 1964 + 78).every(r => r.status === 'Single'));
 
+
+// ---------- Young Adult rules ----------
+// Payroll tax: 7.65% on $100,000 single wages
+const young = () => ({ ...plan(), filing: 'Single', startYear: 2026, endAge: 95,
+  a: { birthYear: 1993, birthMonth: 6, retireAge: 55, salary: 100000, raise: 0, yearsWorked: 10, k401Pct: 0.30, roth401kPct: 0, matchPct: 0.04, rothIra: 9000, ssFRA: '', ssClaimAge: 67, deathAge: '' },
+  b: { birthYear: 1993, birthMonth: 1, retireYear: 2026, salary: 0, ssFRA: 0, ssClaimAge: 67, deathAge: '' },
+  accounts: { ira: 50000, roth: 20000, rothBasis: 15000, taxable: 20000, taxableBasisPct: 1 },
+  spending: { base: 50000, retireBase: 50000, phases: [], lateTrimAge: 0, lateTrimPct: 0, survivorPct: 1, adjustments: [] },
+  health: { enabled: true, premium40: 7500, subsidy: true },
+  roth: { enabled: true, ladder: true, mode: 'fill', bracket: 0.12, amount: 0, from: 2026, to: 2052, irmaaCap: true, acaCap: true },
+});
+const y1 = E.project(young()).rows[0];
+assert.ok(Math.abs(y1.fica - 7650) < 1, 'payroll tax 7.65%');
+// 401(k) capped at $24,500 even at 30%; IRA capped at $7,500; match uncapped
+assert.ok(Math.abs(y1.contrib - (24500 + 4000 + 7500)) < 1, 'contribution limits');
+// Social Security is lower when you stop working at 45 than at 67
+assert.ok(E.effectiveSS({ ...young().a }, 2026, 1993 + 45) < E.effectiveSS({ ...young().a }, 2026, 1993 + 67));
+// ACA: 9.96% between 300-400% FPL, nothing above 400%
+assert.strictEqual(E.acaApplicable(3.5), 0.0996);
+assert.strictEqual(E.acaApplicable(4.01), null);
+// Earliest retirement exists and retiring there lasts
+const fi = E.earliestRetirement(young());
+assert.ok(fi && fi.result.success && fi.age >= 33 && fi.age <= 70);
+// Before 59½, early IRA withdrawals carry a 10% penalty when nothing else is left
+const pen = young(); pen.a.retireAge = 34; pen.accounts = { ira: 400000, roth: 0, rothBasis: 0, taxable: 0, taxableBasisPct: 1 }; pen.roth.enabled = false;
+const pr = E.project(pen).rows.find(r => r.year === 2028);
+assert.ok(pr.wIra > 0 && Math.abs(pr.pen - 0.1 * pr.wIra) < 1, '10% early-withdrawal penalty');
+
 console.log('All engine checks passed.');

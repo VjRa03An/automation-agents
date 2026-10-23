@@ -3,12 +3,12 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="description" content="Retirement projection with recession stress tests, 2026 tax and Medicare IRMAA rules, survivor and Roth-conversion scenarios, and Monte Carlo.">
+<meta name="description" content="Retirement planner with recession stress tests, 2026 tax, Medicare and ACA rules, and Monte Carlo.">
 <style>
 :root{color-scheme:light;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
 body{margin:0}img{max-width:100%}[hidden]{display:none!important}
 </style>
-<title>Longevity Stress Planner</title>
+<title>Longevity Stress Planner (Not So Old Adult)</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans+Condensed:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
@@ -39,6 +39,7 @@ body{margin:0}img{max-width:100%}[hidden]{display:none!important}
   --band-rec: rgba(240, 122, 108, .13); --band-recov: rgba(70, 185, 154, .08); --mine-bg: #33290f; --mine-line: #b58a24; --mine-ink: #f0c56a; color-scheme: dark; }
 
 * { box-sizing: border-box; }
+[hidden] { display: none !important; }
 body { background: var(--bg); color: var(--ink); font-family: var(--f-body); font-size: 14px; line-height: 1.45; }
 .wrap { max-width: 1440px; margin: 0 auto; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 18px 40px; }
 h1, h2, h3 { font-family: var(--f-display); margin: 0; text-wrap: balance; }
@@ -104,6 +105,13 @@ details.sec[open] > summary::after { content: "–"; }
 .key i.mine { background: var(--mine-bg); border-color: var(--mine-line); }
 .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--mine-line); margin-right: 6px; vertical-align: 1px; }
 
+/* Edition switcher */
+.edition { display: flex; flex-wrap: wrap; gap: 6px 12px; align-items: center; margin-bottom: 6px; font-size: 12px; }
+.ed-chip { font-family: var(--f-display); font-weight: 600; letter-spacing: .06em; text-transform: uppercase; font-size: 11px; color: var(--accent); background: var(--accent-soft); padding: 2px 8px; border-radius: 4px; }
+.edition a { color: var(--ink-2); }
+.useage { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-top: 12px; }
+.ro { padding: 6px 8px; border: 1px dashed var(--line); border-radius: 5px; color: var(--ink-2); font-size: 13px; }
+
 /* Results */
 .results { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
 .card { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 16px; min-width: 0; }
@@ -154,7 +162,7 @@ tr.short td:first-child { background: var(--bad-soft); }
 .toast { position: fixed; bottom: calc(16px + env(safe-area-inset-bottom, 0px)); left: 50%; transform: translateX(-50%); background: var(--ink); color: var(--bg); padding: 8px 14px; border-radius: 6px; font-size: 13px; z-index: 20; }
 .inline-confirm { display: inline-flex; gap: 6px; align-items: center; font-size: 12px; }
 @media (prefers-reduced-motion: no-preference) { .meter > div { transition: width .4s ease; } }
-@media (max-width: 520px) { .row.three { grid-template-columns: 1fr 1fr; } .verdict h2 { font-size: 20px; } }
+@media (max-width: 520px) { .row.three { grid-template-columns: 1fr 1fr; } .verdict h2 { font-size: 20px; } .kpi:last-child:nth-child(odd) { grid-column: 1 / -1; } }
 </style>
 
 </head>
@@ -162,8 +170,10 @@ tr.short td:first-child { background: var(--bad-soft); }
 <div class="wrap">
   <header class="top">
     <div class="brand">
+      <div class="edition"><span class="ed-chip">Not So Old Adult version</span><a href="https://vjra03an.github.io/automation-agents/longevity-stress-planner/young-adult/">Switch to the Young Adult version →</a></div>
       <h1>Longevity Stress Planner</h1>
       <p>Project a household's savings year by year, then hit it with recessions, a survivor year and taxes to see whether the money lasts.</p>
+      
       <div class="example-flag" id="exampleFlag">● Showing an example household. Replace the inputs with your own numbers.</div>
       <div class="example-flag" id="copyNote" hidden style="color:var(--accent)"></div>
       <div class="key"><span><i class="mine"></i>Your numbers: replace these with your own</span><span><i></i>Assumptions: fine to leave as they are, or adjust to test</span></div>
@@ -199,6 +209,7 @@ tr.short td:first-child { background: var(--bad-soft); }
             <div class="f"><label for="a_ss">Social Security at full retirement age ($/mo)</label><input id="a_ss" data-mine data-path="a.ssFRA" type="number" step="10"></div>
             <div class="f"><label for="a_claim">Claim at age</label><input id="a_claim" data-mine data-path="a.ssClaimAge" type="number" min="62" max="70" step="1"></div>
           </div>
+
           <div id="spouseBlock" class="body" style="padding:0">
             <div class="sub" id="nameB">Person B</div>
             <div class="row">
@@ -213,14 +224,17 @@ tr.short td:first-child { background: var(--bad-soft); }
               <div class="f"><label for="b_ss">Social Security at full retirement age ($/mo)</label><input id="b_ss" data-mine data-path="b.ssFRA" type="number" step="10"></div>
               <div class="f"><label for="b_claim">Claim at age</label><input id="b_claim" data-mine data-path="b.ssClaimAge" type="number" min="62" max="70" step="1"></div>
             </div>
+
           </div>
           <div class="row">
             <div class="f"><label for="endAge">Plan until Person A is</label><input id="endAge" data-path="endAge" type="number" min="70" max="105"></div>
             <div class="f"><label for="startYear">First plan year</label><input id="startYear" data-path="startYear" type="number"></div>
           </div>
           <p class="note">Use the full-retirement-age amount from your SSA statement at ssa.gov/myaccount. Benefits rise with inflation.</p>
+
         </div>
       </details>
+
 
       <details class="sec" open>
         <summary><h2><span class="dot" aria-hidden="true"></span>Savings</h2><span class="hint" id="hintSave"></span></summary>
@@ -229,6 +243,7 @@ tr.short td:first-child { background: var(--bad-soft); }
             <div class="f"><label for="ira">Traditional IRA / 401(k)</label><input id="ira" data-mine data-path="accounts.ira" type="number" step="10000"></div>
             <div class="f"><label for="roth">Roth IRA</label><input id="roth" data-mine data-path="accounts.roth" type="number" step="10000"></div>
           </div>
+
           <div class="row">
             <div class="f"><label for="taxable">Taxable brokerage + cash</label><input id="taxable" data-mine data-path="accounts.taxable" type="number" step="10000"></div>
             <div class="f"><label for="basis">Cost basis (% of value)</label><input id="basis" data-mine data-path="accounts.taxableBasisPct" data-type="pct" type="number" step="5"></div>
@@ -239,6 +254,8 @@ tr.short td:first-child { background: var(--bad-soft); }
           </div>
           <div class="row">
             <div class="f"><label for="magi">Recent income (MAGI) for Medicare lookback</label><input id="magi" data-mine data-path="priorMagi" type="number" step="5000"></div>
+          </div>
+          <div class="row">
             <div class="f" id="ownerField"><label for="owner">IRA owner (for RMDs)</label><select id="owner" data-mine data-path="iraOwner"><option value="a">Person A</option><option value="b">Person B</option></select></div>
           </div>
         </div>
@@ -258,6 +275,7 @@ tr.short td:first-child { background: var(--bad-soft); }
           </div>
           <div class="sub">Spending phases</div>
           <p class="note">Replace base spending for a stretch of years, such as years living abroad. Today's dollars.</p>
+
           <div class="list mine" id="list-phases"></div>
           <button type="button" class="btn small" data-add="phases">Add phase</button>
           <div class="sub">Extra costs</div>
@@ -270,11 +288,12 @@ tr.short td:first-child { background: var(--bad-soft); }
       <details class="sec">
         <summary><h2><span class="dot" aria-hidden="true"></span>One-time money events</h2><span class="hint" id="hintOne"></span></summary>
         <div class="body">
-          <p class="note">A stock or business sale, inheritance, severance, or a big purchase. Sale proceeds land in the taxable account after tax.</p>
+          <p class="note">A stock or business sale, inheritance, severance, or a big purchase. Money received lands in the taxable account after tax.</p>
           <div class="list mine" id="list-oneTime"></div>
           <button type="button" class="btn small" data-add="oneTime">Add event</button>
         </div>
       </details>
+
 
       <details class="sec" open>
         <summary><h2>Recession stress test</h2><span class="hint" id="hintStress"></span></summary>
@@ -283,6 +302,7 @@ tr.short td:first-child { background: var(--bad-soft); }
           <div class="presets">
             <button type="button" class="btn small" data-preset="sept">4 shocks: 2030, 2040, 2046, 2052</button>
             <button type="button" class="btn small" data-preset="three08">3 × 2008 (years 5, 15, 25)</button>
+
             <button type="button" class="btn small" data-preset="early">Crash in year 1</button>
           </div>
           <p class="note">Stock return in a recession year. Bonds keep their normal return unless you set one.</p>
@@ -348,6 +368,7 @@ tr.short td:first-child { background: var(--bad-soft); }
             <div class="f"><label for="rFrom">From year</label><input id="rFrom" data-path="roth.from" type="number"></div>
             <div class="f"><label for="rTo">Through year</label><input id="rTo" data-path="roth.to" type="number"></div>
           </div>
+
           <label class="check"><input type="checkbox" id="rCap" data-path="roth.irmaaCap" data-type="bool"> Stay under the first Medicare surcharge tier</label>
         </div>
       </details>
@@ -369,7 +390,9 @@ tr.short td:first-child { background: var(--bad-soft); }
       <section class="card" aria-live="polite">
         <div class="verdict"><div class="stamp" id="stamp">Lasts</div><div style="min-width:0"><h2 id="vHead"></h2><p id="vSub"></p></div></div>
         <div class="kpis" id="kpis"></div>
+
       </section>
+
 
       <section class="card">
         <div class="card-h">
@@ -416,6 +439,7 @@ tr.short td:first-child { background: var(--bad-soft); }
           <li>Medicare surcharges (IRMAA) use 2026 CMS tiers and your income from two years earlier, per person on Medicare. Only the surcharge above the standard premium is added; put base premiums in spending.</li>
           <li>RMDs start at 73 (born 1951–59) or 75 (born 1960+) using the IRS Uniform Lifetime Table. Social Security adjusts for claiming age and includes the 50% spousal top-up.</li>
           <li>Withdrawals happen at the start of each year; growth applies to what remains. Every account follows the same stock/bond mix.</li>
+
           <li>This is a planning tool, not tax, legal or investment advice. Tax rules and thresholds change every year; check current figures and review large decisions with a licensed professional.</li>
         </ul>
       </section>
@@ -426,12 +450,15 @@ tr.short td:first-child { background: var(--bad-soft); }
 
 <script id="embeddedPlan" type="application/json">null</script>
 <script>
-// Retirement projection engine — rebuilt from the Sept 2026 longevity model.
+// Retirement projection engine — rebuilt from the Sept 2026 longevity model,
+// extended for early retirement (paycheck saving, 59½ rules, ACA, Roth ladders).
 // Pure functions, no DOM. Year-by-year, nominal dollars.
 (function (root) {
   'use strict';
 
-  // ---------- 2026 federal tables (IRS Rev. Proc. 2025-32; CMS 2026 IRMAA) ----------
+  // ---------- 2026 federal tables ----------
+  // Brackets: IRS Rev. Proc. 2025-32. IRMAA: CMS 2026. Limits: IRS Notice for 2026 plan year.
+  // Social Security: SSA 2026 wage base and PIA bend points. ACA: Rev. Proc. 2025-25, 2025 HHS poverty guidelines.
   const T = {
     baseYear: 2026,
     brackets: {
@@ -450,12 +477,24 @@ tr.short td:first-child { background: var(--bad-soft); }
       partB: [202.90, 284.10, 405.80, 527.50, 649.20, 689.90],
       partD: [0, 14.50, 37.50, 60.40, 83.30, 91.00],
     },
+    // Payroll tax
+    ssWageBase: 184500, ficaSS: 0.062, ficaMed: 0.0145, addlMed: 0.009, addlMedTh: { MFJ: 250000, Single: 200000 },
+    // Contribution limits
+    k401: 24500, k401Catch: 8000, ira: 7500, iraCatch: 1100,
+    // Social Security benefit formula (today's dollars)
+    pia: [1286, 7749],
+    // ACA: poverty line for the household (base + per extra person), applicable % bands, age rating
+    fpl: [15650, 5500],
+    acaBands: [[1.33, .021, .021], [1.5, .0314, .0419], [2.0, .0419, .066], [2.5, .066, .0844], [3.0, .0844, .0996], [4.0, .0996, .0996]],
+    acaAge: [[0, .765], [21, 1.0], [25, 1.004], [30, 1.135], [35, 1.222], [40, 1.278], [45, 1.5], [50, 1.786], [55, 2.23], [60, 2.714], [64, 3.0]],
   };
 
   // IRS Uniform Lifetime Table (2022+)
   const ULT = { 72: 27.4, 73: 26.5, 74: 25.5, 75: 24.6, 76: 23.7, 77: 22.9, 78: 22.0, 79: 21.1, 80: 20.2, 81: 19.4, 82: 18.5, 83: 17.7, 84: 16.8, 85: 16.0, 86: 15.2, 87: 14.4, 88: 13.7, 89: 12.9, 90: 12.2, 91: 11.5, 92: 10.8, 93: 10.1, 94: 9.5, 95: 8.9, 96: 8.4, 97: 7.8, 98: 7.3, 99: 6.8, 100: 6.4, 101: 6.0, 102: 5.6, 103: 5.2, 104: 4.9, 105: 4.6 };
   const rmdFactor = age => ULT[Math.min(age, 105)] || 27.4;
   const rmdStartAge = birthYear => birthYear >= 1960 ? 75 : birthYear >= 1951 ? 73 : 72;
+  const num = v => { const n = +v; return isFinite(n) ? n : 0; };
+  const has = v => v !== undefined && v !== null && v !== '';
 
   // Full retirement age in months
   function fraMonths(by) {
@@ -463,7 +502,6 @@ tr.short td:first-child { background: var(--bad-soft); }
     if (by <= 1954) return 66 * 12;
     return 66 * 12 + (by - 1954) * 2;
   }
-  // Own-benefit factor for claiming at claimAge (years) vs FRA
   function ownFactor(by, claimAge) {
     const d = Math.round(claimAge * 12) - fraMonths(by);
     if (d >= 0) return 1 + Math.min(d, 70 * 12 - fraMonths(by)) * (2 / 300); // 8%/yr
@@ -474,6 +512,32 @@ tr.short td:first-child { background: var(--bad-soft); }
     const m = Math.max(0, fraMonths(by) - Math.round(claimAge * 12));
     return 1 - Math.min(m, 36) * (25 / 3600) - Math.max(m - 36, 0) * (5 / 1200);
   }
+
+  // ---------- Social Security estimate from earnings (today's dollars) ----------
+  function piaFromAime(aime) {
+    const [b1, b2] = T.pia;
+    return 0.9 * Math.min(aime, b1) + 0.32 * Math.max(0, Math.min(aime, b2) - b1) + 0.15 * Math.max(0, aime - b2);
+  }
+  // Past years are estimated by walking today's salary back by the raise rate.
+  function ssEstimate(P, y0, stopYear) {
+    const raise = num(P.raise), sal = num(P.salary), cap = T.ssWageBase, yrs = [];
+    const past = Math.max(0, Math.round(num(P.yearsWorked)));
+    for (let k = 1; k <= past; k++) yrs.push(Math.min(cap, sal / Math.pow(1 + raise, k)));
+    for (let y = y0; y < stopYear; y++) yrs.push(Math.min(cap, sal * Math.pow(1 + raise, y - y0)));
+    yrs.sort((a, b) => b - a);
+    const aime = yrs.slice(0, 35).reduce((s, x) => s + x, 0) / 420;
+    return piaFromAime(aime);
+  }
+  // Monthly benefit at full retirement age, today's dollars.
+  // Without a work history the statement figure is used as-is (original behavior).
+  function effectiveSS(P, y0, retireYear) {
+    if (!has(P.yearsWorked)) return num(P.ssFRA);
+    const actual = ssEstimate(P, y0, retireYear);
+    const full = ssEstimate(P, y0, P.birthYear + 67);
+    if (num(P.ssFRA) > 0) return full > 0 ? num(P.ssFRA) * actual / full : num(P.ssFRA);
+    return actual;
+  }
+  const retYearOf = P => has(P.retireAge) ? num(P.birthYear) + num(P.retireAge) : num(P.retireYear);
 
   function taxOnBrackets(income, br, idx) {
     let tax = 0, prev = 0;
@@ -490,10 +554,9 @@ tr.short td:first-child { background: var(--bad-soft); }
     return 0;
   }
 
-  // Federal + state tax for one year.
+  // Federal + state income tax for one year.
   function computeTax(o) {
     const { status, idx, wages, ordinaryOther, ss, ltcg, n65, year, stateRate } = o;
-    // Social Security taxation
     const otherInc = wages + ordinaryOther + ltcg;
     const prov = otherInc + 0.5 * ss;
     const [b1, b2] = T.ssBase[status];
@@ -514,13 +577,12 @@ tr.short td:first-child { background: var(--bad-soft); }
     const gains = Math.max(0, ltcg - leftover);
     const ordTax = taxOnBrackets(taxableOrd, T.brackets[status], idx);
     const [z, f] = T.ltcg[status].map(x => x * idx);
-    let gt = 0, start = taxableOrd, end = taxableOrd + gains;
+    const start = taxableOrd, end = taxableOrd + gains;
     const seg = (lo, hi) => Math.max(0, Math.min(end, hi) - Math.max(start, lo));
-    gt = seg(z, f) * 0.15 + seg(f, Infinity) * 0.20;
+    const gt = seg(z, f) * 0.15 + seg(f, Infinity) * 0.20;
     const niit = 0.038 * Math.max(0, Math.min(ltcg, agi - T.niit[status]));
     const stateTax = stateRate * Math.max(0, agi - T.stdDed[status] * idx);
     const fed = ordTax + gt + niit;
-    // marginal ordinary rate
     let marg = 0.10;
     for (const [top, r] of T.brackets[status]) { marg = r; if (taxableOrd < top * idx) break; }
     return { fed, state: stateTax, total: fed + stateTax, agi, taxableSS, taxableOrd, marg, niit };
@@ -533,18 +595,45 @@ tr.short td:first-child { background: var(--bad-soft); }
     return tier;
   }
 
+  // ACA: share of income expected toward the benchmark plan; null above the 400% cliff.
+  function acaApplicable(ratio) {
+    if (ratio > 4) return null;
+    if (ratio <= 1.33) return T.acaBands[0][1];
+    let lo = 1.33;
+    for (const [top, a, b] of T.acaBands) {
+      if (ratio <= top) return top === lo ? a : a + (b - a) * (ratio - lo) / (top - lo);
+      lo = top;
+    }
+    return null;
+  }
+  function acaAgeFactor(age) {
+    const t = T.acaAge;
+    if (age >= 64) return 3.0;
+    for (let i = t.length - 1; i >= 0; i--) {
+      if (age >= t[i][0]) {
+        const [a0, f0] = t[i], nx = t[i + 1];
+        return nx ? f0 + (nx[1] - f0) * (age - a0) / (nx[0] - a0) : f0;
+      }
+    }
+    return 1;
+  }
+
   // ---------- Return path ----------
-  function yearReturns(p, year, rng) {
-    const ev = (p.stress.enabled ? p.stress.events : []).find(e => +e.year === year);
+  function eventYears(p, retA) {
+    return (p.stress.enabled ? p.stress.events : []).map(e => ({
+      ...e, y: has(e.retireOffset) ? retA + num(e.retireOffset) : num(e.year),
+    }));
+  }
+  function yearReturns(p, year, rng, evs) {
+    const ev = evs.find(e => e.y === year);
     let eq = p.returns.equity, bd = p.returns.bond, tag = '';
     if (rng) {
       eq = p.returns.equity + rng.normal() * p.mc.equitySd;
       bd = p.returns.bond + rng.normal() * p.mc.bondSd;
     }
-    if (ev) { eq = +ev.equity; if (ev.bond !== '' && ev.bond != null) bd = +ev.bond; tag = 'recession'; }
+    if (ev) { eq = +ev.equity; if (has(ev.bond)) bd = +ev.bond; tag = 'recession'; }
     else if (p.stress.enabled && p.stress.recoveryYears > 0 && !rng) {
-      const prior = p.stress.events.map(e => +e.year).filter(y => y < year && year - y <= p.stress.recoveryYears);
-      if (prior.length) { eq = p.stress.recoveryEquity; tag = 'recovery'; }
+      if (evs.some(e => e.y < year && year - e.y <= p.stress.recoveryYears)) { eq = p.stress.recoveryEquity; tag = 'recovery'; }
     }
     return { eq, bd, tag };
   }
@@ -563,52 +652,71 @@ tr.short td:first-child { background: var(--bad-soft); }
     const y0 = p.startYear;
     const A = p.a, B = p.b, couple = p.filing === 'MFJ';
     const endYear = A.birthYear + p.endAge;
-    let ira = +p.accounts.ira, roth = +p.accounts.roth, tax = +p.accounts.taxable;
-    let basis = tax * p.accounts.taxableBasisPct;
+    const retA = retYearOf(A), retB = couple ? retYearOf(B) : retA;
+    const FA = effectiveSS(A, y0, retA), FB = couple ? effectiveSS(B, y0, retB) : 0;
+    const evs = eventYears(p, retA);
+    const H = p.health || {};
+    let ira = num(p.accounts.ira), roth = num(p.accounts.roth), tax = num(p.accounts.taxable);
+    let basis = tax * num(p.accounts.taxableBasisPct);
+    // Roth ordering: contributions, then conversions oldest first, then earnings
+    let rothContrib = has(p.accounts.rothBasis) ? Math.min(roth, num(p.accounts.rothBasis)) : roth;
+    const convs = [];
     const rows = [];
     const magiHist = {}; magiHist[y0 - 2] = p.priorMagi; magiHist[y0 - 1] = p.priorMagi;
-    let shortfallYear = null, totalTax = 0, totalIrmaa = 0, totalShort = 0;
-    const deathA = A.deathAge ? A.birthYear + +A.deathAge : Infinity;
-    const deathB = couple && B.deathAge ? B.birthYear + +B.deathAge : Infinity;
+    let shortfallYear = null, totalTax = 0, totalIrmaa = 0, totalShort = 0, totalPen = 0, totalHealth = 0;
+    const deathA = has(A.deathAge) ? A.birthYear + +A.deathAge : Infinity;
+    const deathB = couple && has(B.deathAge) ? B.birthYear + +B.deathAge : Infinity;
 
     for (let y = y0; y <= endYear; y++) {
       const t = y - y0;
       const infl = Math.pow(1 + p.inflation, t);
-      const idx = infl; // brackets indexed with CPI
+      const idx = infl;
       const ageA = y - A.birthYear, ageB = couple ? y - B.birthYear : null;
       const aliveA = y <= deathA, aliveB = couple && y <= deathB;
       if (!aliveA && !aliveB) break;
-      // filing: MFJ through year of death, then single
-      const status = couple && aliveA && aliveB ? 'MFJ' : 'Single'; // death year still files jointly
+      const status = couple && aliveA && aliveB ? 'MFJ' : 'Single';
       const survivor = couple && !(aliveA && aliveB);
       const n65 = (aliveA && ageA >= 65 ? 1 : 0) + (aliveB && ageB >= 65 ? 1 : 0);
 
-      // Wages
-      let wages = 0;
-      if (aliveA && y < A.retireYear) wages += A.salary * Math.pow(1 + p.inflation, t);
-      if (aliveB && y < B.retireYear) wages += B.salary * Math.pow(1 + p.inflation, t);
+      // ----- Paycheck -----
+      const wageOf = (P, alive, ret) => alive && y < ret ? num(P.salary) * infl * Math.pow(1 + num(P.raise), t) : 0;
+      const wA = wageOf(A, aliveA, retA), wB = couple ? wageOf(B, aliveB, retB) : 0;
+      const wages = wA + wB;
+      const contrib = (P, w, age) => {
+        if (w <= 0) return { pre: 0, r401: 0, match: 0, rira: 0 };
+        const lim = (T.k401 + (age >= 50 ? T.k401Catch : 0)) * infl;
+        let pre = w * num(P.k401Pct), r401 = w * num(P.roth401kPct);
+        const tot = pre + r401; if (tot > lim) { const s = lim / tot; pre *= s; r401 *= s; }
+        const match = w * num(P.matchPct);
+        const rira = Math.min(num(P.rothIra) * infl, (T.ira + (age >= 50 ? T.iraCatch : 0)) * infl);
+        return { pre, r401, match, rira };
+      };
+      const cA = contrib(A, wA, ageA), cB = couple ? contrib(B, wB, ageB) : contrib(B, 0, 0);
+      const pre = cA.pre + cB.pre, r401 = cA.r401 + cB.r401, match = cA.match + cB.match, rira = cA.rira + cB.rira;
+      const wagesTaxable = wages - pre;
+      const wagesCash = wages - pre - r401 - rira;
+      const fica = T.ficaSS * (Math.min(wA, T.ssWageBase * infl) + Math.min(wB, T.ssWageBase * infl))
+        + T.ficaMed * wages + T.addlMed * Math.max(0, wages - T.addlMedTh[status]);
+      const anyWorking = wages > 0;
 
-      // Social Security (monthly FRA amounts in today's $, COLA = inflation)
-      const ssPerson = (P, age, by) => {
+      // ----- Social Security -----
+      const ssPerson = (P, fra, by) => {
         const claimYear = by + Math.floor(P.ssClaimAge);
         if (y < claimYear) return { own: 0, months: 0 };
         const months = y === claimYear ? Math.max(0, 12 - (P.birthMonth - 1) - Math.round((P.ssClaimAge % 1) * 12)) : 12;
-        return { own: P.ssFRA * ownFactor(by, P.ssClaimAge) * infl, months };
+        return { own: fra * ownFactor(by, P.ssClaimAge) * infl, months };
       };
-      const sa = ssPerson(A, ageA, A.birthYear);
-      const sb = couple ? ssPerson(B, ageB, B.birthYear) : { own: 0, months: 0 };
+      const sa = ssPerson(A, FA, A.birthYear);
+      const sb = couple ? ssPerson(B, FB, B.birthYear) : { own: 0, months: 0 };
       let ssA = 0, ssB = 0;
       if (couple && aliveA && aliveB) {
-        // spousal top-up once both have claimed
         const both = sa.months > 0 && sb.months > 0;
-        const spA = both ? Math.max(0, 0.5 * B.ssFRA * infl * spousalFactor(A.birthYear, A.ssClaimAge) - sa.own) : 0;
-        const spB = both ? Math.max(0, 0.5 * A.ssFRA * infl * spousalFactor(B.birthYear, B.ssClaimAge) - sb.own) : 0;
+        const spA = both ? Math.max(0, 0.5 * FB * infl * spousalFactor(A.birthYear, A.ssClaimAge) - sa.own) : 0;
+        const spB = both ? Math.max(0, 0.5 * FA * infl * spousalFactor(B.birthYear, B.ssClaimAge) - sb.own) : 0;
         ssA = (sa.own + spA) * sa.months; ssB = (sb.own + spB) * sb.months;
       } else if (couple) {
-        // survivor keeps the higher of own benefit or the deceased's
-        // (deceased's claimed benefit if they had claimed, otherwise their FRA amount)
-        const [S, D, sS, sD] = aliveA ? [A, B, sa, sb] : [B, A, sb, sa];
-        const decBen = sD.own > 0 ? Math.max(sD.own, D.ssFRA * infl * 0.825) : D.ssFRA * infl;
+        const [sS, sD, fD] = aliveA ? [sa, sb, FB] : [sb, sa, FA];
+        const decBen = sD.own > 0 ? Math.max(sD.own, fD * infl * 0.825) : fD * infl;
         const amt = Math.max(sS.own, decBen) * sS.months;
         if (aliveA) ssA = amt; else ssB = amt;
       } else {
@@ -619,18 +727,14 @@ tr.short td:first-child { background: var(--bad-soft); }
       const pension = (p.pension.annual && y >= p.pension.startYear)
         ? p.pension.annual * (p.pension.cola ? infl : 1) * (survivor ? p.pension.survivorPct : 1) : 0;
 
-      // Spending
+      // ----- Spending -----
       let base = p.spending.base;
+      if (num(p.spending.retireBase) > 0 && y >= retA) base = num(p.spending.retireBase);
       for (const ph of p.spending.phases) if (y >= +ph.from && y <= +ph.to && ph.amount !== '') base = +ph.amount;
       if (p.spending.lateTrimAge && ageA >= p.spending.lateTrimAge) base *= (1 - p.spending.lateTrimPct);
       let spend = base * infl;
-      let adj = 0;
-      for (const a of p.spending.adjustments) {
-        if (y >= +a.from && y <= +a.to) adj += +a.amount * (a.inflates ? infl : 1);
-      }
-      spend += adj;
+      for (const a of p.spending.adjustments) if (y >= +a.from && y <= +a.to) spend += +a.amount * (a.inflates ? infl : 1);
       if (survivor) spend *= p.spending.survivorPct;
-      // One-time events
       let oneOrd = 0, oneGain = 0, oneCash = 0, oneExpense = 0;
       for (const e of p.oneTime) {
         if (+e.year !== y) continue;
@@ -639,113 +743,169 @@ tr.short td:first-child { background: var(--bad-soft); }
       }
       spend += oneExpense;
 
-      // RMD
-      let owner = p.iraOwner === 'b' && couple ? B : A;
-      if (couple && !(owner === A ? aliveA : aliveB)) owner = owner === A ? B : A; // spousal rollover
-      const ownerAge = y - owner.birthYear;
-      const rmdAge = rmdStartAge(owner.birthYear);
-      const rmd = ownerAge >= rmdAge ? ira / rmdFactor(ownerAge) : 0;
+      // ----- Health insurance before Medicare (only once nobody in the household works) -----
+      let healthFull = 0, hh = 0;
+      if (H.enabled && !anyWorking) {
+        const per = num(H.premium40) / 1.278 * infl;
+        if (aliveA && ageA < 65) { healthFull += per * acaAgeFactor(ageA); hh++; }
+        if (couple && aliveB && ageB < 65) { healthFull += per * acaAgeFactor(ageB); hh++; }
+      }
+      const hhSize = couple && aliveA && aliveB ? 2 : 1;
+      const fplNow = (T.fpl[0] + T.fpl[1] * (hhSize - 1)) * infl;
+      const healthCost = agi => {
+        if (healthFull <= 0) return 0;
+        if (!H.subsidy) return healthFull;
+        const pct = acaApplicable(Math.max(0, agi) / fplNow);
+        if (pct == null) return healthFull;
+        // Below the poverty line there is no tax credit (Medicaid may apply instead);
+        // charge as if income were at the poverty line rather than assuming free coverage.
+        return Math.min(healthFull, pct * Math.max(agi, fplNow));
+      };
 
-      // IRMAA (lookback 2 yrs), surcharge above standard premium
+      // ----- RMD -----
+      let owner = p.iraOwner === 'b' && couple ? B : A;
+      if (couple && !(owner === A ? aliveA : aliveB)) owner = owner === A ? B : A;
+      const ownerAge = y - owner.birthYear;
+      const rmd = ownerAge >= rmdStartAge(owner.birthYear) ? ira / rmdFactor(ownerAge) : 0;
+      const early = ownerAge < 59 || (ownerAge === 59 && num(owner.birthMonth) > 6);
+
+      // ----- IRMAA -----
       let irmaa = 0, tierNow = 0;
       if (n65 > 0) {
         const lb = magiHist[y - 2];
         const lbStatus = magiHist['s' + (y - 2)] || status;
-        tierNow = irmaaTier(lb == null ? 0 : lb, lbStatus, infl); // premium-year thresholds
+        tierNow = irmaaTier(lb == null ? 0 : lb, lbStatus, infl);
         irmaa = n65 * 12 * ((T.irmaa.partB[tierNow] - T.irmaa.partB[0]) + T.irmaa.partD[tierNow]) * infl;
       }
 
-      // Roth conversion amount (decided before withdrawals)
+      // ----- Roth conversion -----
       let conv = 0;
       const rc = p.roth;
-      const preIra = Math.max(0, ira - rmd);
-      if (rc.enabled && y >= rc.from && y <= rc.to && preIra > 0) {
+      const cFrom = rc.ladder ? retA : rc.from, cTo = rc.ladder ? owner.birthYear + 59 : rc.to;
+      const preIra = Math.max(0, ira + pre + match - rmd);
+      let capVal = Infinity;
+      if (rc.irmaaCap) capVal = Math.min(capVal, T.irmaa[status][0] * infl - 1000);
+      if (rc.acaCap && H.subsidy && healthFull > 0) capVal = Math.min(capVal, 4 * fplNow - 500);
+      if (rc.enabled && y >= cFrom && y <= cTo && preIra > 0) {
         if (rc.mode === 'fixed') conv = Math.min(preIra, rc.amount * infl);
         else {
-          // fill ordinary income up to top of chosen bracket
-          const est = computeTax({ status, idx, wages, ordinaryOther: pension + rmd + oneOrd, ss, ltcg: oneGain, n65, year: y, stateRate: 0 });
-          let ded = T.stdDed[status] * idx + T.age65Add[status] * idx * n65;
-          const room = bracketTop(rc.bracket, status, idx) + ded - (wages + pension + rmd + oneOrd + est.taxableSS);
+          const est = computeTax({ status, idx, wages: wagesTaxable, ordinaryOther: pension + rmd + oneOrd, ss, ltcg: oneGain, n65, year: y, stateRate: 0 });
+          const ded = T.stdDed[status] * idx + T.age65Add[status] * idx * n65;
+          const room = bracketTop(rc.bracket, status, idx) + ded - (wagesTaxable + pension + rmd + oneOrd + est.taxableSS);
           conv = Math.max(0, Math.min(preIra, room));
-          if (rc.irmaaCap) {
-            const cap = T.irmaa[status][0] * Math.pow(1 + p.inflation, t) - 1000;
-            conv = Math.max(0, Math.min(conv, cap - (est.agi)));
-          }
+          if (capVal < Infinity) conv = Math.max(0, Math.min(conv, capVal - est.agi));
         }
       }
 
-      // Solve withdrawals: iterate taxes until they settle
-      const order = p.withdrawOrder === 'protect-ira' ? ['taxable', 'roth', 'ira'] : ['taxable', 'ira', 'roth'];
-      let wTax = 0, wIra = 0, wRoth = 0, gain = 0, taxRes = null, need = 0, short = 0;
+      // ----- Withdrawals: iterate until taxes, penalties and health premiums settle -----
+      const seasoned = convs.filter(c => y - c.y >= 5).reduce((s, c) => s + c.amt, 0);
+      const order = early ? ['taxable', 'rothA', 'ira', 'rothE']
+        : p.withdrawOrder === 'protect-ira' ? ['taxable', 'rothA', 'ira'] : ['taxable', 'ira', 'rothA'];
+      let wTax = 0, wIra = 0, wRoth = 0, wRothE = 0, gain = 0, taxRes = null, need = 0, short = 0, pen = 0, health = 0;
       let taxGuess = 0;
-      const inflow = wages + ss + pension + oneCash;
+      const inflow = wagesCash + ss + pension + oneCash;
       const solve = () => {
-        taxGuess = 0;
-        for (let it = 0; it < 12; it++) {
-          need = spend + irmaa + taxGuess;
+        taxGuess = 0; health = healthCost(0);
+        for (let it = 0; it < 16; it++) {
+          need = spend + irmaa + fica + health + taxGuess;
           let gap = need - (inflow + rmd);
-          wTax = 0; wIra = 0; wRoth = 0;
-          const bal = { taxable: tax, ira: Math.max(0, ira - rmd - conv), roth: roth + conv };
+          wTax = 0; wIra = 0; wRoth = 0; wRothE = 0;
+          const rothTot = roth + r401 + rira + conv;
+          const access = early ? Math.min(rothTot, rothContrib + r401 + rira + seasoned) : rothTot;
+          const bal = { taxable: tax, ira: Math.max(0, ira + pre + match - rmd - conv), rothA: access, rothE: early ? Math.max(0, rothTot - access) : 0 };
           if (gap > 0) {
             for (const k of order) {
               if (gap <= 0) break;
               const take = Math.min(gap, bal[k]);
-              if (k === 'taxable') wTax = take; else if (k === 'ira') wIra = take; else wRoth = take;
+              if (k === 'taxable') wTax = take; else if (k === 'ira') wIra = take; else if (k === 'rothA') wRoth = take; else wRothE = take;
               gap -= take;
             }
           }
           short = Math.max(0, gap);
           const gf = tax > 0 ? Math.max(0, 1 - basis / tax) : 0;
           gain = wTax * gf;
-          taxRes = computeTax({ status, idx, wages, ordinaryOther: pension + rmd + wIra + conv + oneOrd, ss, ltcg: gain + oneGain, n65, year: y, stateRate: p.stateRate });
-          if (Math.abs(taxRes.total - taxGuess) < 1) { taxGuess = taxRes.total; break; }
-          taxGuess = taxRes.total;
+          taxRes = computeTax({ status, idx, wages: wagesTaxable, ordinaryOther: pension + rmd + wIra + wRothE + conv + oneOrd, ss, ltcg: gain + oneGain, n65, year: y, stateRate: p.stateRate });
+          pen = early ? 0.10 * (wIra + wRothE) : 0;
+          const newHealth = healthCost(taxRes.agi);
+          const tg = taxRes.total + pen;
+          const done = Math.abs(tg - taxGuess) < 1 && Math.abs(newHealth - health) < 1;
+          taxGuess = tg;
+          // damp the ACA cliff so the loop settles instead of flipping
+          health = it < 8 ? newHealth : Math.max(health, newHealth);
+          if (done) break;
         }
       };
       solve();
-      if (conv > 0 && rc.mode !== 'fixed' && rc.irmaaCap) {
-        // keep the year's full MAGI (incl. gains realized to pay the tax) under IRMAA tier 1
-        const cap = T.irmaa[status][0] * Math.pow(1 + p.inflation, t) - 1000;
-        for (let k = 0; k < 4 && taxRes.agi > cap && conv > 0; k++) { conv = Math.max(0, conv - (taxRes.agi - cap) - 500); solve(); }
+      if (conv > 0 && rc.mode !== 'fixed' && capVal < Infinity) {
+        for (let k = 0; k < 5 && taxRes.agi > capVal && conv > 0; k++) { conv = Math.max(0, conv - (taxRes.agi - capVal) - 500); solve(); }
       }
-      need = spend + irmaa + taxGuess;
-      const surplus = Math.max(0, inflow + rmd + wTax + wIra + wRoth - need);
+      need = spend + irmaa + fica + health + taxGuess;
+      const surplus = Math.max(0, inflow + rmd + wTax + wIra + wRoth + wRothE - need);
 
-      // Apply flows
+      // ----- Apply flows -----
       const begin = ira + roth + tax;
       const gFrac = tax > 0 ? Math.max(0, 1 - basis / tax) : 0;
       basis -= wTax * (1 - gFrac);
       tax -= wTax;
-      ira -= rmd + conv + wIra;
-      roth += conv - wRoth;
+      ira += pre + match - rmd - conv - wIra;
+      roth += r401 + rira + conv - wRoth - wRothE;
+      rothContrib += r401 + rira;
+      if (conv > 0) convs.push({ y, amt: conv });
+      let left = wRoth + wRothE;
+      const fromContrib = Math.min(left, rothContrib); rothContrib -= fromContrib; left -= fromContrib;
+      for (const c of convs) { if (left <= 0) break; const k = Math.min(left, c.amt); c.amt -= k; left -= k; }
       tax += surplus; basis += surplus;
       ira = Math.max(0, ira); roth = Math.max(0, roth); tax = Math.max(0, tax); basis = Math.max(0, Math.min(basis, tax));
+      rothContrib = Math.min(rothContrib, roth);
 
-      // Growth (withdrawals at start of year)
-      const r = yearReturns(p, y, rng);
+      // ----- Growth (withdrawals and contributions at start of year) -----
+      const r = yearReturns(p, y, rng, evs);
       const w = equityWeight(p, ageA);
       const blended = w * r.eq + (1 - w) * r.bd;
       ira *= 1 + blended; roth *= 1 + blended; tax *= 1 + blended;
 
       magiHist[y] = taxRes.agi; magiHist['s' + y] = status;
       if (short > 1 && shortfallYear == null) shortfallYear = y;
-      totalTax += taxRes.total; totalIrmaa += irmaa; totalShort += short;
+      const allTax = taxRes.total + fica + pen;
+      totalTax += allTax; totalIrmaa += irmaa; totalShort += short; totalPen += pen; totalHealth += health;
 
       rows.push({
         year: y, ageA: aliveA ? ageA : null, ageB: couple && aliveB ? ageB : null, status, survivor,
-        begin, spend, wages, ss, pension, oneCash, rmd, conv, wTax, wIra, wRoth,
-        fedTax: taxRes.fed, stateTax: taxRes.state, tax: taxRes.total, marg: taxRes.marg, agi: taxRes.agi,
-        irmaa, irmaaTier: tierNow, short, eqW: w, ret: blended, tag: r.tag,
+        begin, spend, wages, ss, pension, oneCash, rmd, conv, wTax, wIra, wRoth: wRoth + wRothE,
+        contrib: pre + r401 + match + rira, saved: pre + r401 + match + rira + surplus,
+        fica, pen, health, healthFull, incomeTax: taxRes.total,
+        fedTax: taxRes.fed, stateTax: taxRes.state, tax: allTax, marg: taxRes.marg, agi: taxRes.agi,
+        irmaa, irmaaTier: tierNow, short, eqW: w, ret: blended, tag: r.tag, working: anyWorking,
         ira, roth, taxable: tax, end: ira + roth + tax,
       });
     }
     const last = rows[rows.length - 1];
     const minRow = rows.reduce((m, r) => r.end < m.end ? r : m, rows[0]);
     return {
-      rows, shortfallYear, totalTax, totalIrmaa, totalShort,
+      rows, shortfallYear, totalTax, totalIrmaa, totalShort, totalPen, totalHealth,
       endBalance: last.end, endReal: last.end / Math.pow(1 + p.inflation, last.year - y0),
       minRow, success: shortfallYear == null, endYear: last.year,
+      retireYear: retA, ssFRA: { a: FA, b: FB },
     };
+  }
+
+  // ---------- Retirement-year search ----------
+  function withRetireYear(p, yearA) {
+    const q = JSON.parse(JSON.stringify(p));
+    const couple = q.filing === 'MFJ';
+    const off = couple ? retYearOf(q.b) - retYearOf(q.a) : 0;
+    q.a.retireAge = ''; q.a.retireYear = yearA;
+    if (couple && num(q.b.salary) > 0) { q.b.retireAge = ''; q.b.retireYear = yearA + off; }
+    return q;
+  }
+  // Earliest year Person A can stop working and still last to the plan's end age.
+  function earliestRetirement(p, maxAge = 70) {
+    const last = num(p.a.birthYear) + maxAge;
+    for (let y = p.startYear; y <= last; y++) {
+      const r = project(withRetireYear(p, y));
+      if (r.success) return { year: y, age: y - p.a.birthYear, result: r };
+    }
+    return null;
   }
 
   // ---------- Monte Carlo ----------
@@ -756,18 +916,22 @@ tr.short td:first-child { background: var(--bad-soft); }
     const u = mulberry32(seed); let spare = null;
     return { normal() { if (spare != null) { const s = spare; spare = null; return s; } let a, b, s; do { a = u() * 2 - 1; b = u() * 2 - 1; s = a * a + b * b; } while (!s || s >= 1); const m = Math.sqrt(-2 * Math.log(s) / s); spare = b * m; return a * m; } };
   }
-  function monteCarlo(p, n = 500, seed = 20261) {
+  // randomOnly: drop the fixed recession years, since random markets already include crashes.
+  function monteCarlo(p, n = 500, seed = 20261, successOnly = false, randomOnly = false) {
+    if (randomOnly) { p = JSON.parse(JSON.stringify(p)); p.stress.enabled = false; }
     const paths = []; let ok = 0;
     for (let i = 0; i < n; i++) {
       const r = project(p, { rng: makeRng(seed + i * 7919) });
       if (r.success) ok++;
-      paths.push(r.rows.map(x => x.end));
+      if (!successOnly) paths.push(r.rows.map(x => x.end));
     }
+    if (successOnly) return { successRate: ok / n, n };
     const len = paths[0].length, pct = q => { const out = []; for (let j = 0; j < len; j++) { const col = paths.map(pa => pa[j] ?? 0).sort((a, b) => a - b); out.push(col[Math.floor(q * (col.length - 1))]); } return out; };
     return { successRate: ok / n, p10: pct(0.10), p25: pct(0.25), p50: pct(0.5), p75: pct(0.75), p90: pct(0.9), n };
   }
 
-  const api = { T, project, monteCarlo, computeTax, ownFactor, rmdStartAge, rmdFactor, irmaaTier, equityWeight };
+  const api = { T, project, monteCarlo, computeTax, ownFactor, rmdStartAge, rmdFactor, irmaaTier, equityWeight,
+    earliestRetirement, withRetireYear, effectiveSS, ssEstimate, acaApplicable, acaAgeFactor, retYearOf };
   if (typeof module !== 'undefined') module.exports = api; else root.RetireEngine = api;
 })(this);
 
@@ -778,14 +942,36 @@ tr.short td:first-child { background: var(--bad-soft); }
   // Snapshot of this page as delivered, before anything renders; used for "Save a personal copy".
   const PRISTINE = '<!doctype html>\n' + document.documentElement.outerHTML;
   const E = window.RetireEngine;
+  const MODE = 'old', YOUNG = MODE === 'young';
   const $ = s => document.querySelector(s), $$ = s => Array.from(document.querySelectorAll(s));
-  const KEY = 'lsp:draft:v1', SKEY = 'lsp:scenarios:v1';
+  const KEY = YOUNG ? 'lsp:young:draft:v1' : 'lsp:draft:v1', SKEY = YOUNG ? 'lsp:young:scenarios:v1' : 'lsp:scenarios:v1';
   const store = {
     get(k) { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : null; } catch (e) { return null; } },
     set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} },
   };
 
-  const EXAMPLE = () => ({
+  const EXAMPLE = () => YOUNG ? EXAMPLE_YOUNG() : EXAMPLE_OLD();
+  const EXAMPLE_YOUNG = () => ({
+    _example: true,
+    startYear: 2026, filing: 'Single', endAge: 95, inflation: 0.03, stateRate: 0.05, priorMagi: 110000,
+    a: { name: 'Jordan', birthYear: 1993, birthMonth: 6, retireAge: 55, retireYear: '', salary: 120000, raise: 0.015, yearsWorked: 10,
+      k401Pct: 0.10, roth401kPct: 0, matchPct: 0.04, rothIra: 7500, ssFRA: '', ssClaimAge: 67, deathAge: '' },
+    b: { name: 'Casey', birthYear: 1994, birthMonth: 3, retireAge: 55, retireYear: '', salary: 95000, raise: 0.015, yearsWorked: 9,
+      k401Pct: 0.08, roth401kPct: 0, matchPct: 0.03, rothIra: 0, ssFRA: '', ssClaimAge: 67, deathAge: '' },
+    iraOwner: 'a',
+    accounts: { ira: 95000, roth: 40000, rothBasis: 30000, taxable: 35000, taxableBasisPct: 0.85 },
+    pension: { annual: 0, startYear: 2026, cola: false, survivorPct: 0 },
+    spending: { base: 55000, retireBase: 60000, lateTrimAge: 0, lateTrimPct: 0, survivorPct: 0.75, phases: [], adjustments: [] },
+    oneTime: [],
+    returns: { equity: 0.07, bond: 0.035 },
+    glide: { enabled: true, startEq: 0.90, startAge: 40, endEq: 0.50, endAge: 70 },
+    stress: { enabled: true, recoveryYears: 3, recoveryEquity: 0.12, events: presetEvents('three08', 2026) },
+    health: { enabled: true, premium40: 7500, subsidy: true },
+    roth: { enabled: true, ladder: true, mode: 'fill', bracket: 0.12, amount: 40000, from: 2026, to: 2052, irmaaCap: true, acaCap: true },
+    withdrawOrder: 'protect-ira',
+    mc: { equitySd: 0.17, bondSd: 0.06 },
+  });
+  const EXAMPLE_OLD = () => ({
     _example: true,
     startYear: 2026, filing: 'MFJ', endAge: 95, inflation: 0.03, stateRate: 0, priorMagi: 180000,
     a: { name: 'Alex', birthYear: 1964, birthMonth: 5, retireYear: 2027, salary: 140000, ssFRA: 3300, ssClaimAge: 67, deathAge: '' },
@@ -806,6 +992,13 @@ tr.short td:first-child { background: var(--bad-soft); }
   });
   function BLANK() {
     const p = EXAMPLE(); delete p._example;
+    if (YOUNG) {
+      const z = { salary: 0, raise: 0.01, yearsWorked: 0, k401Pct: 0, roth401kPct: 0, matchPct: 0, rothIra: 0, ssFRA: '' };
+      Object.assign(p.a, z, { name: 'You' }); Object.assign(p.b, z, { name: 'Spouse' });
+      p.accounts = { ira: 0, roth: 0, rothBasis: 0, taxable: 0, taxableBasisPct: 1 }; p.filing = 'Single';
+      p.spending.base = 0; p.spending.retireBase = 0; p.spending.adjustments = []; p.oneTime = [];
+      return p;
+    }
     Object.assign(p.a, { name: 'You', salary: 0, ssFRA: 0 }); Object.assign(p.b, { name: 'Spouse', salary: 0, ssFRA: 0 });
     p.accounts = { ira: 0, roth: 0, taxable: 0, taxableBasisPct: 0.5 }; p.priorMagi = 0;
     p.spending.base = 0; p.spending.adjustments = []; p.oneTime = [];
@@ -817,6 +1010,7 @@ tr.short td:first-child { background: var(--bad-soft); }
       { year: 2046, equity: -0.10, bond: '', label: 'Minor blip' }, { year: 2052, equity: -0.18, bond: '', label: 'Moderate recession' }];
     if (kind === 'three08') return [4, 14, 24].map(d => ({ year: y0 + d, equity: -0.37, bond: 0.05, label: '2008-style crash' }));
     if (kind === 'early') return [{ year: y0, equity: -0.37, bond: 0.05, label: 'Crash in first year' }];
+    if (kind === 'atRetire') return [{ year: '', retireOffset: 0, equity: -0.37, bond: 0.05, label: 'Crash the year you retire' }];
     return [];
   }
 
@@ -844,11 +1038,17 @@ tr.short td:first-child { background: var(--bad-soft); }
     $$('[data-dollars]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.dollars === dollars)));
     const single = p.filing !== 'MFJ';
     $('#spouseBlock').hidden = single; $('#ownerField').hidden = single; $('#dB').closest('.f').hidden = single;
-    $('#nameA').textContent = p.a.name || 'Person A'; $('#nameB').textContent = p.b.name || 'Person B';
+    setNames();
+    if ($('#paySpouse')) $('#paySpouse').hidden = single;
     $('#exampleFlag').hidden = !p._example;
     ['phases', 'adjustments', 'oneTime', 'events'].forEach(renderList);
   }
 
+  function setNames() {
+    const a = p.a.name || 'Person A', b = p.b.name || 'Person B';
+    $('#nameA').textContent = a; $('#nameB').textContent = b;
+    if ($('#payNameA')) { $('#payNameA').textContent = a; $('#payNameB').textContent = b; }
+  }
   function readField(el) {
     const type = el.dataset.type;
     if (type === 'bool') return el.checked;
@@ -863,11 +1063,9 @@ tr.short td:first-child { background: var(--bad-soft); }
     const el = e.target;
     if (el.dataset.path) {
       setP(el.dataset.path, readField(el));
-      if (el.dataset.path.endsWith('.name')) { $('#nameA').textContent = p.a.name || 'Person A'; $('#nameB').textContent = p.b.name || 'Person B'; }
-    } else if (el.dataset.list) {
-      const item = p[listRoot(el.dataset.list)][el.dataset.list === 'events' ? 'events' : el.dataset.list] ;
+      if (el.dataset.path.endsWith('.name')) setNames();
+      changed();
     }
-    changed();
   });
   $('#form').addEventListener('change', e => { if (e.target.tagName === 'SELECT' || e.target.type === 'checkbox') { if (e.target.dataset.path) setP(e.target.dataset.path, readField(e.target)); changed(); } });
 
@@ -901,6 +1099,8 @@ tr.short td:first-child { background: var(--bad-soft); }
         } else if (type === 'kind') {
           f.innerHTML = `<label class="lbl" for="${id}">${label}</label><select id="${id}"><option value="ltcg">Sale (capital gain)</option><option value="ordinary">Income (taxed as wages)</option><option value="cash">Tax-free cash</option><option value="expense">Expense</option></select>`;
           const s = f.querySelector('select'); s.value = item[k]; s.addEventListener('change', () => { item[k] = s.value; changed(); });
+        } else if (name === 'events' && k === 'year' && item.retireOffset !== undefined && item.retireOffset !== '') {
+          f.innerHTML = `<span class="lbl">${label}</span><div class="ro">At retirement</div>`;
         } else {
           const isPct = type === 'pct' || type === 'pctopt';
           f.innerHTML = `<label class="lbl" for="${id}">${label}</label><input id="${id}" type="${type === 'text' ? 'text' : 'number'}" ${isPct ? 'step="1"' : ''} ${type === 'pctopt' ? 'placeholder="normal"' : ''}>`;
@@ -921,13 +1121,12 @@ tr.short td:first-child { background: var(--bad-soft); }
       li.appendChild(x); box.appendChild(li);
     });
   }
-  const listRoot = () => null;
   $$('[data-add]').forEach(b => b.addEventListener('click', () => { const L = LISTS[b.dataset.add]; L.arr().push(L.blank()); renderList(b.dataset.add); changed(); }));
   // 'cash' kind: tax-free inflow
   const normalize = q => { const c = JSON.parse(JSON.stringify(q)); c.oneTime = c.oneTime.map(e => e.kind === 'cash' ? { ...e, kind: 'ltcg', gainPct: 0 } : e); c.a.ssClaimAge = Math.min(70, Math.max(62, +c.a.ssClaimAge || 67)); c.b.ssClaimAge = Math.min(70, Math.max(62, +c.b.ssClaimAge || 67)); c.a.birthMonth = Math.min(12, Math.max(1, +c.a.birthMonth || 1)); c.b.birthMonth = Math.min(12, Math.max(1, +c.b.birthMonth || 1)); c.endAge = Math.min(110, Math.max(c.startYear - c.a.birthYear + 1, +c.endAge || 95)); return c; };
 
   // ---------- compute ----------
-  let res = null, base = null, mc = null, mcTimer = null, calcTimer = null;
+  let res = null, base = null, mc = null, mcTimer = null, calcTimer = null, fire = null, ladder = null, ladderJob = 0;
   function changed() {
     if (p._example) { delete p._example; $('#exampleFlag').hidden = true; }
     store.set(DKEY, p);
@@ -938,10 +1137,12 @@ tr.short td:first-child { background: var(--bad-soft); }
     if (recalc || !res) {
       res = run(p);
       const qb = JSON.parse(JSON.stringify(p)); qb.stress.enabled = false; base = run(qb);
-      clearTimeout(mcTimer); mcTimer = setTimeout(() => { try { mc = E.monteCarlo(normalize(p), 500); } catch (e) { mc = null; } renderMC(); }, 60);
+      if (YOUNG) { try { fire = E.earliestRetirement(normalize(p)); } catch (e) { console.error(e); fire = null; } startLadder(); }
+      clearTimeout(mcTimer); mcTimer = setTimeout(() => { try { mc = E.monteCarlo(normalize(p), 500, 20261, false, YOUNG); } catch (e) { mc = null; } renderMC(); }, 60);
     }
     if (!res) return;
     renderVerdict(); renderChart1(); renderTable(); renderMC(); renderCompare(); renderHints();
+    if (YOUNG) renderLadder();
   }
 
   // ---------- formatting ----------
@@ -950,7 +1151,53 @@ tr.short td:first-child { background: var(--bad-soft); }
   const full = v => (v < 0 ? '−$' : '$') + Math.round(Math.abs(v)).toLocaleString('en-US');
   const ageStr = r => [r.ageA, r.ageB].filter(x => x != null).join(' / ');
 
+  const curAge = () => p.startYear - p.a.birthYear;
+  const plannedAge = () => res.retireYear - p.a.birthYear;
+  function renderVerdictYoung() {
+    const r = res, last = r.rows[r.rows.length - 1], nm = p.a.name || 'Person A';
+    const isYou = /^you$/i.test(nm.trim()), who = isYou ? 'You' : nm;
+    const stamp = $('#stamp'), pa = plannedAge();
+    const yr0 = p.startYear, today = (v, y) => v / Math.pow(1 + p.inflation, y - yr0);
+    const empty = !(+p.a.salary || +p.b.salary) && !(+p.accounts.ira + +p.accounts.roth + +p.accounts.taxable) && !+p.spending.base;
+    if (empty) {
+      stamp.textContent = 'Start here'; stamp.className = 'stamp ok';
+      $('#vHead').textContent = 'Enter your salary, savings and spending';
+      $('#vSub').textContent = 'Fill in the amber fields on the left. Your earliest retirement age appears here as you type.';
+    } else if (fire) {
+      const row = fire.result.rows.find(x => x.year === fire.year);
+      const target = today(row.begin, fire.year);
+      stamp.textContent = fire.age <= curAge() ? 'Free now' : `FI at ${fire.age}`; stamp.className = 'stamp ok';
+      $('#vHead').textContent = fire.age <= curAge() ? `${who} could stop working now` : `${who} can retire in ${fire.year}, at age ${fire.age}`;
+      $('#vSub').textContent = `That takes about ${money(target)} saved (today's dollars) by then, and lasts to age ${p.endAge} through your recession test. `
+        + (r.success ? `Your planned age of ${pa} works, with ${money(r.endReal)} left at ${p.endAge} in today's dollars.`
+                     : `Your planned age of ${pa} runs short in ${r.shortfallYear}.`);
+    } else {
+      stamp.textContent = 'Not yet'; stamp.className = 'stamp fail';
+      $('#vHead').textContent = `Even working until 70, the money runs short`;
+      $('#vSub').textContent = `Try saving more, spending less in retirement, or a later end age. Your planned age of ${pa} runs short in ${r.shortfallYear}.`;
+    }
+    const first = r.rows[0];
+    const gross = first.wages || 0;
+    const rate = gross > 0 ? Math.max(0, first.saved) / gross : 0;
+    const ss = r.ssFRA.a;
+    const conf = ladder && ladder.done ? ladder.conf : null;
+    const k = [
+      ['Earliest retirement age', fire ? String(fire.age) : '70+', fire ? `in ${fire.year}, stress test` : 'not within reach'],
+      ['With 90% confidence', conf ? String(conf.age) : (ladder && ladder.done ? '70+' : '…'), conf ? `${Math.round(conf.rate * 100)}% of random markets` : 'random markets'],
+      ['Savings rate now', Math.round(rate * 100) + '%', `${money(first.saved)} of ${money(gross)} pay, incl. match`],
+      ['Social Security at 67', '$' + Math.round(ss).toLocaleString('en-US') + '/mo', `today's $, retiring at ${pa}`],
+      ['Health insurance', money(r.totalHealth), 'before 65, after tax credits'],
+    ];
+    $('#kpis').innerHTML = k.map(([a, b, c]) => `<div class="kpi"><span>${a}</span><b>${b}</b><small>${c}</small></div>`).join('');
+    const row = $('#useAgeRow');
+    if (fire && fire.age !== pa && fire.age > curAge()) {
+      row.hidden = false;
+      $('#btnUseAge').textContent = `Plan to retire at ${fire.age}`;
+      $('#useAgeNote').textContent = fire.age < pa ? `${pa - fire.age} year${pa - fire.age === 1 ? '' : 's'} earlier than your plan` : `${fire.age - pa} year${fire.age - pa === 1 ? '' : 's'} later than your plan`;
+    } else row.hidden = true;
+  }
   function renderVerdict() {
+    if (YOUNG) return renderVerdictYoung();
     const r = res, last = r.rows[r.rows.length - 1], nm = p.a.name || 'Person A';
     const isYou = /^you$/i.test(nm.trim()), poss = isYou ? 'your' : `${nm}'s`;
     const stamp = $('#stamp');
@@ -969,7 +1216,7 @@ tr.short td:first-child { background: var(--bad-soft); }
     const k = [
       ['Lowest balance', money(real(r.minRow.end, r.minRow.year)), `${r.minRow.year}, age ${r.minRow.ageA ?? '—'}`],
       ['Ending balance', money(real(r.endBalance, last.year)), `≈ ${money(real(afterTax, last.year))} after tax on IRA`],
-      ['Lifetime taxes', money(r.totalTax), 'federal + state, future $'],
+      ['Lifetime taxes', money(r.totalTax), 'income + payroll, future $'],
       ['Medicare surcharges', money(r.totalIrmaa), r.totalIrmaa > 0 ? (n => `${n} year${n === 1 ? '' : 's'} above standard`)(r.rows.filter(x => x.irmaaTier > 0).length) : 'never above standard'],
       ['Recession cost', base ? money(real(base.endBalance - r.endBalance, last.year)) : '—', 'vs. the same plan without them'],
     ];
@@ -985,7 +1232,14 @@ tr.short td:first-child { background: var(--bad-soft); }
     $('#hintInv').textContent = `${Math.round(p.returns.equity * 100)}% / ${(p.returns.bond * 100).toFixed(1)}%`;
     $('#hintOne').textContent = p.oneTime.length ? `${p.oneTime.length}` : 'none';
     $('#hintSurv').textContent = (p.a.deathAge || (p.filing === 'MFJ' && p.b.deathAge)) ? 'on' : 'off';
-    $('#hintRoth').textContent = p.roth.enabled ? 'on' : 'off';
+    $('#hintRoth').textContent = p.roth.enabled ? (p.roth.ladder ? 'ladder' : 'on') : 'off';
+    if (YOUNG) {
+      const r0 = res.rows[0];
+      $('#hintPay').textContent = r0 && r0.contrib ? money(r0.contrib) + '/yr' : 'none';
+      $('#hintHealth').textContent = p.health && p.health.enabled ? (p.health.subsidy ? 'with credits' : 'full price') : 'off';
+      $('#hintSpend').textContent = money(p.spending.base) + ' → ' + money(p.spending.retireBase || p.spending.base);
+      $('#hintHouse').textContent = (p.filing === 'MFJ' ? `${p.a.name || 'A'} & ${p.b.name || 'B'}` : (p.a.name || 'Single')) + `, age ${curAge()}`;
+    }
   }
 
   // ---------- charts (hand-built SVG) ----------
@@ -1013,13 +1267,13 @@ tr.short td:first-child { background: var(--bad-soft); }
       if (r.ageA != null) { const a = mk(svg, 'text', { x: x(i), y: m.t + ih + 28, 'text-anchor': 'middle', style: 'font-size:10px;opacity:.8' }); a.textContent = 'age ' + r.ageA; }
     });
   }
-  function hover(el, f, rows, x, html) {
+  function hover(el, f, rows, x, html, idxFn) {
     const tip = document.createElement('div'); tip.className = 'tip'; tip.hidden = true; el.appendChild(tip);
     const guide = mk(f.svg, 'line', { y1: f.m.t, y2: f.m.t + f.ih, stroke: 'var(--ink-3)', 'stroke-width': 1, visibility: 'hidden' });
     const hit = mk(f.svg, 'rect', { x: f.m.l, y: f.m.t, width: f.iw, height: f.ih, fill: 'transparent' });
     const move = ev => {
       const box = f.svg.getBoundingClientRect(); const sx = (ev.clientX - box.left) * f.W / box.width;
-      let i = Math.round((sx - f.m.l) / (f.iw / Math.max(1, rows.length - 1))); i = Math.max(0, Math.min(rows.length - 1, i));
+      let i = idxFn ? idxFn(sx) : Math.round((sx - f.m.l) / (f.iw / Math.max(1, rows.length - 1))); i = Math.max(0, Math.min(rows.length - 1, i));
       guide.setAttribute('x1', x(i)); guide.setAttribute('x2', x(i)); guide.setAttribute('visibility', 'visible');
       tip.innerHTML = html(i); tip.hidden = false;
       const px = x(i) * box.width / f.W, tw = tip.offsetWidth;
@@ -1054,6 +1308,13 @@ tr.short td:first-child { background: var(--bad-soft); }
     if (base && p.stress.enabled) mk(f.svg, 'path', { d: bv.map((u, i) => (i ? 'L' : 'M') + x(i).toFixed(1) + ' ' + y(u).toFixed(1)).join(' '), fill: 'none', stroke: 'var(--ink-3)', 'stroke-width': 2, 'stroke-dasharray': '5 4' });
     // shortfall markers
     rows.forEach((r, i) => { if (r.short > 1) mk(f.svg, 'circle', { cx: x(i), cy: y(0), r: 4, fill: 'var(--bad)', stroke: 'var(--panel)', 'stroke-width': 2 }); });
+    if (YOUNG) {
+      const ri = rows.findIndex(r => r.year === res.retireYear);
+      if (ri > 0) {
+        mk(f.svg, 'line', { x1: x(ri), x2: x(ri), y1: f.m.t, y2: f.m.t + f.ih, stroke: 'var(--ink)', 'stroke-width': 1.5, 'stroke-dasharray': '3 3' });
+        const lt = mk(f.svg, 'text', { x: x(ri) + 5, y: f.m.t + 12, style: 'fill:var(--ink);font-family:var(--f-body);font-weight:600' }); lt.textContent = `Retire at ${plannedAge()}`;
+      }
+    }
     f.svg.setAttribute('aria-label', `Stacked balance by account from ${rows[0].year} to ${rows[rows.length - 1].year}`);
     hover(el, f, rows, x, i => {
       const r = rows[i], o = v[i];
@@ -1074,7 +1335,8 @@ tr.short td:first-child { background: var(--bad-soft); }
     const pct = Math.round(mc.successRate * 100);
     $('#mcPct').textContent = pct + '%'; $('#mcMeter').style.width = pct + '%';
     $('#mcMeter').style.background = pct >= 85 ? 'var(--good)' : pct >= 70 ? 'var(--warn)' : 'var(--bad)';
-    $('#mcText').textContent = `of ${mc.n} market histories last to age ${p.endAge}` + (p.stress.enabled ? ', with your recession years in each.' : '.');
+    $('#mcText').textContent = YOUNG ? `of ${mc.n} market histories last to age ${p.endAge} if you retire at ${plannedAge()}, with crashes at random.`
+      : `of ${mc.n} market histories last to age ${p.endAge}` + (p.stress.enabled ? ', with your recession years in each.' : '.');
     const rows = res.rows, f = frame(el, 260);
     const len = Math.min(rows.length, mc.p50.length);
     const R = (a) => a.slice(0, len).map((v, i) => real(v, rows[i].year));
@@ -1099,6 +1361,7 @@ tr.short td:first-child { background: var(--bad-soft); }
   }
 
   function renderTable() {
+    if (YOUNG) return renderTableYoung();
     const rows = res.rows, couple = p.filing === 'MFJ';
     const head = ['Year', 'Age', 'Spending', 'Social Sec.', 'Wages & other', 'RMD', 'Roth conv.', 'From taxable', 'From Roth', 'From IRA', 'Taxes', 'IRMAA', 'Stocks', 'Return', 'End balance', 'Short'];
     const h = '<thead><tr>' + head.map(x => `<th scope="col">${x}</th>`).join('') + '</tr></thead>';
@@ -1115,7 +1378,79 @@ tr.short td:first-child { background: var(--bad-soft); }
   // ---------- scenarios ----------
   let scen = store.get(SCKEY) || (EMB && Array.isArray(EMB.scenarios) ? EMB.scenarios : []);
   let pendingDelete = null;
+  function renderTableYoung() {
+    const rows = res.rows;
+    const head = ['Year', 'Age', 'Pay', 'Saved', 'Spending', 'Health ins.', 'Social Sec.', 'Roth conv.', 'From taxable', 'From Roth', 'From 401(k)/IRA', 'Taxes', 'Penalty', 'Stocks', 'Return', 'End balance', 'Short'];
+    const h = '<thead><tr>' + head.map(x => `<th scope="col">${x}</th>`).join('') + '</tr></thead>';
+    const c = (v, y) => v > 0.5 ? full(real(v, y)) : '<span style="opacity:.35">—</span>';
+    const b = rows.map(r => {
+      const tag = r.tag === 'recession' ? ' <span class="chip rec">R</span>' : r.tag === 'recovery' ? ' <span class="chip recov">↑</span>' : '';
+      const rt = r.year === res.retireYear ? ' <span class="chip recov">retire</span>' : '';
+      return `<tr class="${r.short > 1 ? 'short' : ''}"><td>${r.year}${tag}${rt}</td><td>${ageStr(r)}</td><td>${c(r.wages + r.oneCash, r.year)}</td><td>${c(r.saved, r.year)}</td><td>${c(r.spend, r.year)}</td><td>${c(r.health, r.year)}</td><td>${c(r.ss, r.year)}</td><td>${c(r.conv, r.year)}</td><td>${c(r.wTax, r.year)}</td><td>${c(r.wRoth, r.year)}</td><td>${c(r.wIra + r.rmd, r.year)}</td><td>${c(r.tax - r.pen, r.year)}</td><td>${c(r.pen, r.year)}</td><td>${Math.round(r.eqW * 100)}%</td><td>${(r.ret * 100).toFixed(1)}%</td><td><b>${full(real(r.end, r.year))}</b></td><td>${c(r.short, r.year)}</td></tr>`;
+    }).join('');
+    $('#tbl').innerHTML = h + '<tbody>' + b + '</tbody>';
+    $('#tblNote').textContent = (dollars === 'real' ? `In ${p.startYear} dollars` : 'In each year\'s dollars') + '. Taxes include payroll tax.';
+  }
+
+  // ---------- chance of success by retirement age (young) ----------
+  function startLadder() {
+    const job = ++ladderJob;
+    const q = normalize(p), ca = curAge();
+    const center = fire ? fire.age : 60;
+    let lo = Math.max(ca, center - 4), hi = Math.min(75, Math.max(lo + 8, center + 5));
+    ladder = { ages: [], done: false, conf: null, lo, hi };
+    const stepAge = age => {
+      if (job !== ladderJob) return;
+      let rate = 0;
+      try { rate = E.monteCarlo(E.withRetireYear(q, q.a.birthYear + age), 200, 20261, true, true).successRate; } catch (e) { console.error(e); }
+      ladder.ages.push({ age, rate });
+      if (!ladder.conf && rate >= 0.9) ladder.conf = { age, rate };
+      const more = age < ladder.hi || (!ladder.conf && age < 70);
+      if (more) { if (age >= ladder.hi) ladder.hi = age + 1; setTimeout(() => stepAge(age + 1), 0); }
+      else { ladder.done = true; renderVerdict(); }
+      renderLadder();
+    };
+    setTimeout(() => stepAge(lo), 30);
+  }
+  function renderLadder() {
+    const el = $('#chart3'); if (!el || !ladder) return;
+    const L = ladder, n = L.hi - L.lo + 1;
+    const f = frame(el, 220);
+    const x = i => f.m.l + f.iw * (i + 0.5) / n, bw = Math.max(8, Math.min(44, f.iw / n - 6));
+    const y = v => f.m.t + f.ih - f.ih * v;
+    [0, 0.25, 0.5, 0.75, 1].forEach(v => {
+      mk(f.svg, 'line', { x1: f.m.l, x2: f.m.l + f.iw, y1: y(v), y2: y(v), stroke: 'var(--line)', 'stroke-width': v === 0 ? 1 : 0.6, 'stroke-dasharray': v === 0 ? '' : '2 3' });
+      const t = mk(f.svg, 'text', { x: f.m.l - 8, y: y(v) + 4, 'text-anchor': 'end' }); t.textContent = Math.round(v * 100) + '%';
+    });
+    mk(f.svg, 'line', { x1: f.m.l, x2: f.m.l + f.iw, y1: y(0.9), y2: y(0.9), stroke: 'var(--good)', 'stroke-width': 1, 'stroke-dasharray': '4 3' });
+    const pa = plannedAge();
+    for (let i = 0; i < n; i++) {
+      const age = L.lo + i, d = L.ages.find(a => a.age === age);
+      const lab = mk(f.svg, 'text', { x: x(i), y: f.m.t + f.ih + 15, 'text-anchor': 'middle', style: age === pa ? 'fill:var(--ink);font-weight:600' : '' }); lab.textContent = age;
+      if (age === pa) { const t2 = mk(f.svg, 'text', { x: x(i), y: f.m.t + f.ih + 28, 'text-anchor': 'middle', style: 'font-size:10px;fill:var(--ink)' }); t2.textContent = 'your plan'; }
+      if (!d) { mk(f.svg, 'rect', { x: x(i) - bw / 2, y: y(0.04), width: bw, height: f.ih * 0.04, rx: 3, fill: 'var(--sunk)' }); continue; }
+      const col = d.rate >= 0.9 ? 'var(--good)' : d.rate >= 0.7 ? 'var(--warn)' : 'var(--bad)';
+      const top = y(Math.max(d.rate, 0.01));
+      mk(f.svg, 'path', { d: `M${x(i) - bw / 2},${y(0)} V${top + 4} q0,-4 4,-4 H${x(i) + bw / 2 - 4} q4,0 4,4 V${y(0)} Z`, fill: col });
+      const vt = mk(f.svg, 'text', { x: x(i), y: top - 5, 'text-anchor': 'middle', style: 'fill:var(--ink-2)' }); vt.textContent = Math.round(d.rate * 100) + '%';
+    }
+    f.svg.setAttribute('aria-label', 'Chance the money lasts for each retirement age');
+    $('#ladderNote').textContent = L.done ? `Each bar is 200 random market histories with ${p.a.name && !/^you$/i.test(p.a.name) ? p.a.name : 'you'} stopping work at that age. The dashed line marks 90%.` : 'Running random market histories…';
+    hover(el, f, Array.from({ length: n }, (_, i) => ({ year: L.lo + i })), i => f.m.l + f.iw * (i + 0.5) / n, i => {
+      const age = L.lo + i, d = L.ages.find(a => a.age === age);
+      return `<b>Retire at ${age}</b> · ${p.a.birthYear + age}<div class="r"><em>Money lasts to ${p.endAge}</em>${d ? Math.round(d.rate * 100) + '%' : '…'}</div>`;
+    }, sx => Math.floor((sx - f.m.l) / (f.iw / n)));
+  }
+  if ($('#btnUseAge')) $('#btnUseAge').addEventListener('click', () => {
+    if (!fire) return;
+    const delta = fire.age - (+p.a.retireAge || plannedAge());
+    p.a.retireAge = fire.age;
+    if (p.filing === 'MFJ' && +p.b.salary > 0 && p.b.retireAge !== '' && p.b.retireAge != null) p.b.retireAge = +p.b.retireAge + delta;
+    bindStatic(); changed(); toast(`Planned retirement set to age ${fire.age}`);
+  });
+
   function renderCompare() {
+    if (YOUNG) return renderCompareYoung();
     const rowsHtml = [['Current inputs', p, -1]].concat(scen.map((s, i) => [s.name, s.p, i])).map(([name, q, i]) => {
       const r = i < 0 ? res : run(q); if (!r) return '';
       const last = r.rows[r.rows.length - 1];
@@ -1126,6 +1461,20 @@ tr.short td:first-child { background: var(--bad-soft); }
       return `<tr><td>${escapeHtml(name)}</td><td>${r.success ? '<span style="color:var(--good)">Lasts</span>' : `<span style="color:var(--bad)">Short in ${r.shortfallYear}</span>`}</td><td>${money(real0(r.endBalance))}</td><td>${money(r.minRow.end)} <small>(${r.minRow.year})</small></td><td>${money(r.totalTax)}</td><td>${money(r.totalIrmaa)}</td><td style="text-align:left">${act}</td></tr>`;
     }).join('');
     $('#cmp').innerHTML = `<thead><tr><th scope="col">Scenario</th><th scope="col">Outcome</th><th scope="col">End (today's $)</th><th scope="col">Lowest</th><th scope="col">Taxes</th><th scope="col">IRMAA</th><th scope="col"></th></tr></thead><tbody>${rowsHtml}</tbody>`;
+  }
+  function renderCompareYoung() {
+    const rowsHtml = [['Current inputs', p, -1]].concat(scen.map((s, i) => [s.name, s.p, i])).map(([name, q, i]) => {
+      let r, e;
+      try { const nq = normalize(q); r = i < 0 ? res : E.project(nq); e = i < 0 ? fire : E.earliestRetirement(nq); } catch (err) { return ''; }
+      const last = r.rows[r.rows.length - 1];
+      const real0 = v => v / Math.pow(1 + q.inflation, last.year - q.startYear);
+      const pa = r.retireYear - q.a.birthYear;
+      const act = i < 0 ? '' : (pendingDelete === i
+        ? `<span class="inline-confirm">Delete? <button class="btn small danger" data-del="${i}" type="button">Delete</button><button class="btn small" data-cancel type="button">Keep</button></span>`
+        : `<button class="btn small" data-load="${i}" type="button">Load</button> <button class="btn small ghost" data-askdel="${i}" type="button" aria-label="Delete ${name}">×</button>`);
+      return `<tr><td>${escapeHtml(name)}</td><td><b>${e ? e.age : '70+'}</b></td><td>${pa}: ${r.success ? '<span style="color:var(--good)">lasts</span>' : `<span style="color:var(--bad)">short in ${r.shortfallYear}</span>`}</td><td>${money(real0(r.endBalance))}</td><td>${money(r.totalTax)}</td><td style="text-align:left">${act}</td></tr>`;
+    }).join('');
+    $('#cmp').innerHTML = `<thead><tr><th scope="col">Scenario</th><th scope="col">Earliest age</th><th scope="col">Planned age</th><th scope="col">End (today's $)</th><th scope="col">Taxes</th><th scope="col"></th></tr></thead><tbody>${rowsHtml}</tbody>`;
   }
   const escapeHtml = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
   $('#btnSave').addEventListener('click', () => {
@@ -1154,7 +1503,7 @@ tr.short td:first-child { background: var(--bad-soft); }
     try {
       const o = JSON.parse(txt); const q = o.inputs || o;
       if (!q.a || !q.accounts || !q.spending) throw new Error('missing');
-      const d = BLANK(); p = Object.assign(d, q); ['a', 'b', 'accounts', 'spending', 'returns', 'glide', 'stress', 'roth', 'mc', 'pension'].forEach(k => p[k] = Object.assign(BLANK()[k], q[k] || {}));
+      const d = BLANK(); p = Object.assign(d, q); ['a', 'b', 'accounts', 'spending', 'returns', 'glide', 'stress', 'roth', 'mc', 'pension', 'health'].forEach(k => p[k] = Object.assign(BLANK()[k], q[k] || {}));
       if (Array.isArray(o.scenarios)) { o.scenarios.forEach(sc => { if (!sc || !sc.name || !sc.p) return; const k = scen.findIndex(x => x.name === sc.name); if (k >= 0) scen[k] = sc; else scen.push(sc); }); store.set(SCKEY, scen); }
       store.set(DKEY, p); bindStatic(); renderResults(true); toast('Plan loaded');
     } catch (e) { toast('Those inputs could not be read. Paste the full text from “Copy inputs”.'); }

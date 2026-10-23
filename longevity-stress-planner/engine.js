@@ -1,9 +1,12 @@
-// Retirement projection engine — rebuilt from the Sept 2026 longevity model.
+// Retirement projection engine — rebuilt from the Sept 2026 longevity model,
+// extended for early retirement (paycheck saving, 59½ rules, ACA, Roth ladders).
 // Pure functions, no DOM. Year-by-year, nominal dollars.
 (function (root) {
   'use strict';
 
-  // ---------- 2026 federal tables (IRS Rev. Proc. 2025-32; CMS 2026 IRMAA) ----------
+  // ---------- 2026 federal tables ----------
+  // Brackets: IRS Rev. Proc. 2025-32. IRMAA: CMS 2026. Limits: IRS Notice for 2026 plan year.
+  // Social Security: SSA 2026 wage base and PIA bend points. ACA: Rev. Proc. 2025-25, 2025 HHS poverty guidelines.
   const T = {
     baseYear: 2026,
     brackets: {
@@ -22,12 +25,24 @@
       partB: [202.90, 284.10, 405.80, 527.50, 649.20, 689.90],
       partD: [0, 14.50, 37.50, 60.40, 83.30, 91.00],
     },
+    // Payroll tax
+    ssWageBase: 184500, ficaSS: 0.062, ficaMed: 0.0145, addlMed: 0.009, addlMedTh: { MFJ: 250000, Single: 200000 },
+    // Contribution limits
+    k401: 24500, k401Catch: 8000, ira: 7500, iraCatch: 1100,
+    // Social Security benefit formula (today's dollars)
+    pia: [1286, 7749],
+    // ACA: poverty line for the household (base + per extra person), applicable % bands, age rating
+    fpl: [15650, 5500],
+    acaBands: [[1.33, .021, .021], [1.5, .0314, .0419], [2.0, .0419, .066], [2.5, .066, .0844], [3.0, .0844, .0996], [4.0, .0996, .0996]],
+    acaAge: [[0, .765], [21, 1.0], [25, 1.004], [30, 1.135], [35, 1.222], [40, 1.278], [45, 1.5], [50, 1.786], [55, 2.23], [60, 2.714], [64, 3.0]],
   };
 
   // IRS Uniform Lifetime Table (2022+)
   const ULT = { 72: 27.4, 73: 26.5, 74: 25.5, 75: 24.6, 76: 23.7, 77: 22.9, 78: 22.0, 79: 21.1, 80: 20.2, 81: 19.4, 82: 18.5, 83: 17.7, 84: 16.8, 85: 16.0, 86: 15.2, 87: 14.4, 88: 13.7, 89: 12.9, 90: 12.2, 91: 11.5, 92: 10.8, 93: 10.1, 94: 9.5, 95: 8.9, 96: 8.4, 97: 7.8, 98: 7.3, 99: 6.8, 100: 6.4, 101: 6.0, 102: 5.6, 103: 5.2, 104: 4.9, 105: 4.6 };
   const rmdFactor = age => ULT[Math.min(age, 105)] || 27.4;
   const rmdStartAge = birthYear => birthYear >= 1960 ? 75 : birthYear >= 1951 ? 73 : 72;
+  const num = v => { const n = +v; return isFinite(n) ? n : 0; };
+  const has = v => v !== undefined && v !== null && v !== '';
 
   // Full retirement age in months
   function fraMonths(by) {
@@ -35,7 +50,6 @@
     if (by <= 1954) return 66 * 12;
     return 66 * 12 + (by - 1954) * 2;
   }
-  // Own-benefit factor for claiming at claimAge (years) vs FRA
   function ownFactor(by, claimAge) {
     const d = Math.round(claimAge * 12) - fraMonths(by);
     if (d >= 0) return 1 + Math.min(d, 70 * 12 - fraMonths(by)) * (2 / 300); // 8%/yr
@@ -46,6 +60,32 @@
     const m = Math.max(0, fraMonths(by) - Math.round(claimAge * 12));
     return 1 - Math.min(m, 36) * (25 / 3600) - Math.max(m - 36, 0) * (5 / 1200);
   }
+
+  // ---------- Social Security estimate from earnings (today's dollars) ----------
+  function piaFromAime(aime) {
+    const [b1, b2] = T.pia;
+    return 0.9 * Math.min(aime, b1) + 0.32 * Math.max(0, Math.min(aime, b2) - b1) + 0.15 * Math.max(0, aime - b2);
+  }
+  // Past years are estimated by walking today's salary back by the raise rate.
+  function ssEstimate(P, y0, stopYear) {
+    const raise = num(P.raise), sal = num(P.salary), cap = T.ssWageBase, yrs = [];
+    const past = Math.max(0, Math.round(num(P.yearsWorked)));
+    for (let k = 1; k <= past; k++) yrs.push(Math.min(cap, sal / Math.pow(1 + raise, k)));
+    for (let y = y0; y < stopYear; y++) yrs.push(Math.min(cap, sal * Math.pow(1 + raise, y - y0)));
+    yrs.sort((a, b) => b - a);
+    const aime = yrs.slice(0, 35).reduce((s, x) => s + x, 0) / 420;
+    return piaFromAime(aime);
+  }
+  // Monthly benefit at full retirement age, today's dollars.
+  // Without a work history the statement figure is used as-is (original behavior).
+  function effectiveSS(P, y0, retireYear) {
+    if (!has(P.yearsWorked)) return num(P.ssFRA);
+    const actual = ssEstimate(P, y0, retireYear);
+    const full = ssEstimate(P, y0, P.birthYear + 67);
+    if (num(P.ssFRA) > 0) return full > 0 ? num(P.ssFRA) * actual / full : num(P.ssFRA);
+    return actual;
+  }
+  const retYearOf = P => has(P.retireAge) ? num(P.birthYear) + num(P.retireAge) : num(P.retireYear);
 
   function taxOnBrackets(income, br, idx) {
     let tax = 0, prev = 0;
@@ -62,10 +102,9 @@
     return 0;
   }
 
-  // Federal + state tax for one year.
+  // Federal + state income tax for one year.
   function computeTax(o) {
     const { status, idx, wages, ordinaryOther, ss, ltcg, n65, year, stateRate } = o;
-    // Social Security taxation
     const otherInc = wages + ordinaryOther + ltcg;
     const prov = otherInc + 0.5 * ss;
     const [b1, b2] = T.ssBase[status];
@@ -86,13 +125,12 @@
     const gains = Math.max(0, ltcg - leftover);
     const ordTax = taxOnBrackets(taxableOrd, T.brackets[status], idx);
     const [z, f] = T.ltcg[status].map(x => x * idx);
-    let gt = 0, start = taxableOrd, end = taxableOrd + gains;
+    const start = taxableOrd, end = taxableOrd + gains;
     const seg = (lo, hi) => Math.max(0, Math.min(end, hi) - Math.max(start, lo));
-    gt = seg(z, f) * 0.15 + seg(f, Infinity) * 0.20;
+    const gt = seg(z, f) * 0.15 + seg(f, Infinity) * 0.20;
     const niit = 0.038 * Math.max(0, Math.min(ltcg, agi - T.niit[status]));
     const stateTax = stateRate * Math.max(0, agi - T.stdDed[status] * idx);
     const fed = ordTax + gt + niit;
-    // marginal ordinary rate
     let marg = 0.10;
     for (const [top, r] of T.brackets[status]) { marg = r; if (taxableOrd < top * idx) break; }
     return { fed, state: stateTax, total: fed + stateTax, agi, taxableSS, taxableOrd, marg, niit };
@@ -105,18 +143,45 @@
     return tier;
   }
 
+  // ACA: share of income expected toward the benchmark plan; null above the 400% cliff.
+  function acaApplicable(ratio) {
+    if (ratio > 4) return null;
+    if (ratio <= 1.33) return T.acaBands[0][1];
+    let lo = 1.33;
+    for (const [top, a, b] of T.acaBands) {
+      if (ratio <= top) return top === lo ? a : a + (b - a) * (ratio - lo) / (top - lo);
+      lo = top;
+    }
+    return null;
+  }
+  function acaAgeFactor(age) {
+    const t = T.acaAge;
+    if (age >= 64) return 3.0;
+    for (let i = t.length - 1; i >= 0; i--) {
+      if (age >= t[i][0]) {
+        const [a0, f0] = t[i], nx = t[i + 1];
+        return nx ? f0 + (nx[1] - f0) * (age - a0) / (nx[0] - a0) : f0;
+      }
+    }
+    return 1;
+  }
+
   // ---------- Return path ----------
-  function yearReturns(p, year, rng) {
-    const ev = (p.stress.enabled ? p.stress.events : []).find(e => +e.year === year);
+  function eventYears(p, retA) {
+    return (p.stress.enabled ? p.stress.events : []).map(e => ({
+      ...e, y: has(e.retireOffset) ? retA + num(e.retireOffset) : num(e.year),
+    }));
+  }
+  function yearReturns(p, year, rng, evs) {
+    const ev = evs.find(e => e.y === year);
     let eq = p.returns.equity, bd = p.returns.bond, tag = '';
     if (rng) {
       eq = p.returns.equity + rng.normal() * p.mc.equitySd;
       bd = p.returns.bond + rng.normal() * p.mc.bondSd;
     }
-    if (ev) { eq = +ev.equity; if (ev.bond !== '' && ev.bond != null) bd = +ev.bond; tag = 'recession'; }
+    if (ev) { eq = +ev.equity; if (has(ev.bond)) bd = +ev.bond; tag = 'recession'; }
     else if (p.stress.enabled && p.stress.recoveryYears > 0 && !rng) {
-      const prior = p.stress.events.map(e => +e.year).filter(y => y < year && year - y <= p.stress.recoveryYears);
-      if (prior.length) { eq = p.stress.recoveryEquity; tag = 'recovery'; }
+      if (evs.some(e => e.y < year && year - e.y <= p.stress.recoveryYears)) { eq = p.stress.recoveryEquity; tag = 'recovery'; }
     }
     return { eq, bd, tag };
   }
@@ -135,52 +200,71 @@
     const y0 = p.startYear;
     const A = p.a, B = p.b, couple = p.filing === 'MFJ';
     const endYear = A.birthYear + p.endAge;
-    let ira = +p.accounts.ira, roth = +p.accounts.roth, tax = +p.accounts.taxable;
-    let basis = tax * p.accounts.taxableBasisPct;
+    const retA = retYearOf(A), retB = couple ? retYearOf(B) : retA;
+    const FA = effectiveSS(A, y0, retA), FB = couple ? effectiveSS(B, y0, retB) : 0;
+    const evs = eventYears(p, retA);
+    const H = p.health || {};
+    let ira = num(p.accounts.ira), roth = num(p.accounts.roth), tax = num(p.accounts.taxable);
+    let basis = tax * num(p.accounts.taxableBasisPct);
+    // Roth ordering: contributions, then conversions oldest first, then earnings
+    let rothContrib = has(p.accounts.rothBasis) ? Math.min(roth, num(p.accounts.rothBasis)) : roth;
+    const convs = [];
     const rows = [];
     const magiHist = {}; magiHist[y0 - 2] = p.priorMagi; magiHist[y0 - 1] = p.priorMagi;
-    let shortfallYear = null, totalTax = 0, totalIrmaa = 0, totalShort = 0;
-    const deathA = A.deathAge ? A.birthYear + +A.deathAge : Infinity;
-    const deathB = couple && B.deathAge ? B.birthYear + +B.deathAge : Infinity;
+    let shortfallYear = null, totalTax = 0, totalIrmaa = 0, totalShort = 0, totalPen = 0, totalHealth = 0;
+    const deathA = has(A.deathAge) ? A.birthYear + +A.deathAge : Infinity;
+    const deathB = couple && has(B.deathAge) ? B.birthYear + +B.deathAge : Infinity;
 
     for (let y = y0; y <= endYear; y++) {
       const t = y - y0;
       const infl = Math.pow(1 + p.inflation, t);
-      const idx = infl; // brackets indexed with CPI
+      const idx = infl;
       const ageA = y - A.birthYear, ageB = couple ? y - B.birthYear : null;
       const aliveA = y <= deathA, aliveB = couple && y <= deathB;
       if (!aliveA && !aliveB) break;
-      // filing: MFJ through year of death, then single
-      const status = couple && aliveA && aliveB ? 'MFJ' : 'Single'; // death year still files jointly
+      const status = couple && aliveA && aliveB ? 'MFJ' : 'Single';
       const survivor = couple && !(aliveA && aliveB);
       const n65 = (aliveA && ageA >= 65 ? 1 : 0) + (aliveB && ageB >= 65 ? 1 : 0);
 
-      // Wages
-      let wages = 0;
-      if (aliveA && y < A.retireYear) wages += A.salary * Math.pow(1 + p.inflation, t);
-      if (aliveB && y < B.retireYear) wages += B.salary * Math.pow(1 + p.inflation, t);
+      // ----- Paycheck -----
+      const wageOf = (P, alive, ret) => alive && y < ret ? num(P.salary) * infl * Math.pow(1 + num(P.raise), t) : 0;
+      const wA = wageOf(A, aliveA, retA), wB = couple ? wageOf(B, aliveB, retB) : 0;
+      const wages = wA + wB;
+      const contrib = (P, w, age) => {
+        if (w <= 0) return { pre: 0, r401: 0, match: 0, rira: 0 };
+        const lim = (T.k401 + (age >= 50 ? T.k401Catch : 0)) * infl;
+        let pre = w * num(P.k401Pct), r401 = w * num(P.roth401kPct);
+        const tot = pre + r401; if (tot > lim) { const s = lim / tot; pre *= s; r401 *= s; }
+        const match = w * num(P.matchPct);
+        const rira = Math.min(num(P.rothIra) * infl, (T.ira + (age >= 50 ? T.iraCatch : 0)) * infl);
+        return { pre, r401, match, rira };
+      };
+      const cA = contrib(A, wA, ageA), cB = couple ? contrib(B, wB, ageB) : contrib(B, 0, 0);
+      const pre = cA.pre + cB.pre, r401 = cA.r401 + cB.r401, match = cA.match + cB.match, rira = cA.rira + cB.rira;
+      const wagesTaxable = wages - pre;
+      const wagesCash = wages - pre - r401 - rira;
+      const fica = T.ficaSS * (Math.min(wA, T.ssWageBase * infl) + Math.min(wB, T.ssWageBase * infl))
+        + T.ficaMed * wages + T.addlMed * Math.max(0, wages - T.addlMedTh[status]);
+      const anyWorking = wages > 0;
 
-      // Social Security (monthly FRA amounts in today's $, COLA = inflation)
-      const ssPerson = (P, age, by) => {
+      // ----- Social Security -----
+      const ssPerson = (P, fra, by) => {
         const claimYear = by + Math.floor(P.ssClaimAge);
         if (y < claimYear) return { own: 0, months: 0 };
         const months = y === claimYear ? Math.max(0, 12 - (P.birthMonth - 1) - Math.round((P.ssClaimAge % 1) * 12)) : 12;
-        return { own: P.ssFRA * ownFactor(by, P.ssClaimAge) * infl, months };
+        return { own: fra * ownFactor(by, P.ssClaimAge) * infl, months };
       };
-      const sa = ssPerson(A, ageA, A.birthYear);
-      const sb = couple ? ssPerson(B, ageB, B.birthYear) : { own: 0, months: 0 };
+      const sa = ssPerson(A, FA, A.birthYear);
+      const sb = couple ? ssPerson(B, FB, B.birthYear) : { own: 0, months: 0 };
       let ssA = 0, ssB = 0;
       if (couple && aliveA && aliveB) {
-        // spousal top-up once both have claimed
         const both = sa.months > 0 && sb.months > 0;
-        const spA = both ? Math.max(0, 0.5 * B.ssFRA * infl * spousalFactor(A.birthYear, A.ssClaimAge) - sa.own) : 0;
-        const spB = both ? Math.max(0, 0.5 * A.ssFRA * infl * spousalFactor(B.birthYear, B.ssClaimAge) - sb.own) : 0;
+        const spA = both ? Math.max(0, 0.5 * FB * infl * spousalFactor(A.birthYear, A.ssClaimAge) - sa.own) : 0;
+        const spB = both ? Math.max(0, 0.5 * FA * infl * spousalFactor(B.birthYear, B.ssClaimAge) - sb.own) : 0;
         ssA = (sa.own + spA) * sa.months; ssB = (sb.own + spB) * sb.months;
       } else if (couple) {
-        // survivor keeps the higher of own benefit or the deceased's
-        // (deceased's claimed benefit if they had claimed, otherwise their FRA amount)
-        const [S, D, sS, sD] = aliveA ? [A, B, sa, sb] : [B, A, sb, sa];
-        const decBen = sD.own > 0 ? Math.max(sD.own, D.ssFRA * infl * 0.825) : D.ssFRA * infl;
+        const [sS, sD, fD] = aliveA ? [sa, sb, FB] : [sb, sa, FA];
+        const decBen = sD.own > 0 ? Math.max(sD.own, fD * infl * 0.825) : fD * infl;
         const amt = Math.max(sS.own, decBen) * sS.months;
         if (aliveA) ssA = amt; else ssB = amt;
       } else {
@@ -191,18 +275,14 @@
       const pension = (p.pension.annual && y >= p.pension.startYear)
         ? p.pension.annual * (p.pension.cola ? infl : 1) * (survivor ? p.pension.survivorPct : 1) : 0;
 
-      // Spending
+      // ----- Spending -----
       let base = p.spending.base;
+      if (num(p.spending.retireBase) > 0 && y >= retA) base = num(p.spending.retireBase);
       for (const ph of p.spending.phases) if (y >= +ph.from && y <= +ph.to && ph.amount !== '') base = +ph.amount;
       if (p.spending.lateTrimAge && ageA >= p.spending.lateTrimAge) base *= (1 - p.spending.lateTrimPct);
       let spend = base * infl;
-      let adj = 0;
-      for (const a of p.spending.adjustments) {
-        if (y >= +a.from && y <= +a.to) adj += +a.amount * (a.inflates ? infl : 1);
-      }
-      spend += adj;
+      for (const a of p.spending.adjustments) if (y >= +a.from && y <= +a.to) spend += +a.amount * (a.inflates ? infl : 1);
       if (survivor) spend *= p.spending.survivorPct;
-      // One-time events
       let oneOrd = 0, oneGain = 0, oneCash = 0, oneExpense = 0;
       for (const e of p.oneTime) {
         if (+e.year !== y) continue;
@@ -211,113 +291,169 @@
       }
       spend += oneExpense;
 
-      // RMD
-      let owner = p.iraOwner === 'b' && couple ? B : A;
-      if (couple && !(owner === A ? aliveA : aliveB)) owner = owner === A ? B : A; // spousal rollover
-      const ownerAge = y - owner.birthYear;
-      const rmdAge = rmdStartAge(owner.birthYear);
-      const rmd = ownerAge >= rmdAge ? ira / rmdFactor(ownerAge) : 0;
+      // ----- Health insurance before Medicare (only once nobody in the household works) -----
+      let healthFull = 0, hh = 0;
+      if (H.enabled && !anyWorking) {
+        const per = num(H.premium40) / 1.278 * infl;
+        if (aliveA && ageA < 65) { healthFull += per * acaAgeFactor(ageA); hh++; }
+        if (couple && aliveB && ageB < 65) { healthFull += per * acaAgeFactor(ageB); hh++; }
+      }
+      const hhSize = couple && aliveA && aliveB ? 2 : 1;
+      const fplNow = (T.fpl[0] + T.fpl[1] * (hhSize - 1)) * infl;
+      const healthCost = agi => {
+        if (healthFull <= 0) return 0;
+        if (!H.subsidy) return healthFull;
+        const pct = acaApplicable(Math.max(0, agi) / fplNow);
+        if (pct == null) return healthFull;
+        // Below the poverty line there is no tax credit (Medicaid may apply instead);
+        // charge as if income were at the poverty line rather than assuming free coverage.
+        return Math.min(healthFull, pct * Math.max(agi, fplNow));
+      };
 
-      // IRMAA (lookback 2 yrs), surcharge above standard premium
+      // ----- RMD -----
+      let owner = p.iraOwner === 'b' && couple ? B : A;
+      if (couple && !(owner === A ? aliveA : aliveB)) owner = owner === A ? B : A;
+      const ownerAge = y - owner.birthYear;
+      const rmd = ownerAge >= rmdStartAge(owner.birthYear) ? ira / rmdFactor(ownerAge) : 0;
+      const early = ownerAge < 59 || (ownerAge === 59 && num(owner.birthMonth) > 6);
+
+      // ----- IRMAA -----
       let irmaa = 0, tierNow = 0;
       if (n65 > 0) {
         const lb = magiHist[y - 2];
         const lbStatus = magiHist['s' + (y - 2)] || status;
-        tierNow = irmaaTier(lb == null ? 0 : lb, lbStatus, infl); // premium-year thresholds
+        tierNow = irmaaTier(lb == null ? 0 : lb, lbStatus, infl);
         irmaa = n65 * 12 * ((T.irmaa.partB[tierNow] - T.irmaa.partB[0]) + T.irmaa.partD[tierNow]) * infl;
       }
 
-      // Roth conversion amount (decided before withdrawals)
+      // ----- Roth conversion -----
       let conv = 0;
       const rc = p.roth;
-      const preIra = Math.max(0, ira - rmd);
-      if (rc.enabled && y >= rc.from && y <= rc.to && preIra > 0) {
+      const cFrom = rc.ladder ? retA : rc.from, cTo = rc.ladder ? owner.birthYear + 59 : rc.to;
+      const preIra = Math.max(0, ira + pre + match - rmd);
+      let capVal = Infinity;
+      if (rc.irmaaCap) capVal = Math.min(capVal, T.irmaa[status][0] * infl - 1000);
+      if (rc.acaCap && H.subsidy && healthFull > 0) capVal = Math.min(capVal, 4 * fplNow - 500);
+      if (rc.enabled && y >= cFrom && y <= cTo && preIra > 0) {
         if (rc.mode === 'fixed') conv = Math.min(preIra, rc.amount * infl);
         else {
-          // fill ordinary income up to top of chosen bracket
-          const est = computeTax({ status, idx, wages, ordinaryOther: pension + rmd + oneOrd, ss, ltcg: oneGain, n65, year: y, stateRate: 0 });
-          let ded = T.stdDed[status] * idx + T.age65Add[status] * idx * n65;
-          const room = bracketTop(rc.bracket, status, idx) + ded - (wages + pension + rmd + oneOrd + est.taxableSS);
+          const est = computeTax({ status, idx, wages: wagesTaxable, ordinaryOther: pension + rmd + oneOrd, ss, ltcg: oneGain, n65, year: y, stateRate: 0 });
+          const ded = T.stdDed[status] * idx + T.age65Add[status] * idx * n65;
+          const room = bracketTop(rc.bracket, status, idx) + ded - (wagesTaxable + pension + rmd + oneOrd + est.taxableSS);
           conv = Math.max(0, Math.min(preIra, room));
-          if (rc.irmaaCap) {
-            const cap = T.irmaa[status][0] * Math.pow(1 + p.inflation, t) - 1000;
-            conv = Math.max(0, Math.min(conv, cap - (est.agi)));
-          }
+          if (capVal < Infinity) conv = Math.max(0, Math.min(conv, capVal - est.agi));
         }
       }
 
-      // Solve withdrawals: iterate taxes until they settle
-      const order = p.withdrawOrder === 'protect-ira' ? ['taxable', 'roth', 'ira'] : ['taxable', 'ira', 'roth'];
-      let wTax = 0, wIra = 0, wRoth = 0, gain = 0, taxRes = null, need = 0, short = 0;
+      // ----- Withdrawals: iterate until taxes, penalties and health premiums settle -----
+      const seasoned = convs.filter(c => y - c.y >= 5).reduce((s, c) => s + c.amt, 0);
+      const order = early ? ['taxable', 'rothA', 'ira', 'rothE']
+        : p.withdrawOrder === 'protect-ira' ? ['taxable', 'rothA', 'ira'] : ['taxable', 'ira', 'rothA'];
+      let wTax = 0, wIra = 0, wRoth = 0, wRothE = 0, gain = 0, taxRes = null, need = 0, short = 0, pen = 0, health = 0;
       let taxGuess = 0;
-      const inflow = wages + ss + pension + oneCash;
+      const inflow = wagesCash + ss + pension + oneCash;
       const solve = () => {
-        taxGuess = 0;
-        for (let it = 0; it < 12; it++) {
-          need = spend + irmaa + taxGuess;
+        taxGuess = 0; health = healthCost(0);
+        for (let it = 0; it < 16; it++) {
+          need = spend + irmaa + fica + health + taxGuess;
           let gap = need - (inflow + rmd);
-          wTax = 0; wIra = 0; wRoth = 0;
-          const bal = { taxable: tax, ira: Math.max(0, ira - rmd - conv), roth: roth + conv };
+          wTax = 0; wIra = 0; wRoth = 0; wRothE = 0;
+          const rothTot = roth + r401 + rira + conv;
+          const access = early ? Math.min(rothTot, rothContrib + r401 + rira + seasoned) : rothTot;
+          const bal = { taxable: tax, ira: Math.max(0, ira + pre + match - rmd - conv), rothA: access, rothE: early ? Math.max(0, rothTot - access) : 0 };
           if (gap > 0) {
             for (const k of order) {
               if (gap <= 0) break;
               const take = Math.min(gap, bal[k]);
-              if (k === 'taxable') wTax = take; else if (k === 'ira') wIra = take; else wRoth = take;
+              if (k === 'taxable') wTax = take; else if (k === 'ira') wIra = take; else if (k === 'rothA') wRoth = take; else wRothE = take;
               gap -= take;
             }
           }
           short = Math.max(0, gap);
           const gf = tax > 0 ? Math.max(0, 1 - basis / tax) : 0;
           gain = wTax * gf;
-          taxRes = computeTax({ status, idx, wages, ordinaryOther: pension + rmd + wIra + conv + oneOrd, ss, ltcg: gain + oneGain, n65, year: y, stateRate: p.stateRate });
-          if (Math.abs(taxRes.total - taxGuess) < 1) { taxGuess = taxRes.total; break; }
-          taxGuess = taxRes.total;
+          taxRes = computeTax({ status, idx, wages: wagesTaxable, ordinaryOther: pension + rmd + wIra + wRothE + conv + oneOrd, ss, ltcg: gain + oneGain, n65, year: y, stateRate: p.stateRate });
+          pen = early ? 0.10 * (wIra + wRothE) : 0;
+          const newHealth = healthCost(taxRes.agi);
+          const tg = taxRes.total + pen;
+          const done = Math.abs(tg - taxGuess) < 1 && Math.abs(newHealth - health) < 1;
+          taxGuess = tg;
+          // damp the ACA cliff so the loop settles instead of flipping
+          health = it < 8 ? newHealth : Math.max(health, newHealth);
+          if (done) break;
         }
       };
       solve();
-      if (conv > 0 && rc.mode !== 'fixed' && rc.irmaaCap) {
-        // keep the year's full MAGI (incl. gains realized to pay the tax) under IRMAA tier 1
-        const cap = T.irmaa[status][0] * Math.pow(1 + p.inflation, t) - 1000;
-        for (let k = 0; k < 4 && taxRes.agi > cap && conv > 0; k++) { conv = Math.max(0, conv - (taxRes.agi - cap) - 500); solve(); }
+      if (conv > 0 && rc.mode !== 'fixed' && capVal < Infinity) {
+        for (let k = 0; k < 5 && taxRes.agi > capVal && conv > 0; k++) { conv = Math.max(0, conv - (taxRes.agi - capVal) - 500); solve(); }
       }
-      need = spend + irmaa + taxGuess;
-      const surplus = Math.max(0, inflow + rmd + wTax + wIra + wRoth - need);
+      need = spend + irmaa + fica + health + taxGuess;
+      const surplus = Math.max(0, inflow + rmd + wTax + wIra + wRoth + wRothE - need);
 
-      // Apply flows
+      // ----- Apply flows -----
       const begin = ira + roth + tax;
       const gFrac = tax > 0 ? Math.max(0, 1 - basis / tax) : 0;
       basis -= wTax * (1 - gFrac);
       tax -= wTax;
-      ira -= rmd + conv + wIra;
-      roth += conv - wRoth;
+      ira += pre + match - rmd - conv - wIra;
+      roth += r401 + rira + conv - wRoth - wRothE;
+      rothContrib += r401 + rira;
+      if (conv > 0) convs.push({ y, amt: conv });
+      let left = wRoth + wRothE;
+      const fromContrib = Math.min(left, rothContrib); rothContrib -= fromContrib; left -= fromContrib;
+      for (const c of convs) { if (left <= 0) break; const k = Math.min(left, c.amt); c.amt -= k; left -= k; }
       tax += surplus; basis += surplus;
       ira = Math.max(0, ira); roth = Math.max(0, roth); tax = Math.max(0, tax); basis = Math.max(0, Math.min(basis, tax));
+      rothContrib = Math.min(rothContrib, roth);
 
-      // Growth (withdrawals at start of year)
-      const r = yearReturns(p, y, rng);
+      // ----- Growth (withdrawals and contributions at start of year) -----
+      const r = yearReturns(p, y, rng, evs);
       const w = equityWeight(p, ageA);
       const blended = w * r.eq + (1 - w) * r.bd;
       ira *= 1 + blended; roth *= 1 + blended; tax *= 1 + blended;
 
       magiHist[y] = taxRes.agi; magiHist['s' + y] = status;
       if (short > 1 && shortfallYear == null) shortfallYear = y;
-      totalTax += taxRes.total; totalIrmaa += irmaa; totalShort += short;
+      const allTax = taxRes.total + fica + pen;
+      totalTax += allTax; totalIrmaa += irmaa; totalShort += short; totalPen += pen; totalHealth += health;
 
       rows.push({
         year: y, ageA: aliveA ? ageA : null, ageB: couple && aliveB ? ageB : null, status, survivor,
-        begin, spend, wages, ss, pension, oneCash, rmd, conv, wTax, wIra, wRoth,
-        fedTax: taxRes.fed, stateTax: taxRes.state, tax: taxRes.total, marg: taxRes.marg, agi: taxRes.agi,
-        irmaa, irmaaTier: tierNow, short, eqW: w, ret: blended, tag: r.tag,
+        begin, spend, wages, ss, pension, oneCash, rmd, conv, wTax, wIra, wRoth: wRoth + wRothE,
+        contrib: pre + r401 + match + rira, saved: pre + r401 + match + rira + surplus,
+        fica, pen, health, healthFull, incomeTax: taxRes.total,
+        fedTax: taxRes.fed, stateTax: taxRes.state, tax: allTax, marg: taxRes.marg, agi: taxRes.agi,
+        irmaa, irmaaTier: tierNow, short, eqW: w, ret: blended, tag: r.tag, working: anyWorking,
         ira, roth, taxable: tax, end: ira + roth + tax,
       });
     }
     const last = rows[rows.length - 1];
     const minRow = rows.reduce((m, r) => r.end < m.end ? r : m, rows[0]);
     return {
-      rows, shortfallYear, totalTax, totalIrmaa, totalShort,
+      rows, shortfallYear, totalTax, totalIrmaa, totalShort, totalPen, totalHealth,
       endBalance: last.end, endReal: last.end / Math.pow(1 + p.inflation, last.year - y0),
       minRow, success: shortfallYear == null, endYear: last.year,
+      retireYear: retA, ssFRA: { a: FA, b: FB },
     };
+  }
+
+  // ---------- Retirement-year search ----------
+  function withRetireYear(p, yearA) {
+    const q = JSON.parse(JSON.stringify(p));
+    const couple = q.filing === 'MFJ';
+    const off = couple ? retYearOf(q.b) - retYearOf(q.a) : 0;
+    q.a.retireAge = ''; q.a.retireYear = yearA;
+    if (couple && num(q.b.salary) > 0) { q.b.retireAge = ''; q.b.retireYear = yearA + off; }
+    return q;
+  }
+  // Earliest year Person A can stop working and still last to the plan's end age.
+  function earliestRetirement(p, maxAge = 70) {
+    const last = num(p.a.birthYear) + maxAge;
+    for (let y = p.startYear; y <= last; y++) {
+      const r = project(withRetireYear(p, y));
+      if (r.success) return { year: y, age: y - p.a.birthYear, result: r };
+    }
+    return null;
   }
 
   // ---------- Monte Carlo ----------
@@ -328,17 +464,21 @@
     const u = mulberry32(seed); let spare = null;
     return { normal() { if (spare != null) { const s = spare; spare = null; return s; } let a, b, s; do { a = u() * 2 - 1; b = u() * 2 - 1; s = a * a + b * b; } while (!s || s >= 1); const m = Math.sqrt(-2 * Math.log(s) / s); spare = b * m; return a * m; } };
   }
-  function monteCarlo(p, n = 500, seed = 20261) {
+  // randomOnly: drop the fixed recession years, since random markets already include crashes.
+  function monteCarlo(p, n = 500, seed = 20261, successOnly = false, randomOnly = false) {
+    if (randomOnly) { p = JSON.parse(JSON.stringify(p)); p.stress.enabled = false; }
     const paths = []; let ok = 0;
     for (let i = 0; i < n; i++) {
       const r = project(p, { rng: makeRng(seed + i * 7919) });
       if (r.success) ok++;
-      paths.push(r.rows.map(x => x.end));
+      if (!successOnly) paths.push(r.rows.map(x => x.end));
     }
+    if (successOnly) return { successRate: ok / n, n };
     const len = paths[0].length, pct = q => { const out = []; for (let j = 0; j < len; j++) { const col = paths.map(pa => pa[j] ?? 0).sort((a, b) => a - b); out.push(col[Math.floor(q * (col.length - 1))]); } return out; };
     return { successRate: ok / n, p10: pct(0.10), p25: pct(0.25), p50: pct(0.5), p75: pct(0.75), p90: pct(0.9), n };
   }
 
-  const api = { T, project, monteCarlo, computeTax, ownFactor, rmdStartAge, rmdFactor, irmaaTier, equityWeight };
+  const api = { T, project, monteCarlo, computeTax, ownFactor, rmdStartAge, rmdFactor, irmaaTier, equityWeight,
+    earliestRetirement, withRetireYear, effectiveSS, ssEstimate, acaApplicable, acaAgeFactor, retYearOf };
   if (typeof module !== 'undefined') module.exports = api; else root.RetireEngine = api;
 })(this);
