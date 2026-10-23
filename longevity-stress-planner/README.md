@@ -1,6 +1,29 @@
 # Longevity Stress Planner
 
-[![Try the app](https://img.shields.io/badge/Try_the_app-live_demo-2ea44f?style=for-the-badge)](https://vjra03an.github.io/automation-agents/longevity-stress-planner/)
+Two versions share one projection engine:
+
+| Version | For | Answers | Try it |
+|---|---|---|---|
+| **Not So Old Adult** | People near or in retirement | Does the money last to 95 through recessions, taxes, Medicare and a spouse's death? | [![Not So Old Adult](https://img.shields.io/badge/Open-Not_So_Old_Adult-2ea44f)](https://vjra03an.github.io/automation-agents/longevity-stress-planner/) |
+| **Young Adult** | People still building savings | What's the earliest age I can stop working (financial independence / FIRE)? | [![Young Adult](https://img.shields.io/badge/Open-Young_Adult-0c6652)](https://vjra03an.github.io/automation-agents/longevity-stress-planner/young-adult/) |
+
+## Young Adult version
+
+Built for someone in their 20s–40s. It adds what an early retirement depends on:
+
+- **Paycheck saving:** salary with raises above inflation, 401(k) pre-tax and Roth percentages, employer match and Roth IRA, with 2026 limits ($24,500 401(k), +$8,000 from 50; $7,500 IRA). Leftover pay after tax, payroll tax and spending goes to the brokerage account.
+- **Payroll tax:** 6.2% Social Security up to $184,500, 1.45% Medicare, 0.9% above $200,000 single / $250,000 joint.
+- **Spending now vs. in retirement**, plus kids, college or a mortgage as extra costs, and a down payment as a one-time event.
+- **Health insurance before 65:** marketplace premiums that rise with age, with 2026 ACA tax credits (2.10%–9.96% of income for the benchmark plan, none above 400% of the poverty line).
+- **The 59½ rules:** withdrawals go brokerage → Roth contributions → Roth conversions 5+ years old → 401(k)/IRA with a 10% penalty → Roth growth (taxed + 10%).
+- **Roth conversion ladder:** convert each year from retirement until 59, filling a chosen bracket and staying under the ACA cliff.
+- **Social Security estimate** from salary and years worked, reduced for the years skipped by retiring early. An SSA statement figure can be entered instead and is scaled down the same way.
+- **Results:** the earliest retirement age under your recession test, the savings needed by then (today's dollars), the age with 90% confidence across random markets, and a chart of the chance of success for each retirement age. One click sets the plan to the earliest age.
+- **Presets:** 3 × 2008-style crashes, a crash in the year you retire (sequence-of-returns risk), or a crash in year 1.
+
+Not modeled: 72(t) payments, HSA accounts, Roth IRA income limits, kids on the ACA plan, and Medicaid eligibility.
+
+## Not So Old Adult version
 
 A single-page retirement planner that projects a household's savings year by year and then stress-tests the plan: market recessions with rebounds, a spouse's death, Roth conversions, Medicare surcharges and taxes. It answers one question: **does the money last, and how close is it?**
 
@@ -49,11 +72,12 @@ Fields are color-coded:
 
 | File | What it is |
 |---|---|
-| `index.html` | The complete app in one file (engine included). |
+| `index.html` | The Not So Old Adult version, complete in one file (engine included). |
+| `young-adult/index.html` | The Young Adult version, complete in one file. |
 | `engine.js` | The projection engine on its own: taxes, IRMAA, Social Security, RMDs, glide path, recessions and Monte Carlo. Pure JavaScript with no dependencies; works in Node or the browser. |
 | `engine.test.js` | Sanity checks against known 2026 figures. Run `node engine.test.js`. |
 
-If you change `engine.js`, paste the updated engine into the first `<script>` block of `index.html` so the app picks it up.
+If you change `engine.js`, paste the updated engine into the engine `<script>` block of both `index.html` files so the apps pick it up. Payroll tax and the 10% early-withdrawal penalty apply in both versions.
 
 ## Simplifications
 
