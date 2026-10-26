@@ -296,6 +296,14 @@
     const homeMode = HM ? (opts.homeMode || 'own') : null;
     const buyYear = HM ? num(HM.buyYear) : Infinity;
     let homeFund = 0, homeValue = 0, loanBal = 0, loanPay = 0, loan0 = 0, price0 = 0;
+    // Current home (Glide): stay, downsize or sell and rent. ownMode overrides the chosen plan for comparisons.
+    const OW = p.own && p.own.enabled ? p.own : null;
+    const ownMode = OW ? (opts.ownMode || OW.plan || 'stay') : null;
+    let ownState = OW ? 'orig' : 'none', curValue = OW ? num(OW.value) : 0, curBal = OW ? num(OW.mortBal) : 0, newValue = 0, curPay = 0;
+    if (OW && curBal > 0) {
+      const i = num(OW.mortRate) / 12, n = Math.max(1, num(OW.mortYears) * 12);
+      curPay = i > 0 ? curBal * i / (1 - Math.pow(1 + i, -n)) : curBal / n;
+    }
     // In rent mode, owning costs come from a shadow run of the same plan in own mode
     const shadow = HM && homeMode === 'rent' ? project(p, { ...opts, homeMode: 'own', rng: null, shadowOnly: true }).rows : null;
     const sips = (p.sips || []).map(s => ({ ...s, bal: 0, basis: 0, paid: 0, merged: false }));
@@ -466,6 +474,39 @@
       }
       spend += downCash;
 
+      // ----- Current home (Glide) -----
+      let hInt = 0, hPrin = 0, hTax = 0, hCost = 0, hRent = 0, saleCash = 0, saleGainTaxable = 0, saleTax0 = 0;
+      const hBalStart = curBal;
+      if (OW) {
+        if (ownMode !== 'stay' && y === num(OW.sellYear) && ownState === 'orig') {
+          const gross = curValue, costs = gross * num(OW.sellCostPct);
+          const gain = gross - costs - num(OW.basis);
+          const excl = couple && aliveA && aliveB ? 500000 : 250000;   // home-sale exclusion
+          saleGainTaxable = Math.max(0, gain - excl);
+          saleCash = gross - costs - curBal - num(OW.moving) * infl;
+          curBal = 0; curPay = 0; ownState = 'none';
+          if (ownMode === 'downsize') {
+            newValue = num(OW.newPrice) * Math.pow(1 + num(OW.growth), t);
+            saleCash -= newValue * 1.02;                                   // buy with cash, ~2% closing
+            ownState = 'new';
+          }
+        }
+        if (ownState === 'orig') {
+          const i = num(OW.mortRate) / 12;
+          for (let m = 0; m < 12 && curBal > 0.005; m++) { const it = curBal * i, pr = Math.min(curBal, curPay - it); hInt += it; hPrin += pr; curBal -= pr; }
+          hTax = num(OW.propTaxPct) * curValue;
+          hCost = hInt + hPrin + hTax + num(OW.insurance) * infl + num(OW.maintPct) * curValue + num(OW.hoaMonthly) * 12 * infl;
+        } else if (ownState === 'new') {
+          const scale = num(OW.value) > 0 ? num(OW.newPrice) / num(OW.value) : 1;
+          hTax = num(OW.propTaxPct) * newValue;
+          hCost = hTax + num(OW.insurance) * scale * infl + num(OW.maintPct) * newValue + num(has(OW.newHoaMonthly) ? OW.newHoaMonthly : OW.hoaMonthly) * 12 * infl;
+        } else if (ownMode === 'rent' && y >= (has(OW.rentFrom) ? num(OW.rentFrom) : num(OW.sellYear))) {
+          hRent = num(OW.rentMonthly) * 12 * infl;
+        }
+        spend += hCost + hRent;
+        if (saleCash >= 0) { oneCash += saleCash; oneGain += saleGainTaxable; } else { spend += -saleCash; oneGain += saleGainTaxable; }
+      }
+
       // ----- Health insurance before Medicare (only once nobody in the household works) -----
       let healthFull = 0, hh = 0;
       if (H.enabled && !anyWorking) {
@@ -520,7 +561,9 @@
         }
       }
 
-      const mortIntDed = mortInt * (loanBal + principal > 750000 ? 750000 / (loanBal + principal) : 1);
+      const mortIntDed = mortInt * (loanBal + principal > 750000 ? 750000 / (loanBal + principal) : 1)
+        + hInt * (hBalStart > 750000 ? 750000 / hBalStart : 1);
+      const propTaxAll = propTax + hTax;
 
       // ----- Withdrawals: iterate until taxes, penalties and health premiums settle -----
       const seasoned = convs.filter(c => y - c.y >= 5).reduce((s, c) => s + c.amt, 0);
@@ -549,7 +592,7 @@
           short = Math.max(0, gap);
           const gf = tax > 0 ? Math.max(0, 1 - basis / tax) : 0;
           gain = wTax * gf;
-          taxRes = computeTax({ status, idx, wages: wagesTaxable, ordinaryOther: pension + rmd + wIra + wRothE + conv + oneOrd, ss, ltcg: gain + oneGain, n65, year: y, stateRate: p.stateRate, medical, mortInt: mortIntDed, propTax });
+          taxRes = computeTax({ status, idx, wages: wagesTaxable, ordinaryOther: pension + rmd + wIra + wRothE + conv + oneOrd, ss, ltcg: gain + oneGain, n65, year: y, stateRate: p.stateRate, medical, mortInt: mortIntDed, propTax: propTaxAll });
           pen = early ? 0.10 * (wIra + wRothE) : 0;
           const newHealth = healthCost(taxRes.agi);
           const tg = taxRes.total + pen;
@@ -596,6 +639,7 @@
       for (const s of sips) if (!s.merged) { s.bal *= 1 + sipReturn(s, r, w); sipBal += s.bal; }
       homeFund *= 1 + r.bd;
       if (homeMode === 'own' && y >= buyYear) homeValue *= 1 + num(HM.growth);
+      if (OW) { if (ownState === 'orig') curValue *= 1 + num(OW.growth); else if (ownState === 'new') newValue *= 1 + num(OW.growth); }
       let homeTaxSave = 0;
       if (homeMode === 'own' && (mortIntDed > 0 || propTax > 0)) {
         const t0 = computeTax({ status, idx, wages: wagesTaxable, ordinaryOther: pension + rmd + wIra + wRothE + conv + oneOrd, ss, ltcg: gain + oneGain, n65, year: y, stateRate: p.stateRate, medical });
@@ -614,7 +658,8 @@
         lifePrem, lifePayout, medical, itemized: taxRes.itemized,
         homeFund, homeFundOut, downCash, mortInt, principal, pmi, propTax, ownCost, rentCost, homeInvest, homeTaxSave,
         homeValue: homeMode === 'own' && y >= buyYear ? homeValue : 0, loanBal: homeMode === 'own' ? loanBal : 0,
-        equity: homeMode === 'own' && y >= buyYear ? homeValue - loanBal : 0,
+        equity: (homeMode === 'own' && y >= buyYear ? homeValue - loanBal : 0) + (ownState === 'orig' ? curValue - curBal : ownState === 'new' ? newValue : 0),
+        ownState, ownCostY: hCost + hRent, saleCash, saleGainTaxable, ownMortInt: hInt,
         contrib: pre + r401 + match + rira + sipOut, saved: pre + r401 + match + rira + sipOut + invested, sipOut, sipBal,
         fica, pen, health, healthFull, incomeTax: taxRes.total,
         fedTax: taxRes.fed, stateTax: taxRes.state, tax: allTax, marg: taxRes.marg, agi: taxRes.agi,

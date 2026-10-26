@@ -30,7 +30,8 @@ Both pages open with a made-up example so you can explore first. Then press **St
 **Glide** (if you're retired or close):
 1. Enter your balances, Social Security and spending. Read the headline: does the money last to 95, and how much is left?
 2. Turn on the **medical stress test** (two $250K hospital stays) and switch the coverage between "Not covered", Medigap and Medicare Advantage.
-3. Try the **survivor test** (set an age of death) and the recession presets.
+3. Turn on **Your home** and compare staying, downsizing, and selling to rent.
+4. Try the **survivor test** (set an age of death) and the recession presets.
 
 **Tell us** what confused you, which numbers looked wrong, and what's missing. Open an issue at https://github.com/VjRa03An/automation-agents/issues or reply to whoever sent you the link. Use **Save my plan** if you want to keep your inputs.
 
@@ -72,6 +73,7 @@ It grew out of a real household's retirement spreadsheet (a concentrated stock s
 - **Medicare IRMAA.** 2026 CMS tiers applied to income from two years earlier, per person on Medicare.
 - **Social Security.** Claiming-age reduction and delayed credits, the 50% spousal top-up, and cost-of-living increases.
 - **Required minimum distributions** from 73 or 75 (by birth year) using the IRS Uniform Lifetime Table.
+- **Your home: stay, downsize, or sell and rent.** Enter the home's value, what you paid plus improvements, any mortgage (balance, rate, years left), property tax, insurance, upkeep and HOA, then pick a plan and a sale year. Selling costs, moving costs and the mortgage payoff come out of the sale; up to $250,000 of profit ($500,000 for a couple) is tax-free and the rest is taxed as a capital gain. Downsizing buys a smaller home with cash; selling to rent adds rent from the year you choose. A comparison card shows all three plans side by side: whether the money lasts, cash freed up, tax on the sale, housing cost afterward, home equity at 85 (a reserve for long-term care), savings and net worth at 95.
 - **Medical stress test.** Add hospital stays with home nursing at chosen ages; a preset adds two $250,000 events. Each event has a coverage choice, and the planner estimates what you'd actually pay under 2026 Medicare rules: about $283 with Original Medicare + Medigap Plan G, up to $9,250 with Medicare Advantage (the in-network maximum), roughly $19,000 on a $250,000 bill with Original Medicare alone (20% of Part B services has no cap), or the full bill if it isn't covered (Medicare doesn't pay for long-term custodial care). Large bills are itemized (costs above 7.5% of income) when that beats the standard deduction, and the extra withdrawals can raise Medicare premiums two years later. Results show the bills on the chart and table and how much they lower the ending balance.
 - **Survivor test.** Set an age of death for either spouse to see the widow's tax change: single brackets and IRMAA tiers, the higher Social Security check only, and lower survivor spending.
 - **Roth conversions.** Fill up to the 12%, 22% or 24% bracket (optionally staying under the first IRMAA tier), or convert a fixed amount.

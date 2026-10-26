@@ -136,4 +136,19 @@ assert.strictEqual(E.saltCap(2030, 100000), 10000);
 const rentRows = E.project(hp, { homeMode: 'rent' }).rows;
 assert.ok(rentRows.every(r => !r.mortInt && !r.equity));
 
+// ---------- Your home (Glide): stay, downsize, sell and rent ----------
+const ho = plan(); ho.own = { enabled: true, plan: 'rent', value: 750000, basis: 320000, mortBal: 0, mortRate: 0.06, mortYears: 0,
+  propTaxPct: 0.011, insurance: 2400, maintPct: 0.01, hoaMonthly: 0, growth: 0, sellYear: 2030, sellCostPct: 0.06, moving: 0,
+  newPrice: 450000, newHoaMonthly: 0, rentMonthly: 3000, rentFrom: '' };
+ho.inflation = 0;
+// Sale: $750K less 6% costs = $705K cash; profit $385K is under the $500K couple exclusion, so nothing is taxed
+const sale = E.project(ho).rows.find(r => r.year === 2030);
+assert.strictEqual(Math.round(sale.saleCash), 705000);
+assert.strictEqual(sale.saleGainTaxable, 0);
+// Profit above the exclusion is taxed: basis $100K gives $605K profit, $105K taxable
+const ho2 = JSON.parse(JSON.stringify(ho)); ho2.own.basis = 100000;
+assert.strictEqual(Math.round(E.project(ho2).rows.find(r => r.year === 2030).saleGainTaxable), 105000);
+// Stay keeps the equity; selling to rent leaves none
+assert.ok(E.project(ho, { ownMode: 'stay' }).rows.at(-1).equity > 0 && E.project(ho, { ownMode: 'rent' }).rows.at(-1).equity === 0);
+
 console.log('All engine checks passed.');
