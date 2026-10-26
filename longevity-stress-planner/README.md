@@ -4,15 +4,15 @@ Two versions share one projection engine:
 
 | Version | For | Answers | Try it |
 |---|---|---|---|
-| **Glide Down** | People near or in retirement | *Make it last.* Checks that the money lasts to 95 through recessions, taxes, Medicare and a spouse's death? | [![Glide Down](https://img.shields.io/badge/Open-Glide_Down-2ea44f)](https://vjra03an.github.io/automation-agents/longevity-stress-planner/) |
-| **Climb Up** | People still building savings | *Reach freedom sooner.* Finds the earliest age you can retire (financial independence / FIRE). | [![Climb Up](https://img.shields.io/badge/Open-Climb_Up-0c6652)](https://vjra03an.github.io/automation-agents/longevity-stress-planner/young-adult/) |
+| **Glide** | People near or in retirement | *Make it last.* Checks that the money lasts to 95 through recessions, taxes, Medicare and a spouse's death? | [![Glide](https://img.shields.io/badge/Open-Glide-2ea44f)](https://vjra03an.github.io/automation-agents/longevity-stress-planner/) |
+| **Scale** | People still building savings | *Reach freedom sooner.* Finds the earliest age you can retire (financial independence / FIRE). | [![Scale](https://img.shields.io/badge/Open-Scale-0c6652)](https://vjra03an.github.io/automation-agents/longevity-stress-planner/young-adult/) |
 
 ### Share these links
 
 Anyone can open them in a browser, with no account or install:
 
-- **Climb Up** (reach freedom sooner): https://vjra03an.github.io/automation-agents/longevity-stress-planner/young-adult/
-- **Glide Down** (make it last): https://vjra03an.github.io/automation-agents/longevity-stress-planner/
+- **Scale** (reach freedom sooner): https://vjra03an.github.io/automation-agents/longevity-stress-planner/young-adult/
+- **Glide** (make it last): https://vjra03an.github.io/automation-agents/longevity-stress-planner/
 
 Each page also links to the other at the top.
 
@@ -20,26 +20,26 @@ Each page also links to the other at the top.
 
 Both pages open with a made-up example so you can explore first. Then press **Start blank** and enter your own numbers in the amber fields; nothing you type leaves your browser.
 
-**Climb Up** (if you're still saving):
+**Scale** (if you're still saving):
 1. Enter your salary, savings, and spending now and in retirement. Read the headline: your earliest retirement age and the savings it takes.
 2. Add a **monthly investing (SIP)** amount and see how many years sooner you could retire.
 3. Pick a **term life** policy, or click a price in the grid, and see how many years of family spending it covers.
 4. Try **Crash the year you retire** and check the chance-of-success bars by retirement age.
 
-**Glide Down** (if you're retired or close):
+**Glide** (if you're retired or close):
 1. Enter your balances, Social Security and spending. Read the headline: does the money last to 95, and how much is left?
 2. Turn on the **medical stress test** (two $250K hospital stays) and switch the coverage between "Not covered", Medigap and Medicare Advantage.
 3. Try the **survivor test** (set an age of death) and the recession presets.
 
 **Tell us** what confused you, which numbers looked wrong, and what's missing. Open an issue at https://github.com/VjRa03An/automation-agents/issues or reply to whoever sent you the link. Use **Save my plan** if you want to keep your inputs.
 
-## Climb Up: reach freedom sooner
+## Scale: reach freedom sooner
 
 Built for someone in their 20s–40s. It adds what an early retirement depends on:
 
 - **Paycheck saving:** salary with raises above inflation, 401(k) pre-tax and Roth percentages, employer match and Roth IRA, with 2026 limits ($24,500 401(k), +$8,000 from 50; $7,500 IRA). 
 - **Payroll tax:** 6.2% Social Security up to $184,500, 1.45% Medicare, 0.9% above $200,000 single / $250,000 joint.
-- **Monthly investing (SIP):** invest a fixed amount every month into a fund type (S&P 500 index, total US market, international, target-date, balanced 60/40, bond index, or custom), for a set number of years or until retirement, with an optional yearly increase, in a brokerage account or Roth IRA. Each fund follows the year's stock and bond returns in its own mix, minus its fee. Climb Up shows how many years sooner your SIPs let you retire and what they're worth at retirement.
+- **Monthly investing (SIP):** invest a fixed amount every month into a fund type (S&P 500 index, total US market, international, target-date, balanced 60/40, bond index, or custom), for a set number of years or until retirement, with an optional yearly increase, in a brokerage account or Roth IRA. Each fund follows the year's stock and bond returns in its own mix, minus its fee. Scale shows how many years sooner your SIPs let you retire and what they're worth at retirement.
 - **Term life insurance:** choose who is insured, the coverage and the number of years (10–30), plus sex and health class for the price estimate, or enter a real quote. The planner shows the monthly price and total cost, how many years of the household's spending the payout covers, a suggested coverage (your retirement target minus today's savings) and term (years until financial independence), and a grid of monthly prices for more coverage or more years; clicking a price applies it. Premiums are added to spending, and in the survivor test a death during the term pays the coverage tax-free. Prices are estimates scaled from MoneyGeek's 2026 averages, not quotes.
 - **Leftover pay:** by default it's assumed spent, so only 401(k), Roth and SIPs count as saving. Turn on "invest all leftover pay" if you really do invest every spare dollar.
 - **Spending now vs. in retirement**, plus kids, college or a mortgage as extra costs, and a down payment as a one-time event.
@@ -52,7 +52,7 @@ Built for someone in their 20s–40s. It adds what an early retirement depends o
 
 Not modeled: 72(t) payments, HSA accounts, Roth IRA income limits, kids on the ACA plan, and Medicaid eligibility.
 
-## Glide Down: make it last
+## Glide: make it last
 
 A single-page retirement planner that projects a household's savings year by year and then stress-tests the plan: market recessions with rebounds, a spouse's death, Roth conversions, Medicare surcharges and taxes. It answers one question: **does the money last, and how close is it?**
 
@@ -80,7 +80,7 @@ It grew out of a real household's retirement spreadsheet (a concentrated stock s
 
 ## Using it
 
-Open [Climb Up](https://vjra03an.github.io/automation-agents/longevity-stress-planner/young-adult/) or [Glide Down](https://vjra03an.github.io/automation-agents/longevity-stress-planner/), or download either `index.html` and open it in any browser. It runs entirely in the browser: no server, no account, and nothing you type leaves your machine.
+Open [Scale](https://vjra03an.github.io/automation-agents/longevity-stress-planner/young-adult/) or [Glide](https://vjra03an.github.io/automation-agents/longevity-stress-planner/), or download either `index.html` and open it in any browser. It runs entirely in the browser: no server, no account, and nothing you type leaves your machine.
 
 ### Saving your plan
 
@@ -102,8 +102,8 @@ Fields are color-coded:
 
 | File | What it is |
 |---|---|
-| `index.html` | Glide Down, complete in one file (engine included). |
-| `young-adult/index.html` | Climb Up, complete in one file. |
+| `index.html` | Glide, complete in one file (engine included). |
+| `young-adult/index.html` | Scale, complete in one file. |
 | `engine.js` | The projection engine on its own: taxes, IRMAA, Social Security, RMDs, glide path, recessions and Monte Carlo. Pure JavaScript with no dependencies; works in Node or the browser. |
 | `engine.test.js` | Sanity checks against known 2026 figures. Run `node engine.test.js`. |
 

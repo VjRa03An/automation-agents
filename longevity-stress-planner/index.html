@@ -8,7 +8,7 @@
 :root{color-scheme:light;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
 body{margin:0}img{max-width:100%}[hidden]{display:none!important}
 </style>
-<title>Longevity Stress Planner (Glide Down)</title>
+<title>Longevity Stress Planner (Glide)</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans+Condensed:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
@@ -183,7 +183,7 @@ tr.short td:first-child { background: var(--bad-soft); }
 <div class="wrap">
   <header class="top">
     <div class="brand">
-      <div class="edition"><span class="ed-chip">Glide Down</span><span class="ed-q">Make it last</span><a href="https://vjra03an.github.io/automation-agents/longevity-stress-planner/young-adult/">Still saving? Try Climb Up →</a></div>
+      <div class="edition"><span class="ed-chip">Glide</span><span class="ed-q">Make it last</span><a href="https://vjra03an.github.io/automation-agents/longevity-stress-planner/young-adult/">Still saving? Try Scale →</a></div>
       <h1>Longevity Stress Planner</h1>
       <p>Project a household's savings year by year, then hit it with recessions, a survivor year and taxes to see whether the money lasts.</p>
       
@@ -1664,7 +1664,7 @@ tr.short td:first-child { background: var(--bad-soft); }
       return `<b>Retire at ${age}</b> · ${p.a.birthYear + age}<div class="r"><em>Money lasts to ${p.endAge}</em>${d ? Math.round(d.rate * 100) + '%' : '…'}</div>`;
     }, sx => Math.floor((sx - f.m.l) / (f.iw / n)));
   }
-  // ---------- life insurance card (Climb Up) ----------
+  // ---------- life insurance card (Scale) ----------
   const LIFE_COV = [250000, 500000, 750000, 1000000, 1500000, 2000000], LIFE_TERMS = [10, 15, 20, 25, 30];
   function renderLife() {
     const box = $('#lifeSummary'); if (!box) return;

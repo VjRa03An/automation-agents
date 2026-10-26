@@ -43,7 +43,7 @@ const s = plan(); s.a.deathAge = 78;
 assert.ok(E.project(s).rows.filter(r => r.year > 1964 + 78).every(r => r.status === 'Single'));
 
 
-// ---------- Climb Up (early retirement) rules ----------
+// ---------- Scale (early retirement) rules ----------
 // Payroll tax: 7.65% on $100,000 single wages
 const young = () => ({ ...plan(), filing: 'Single', startYear: 2026, endAge: 95,
   a: { birthYear: 1993, birthMonth: 6, retireAge: 55, salary: 100000, raise: 0, yearsWorked: 10, k401Pct: 0.30, roth401kPct: 0, matchPct: 0.04, rothIra: 9000, ssFRA: '', ssClaimAge: 67, deathAge: '' },
@@ -103,7 +103,7 @@ const ld = young(); ld.filing = 'MFJ'; ld.b = { ...ld.a, birthYear: 1994, retire
 ld.life = [{ who: 'a', coverage: 500000, term: 20, sex: 'm', health: 'sp', quote: '' }];
 assert.strictEqual(E.project(ld).rows.find(r => r.year === 1993 + 40).lifePayout, 500000);
 
-// ---------- Medical stress test (Glide Down) ----------
+// ---------- Medical stress test (Glide) ----------
 // Out-of-pocket on a $250,000 bill by coverage, 2026 rules
 assert.strictEqual(E.medicalOutOfPocket({ amount: 250000, cover: 'none' }), 250000);
 assert.strictEqual(E.medicalOutOfPocket({ amount: 250000, cover: 'medigap' }), 283);
