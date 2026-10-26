@@ -113,6 +113,15 @@ details.sec[open] > summary::after { content: "–"; }
 .useage { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-top: 12px; }
 .ro { padding: 6px 8px; border: 1px dashed var(--line); border-radius: 5px; color: var(--ink-2); font-size: 13px; }
 
+/* Rent vs buy */
+.home-head { margin: 0 0 10px; font-size: 15px; color: var(--ink); max-width: 75ch; }
+.rvb td, .rvb th { text-align: right; }
+.rvb td:first-child, .rvb th:first-child { text-align: left; font-family: var(--f-body); }
+.rvb .win { color: var(--good); font-weight: 600; }
+.rvb td, .rvb th { white-space: normal; }
+.rvb td:not(:first-child), .rvb th:not(:first-child) { white-space: nowrap; }
+@media (max-width: 520px) { .rvb td:first-child { position: static; min-width: 9em; } .rvb td, .rvb th { padding: 6px 6px; } }
+
 /* Life insurance */
 .life-sum { display: flex; flex-direction: column; gap: 10px; }
 .life-pol { padding: 10px 12px; background: var(--sunk); border-radius: 8px; }
@@ -335,6 +344,43 @@ tr.short td:first-child { background: var(--bad-soft); }
         </div>
       </details>
 
+      <details class="sec" open>
+        <summary><h2><span class="dot" aria-hidden="true"></span>Buying a home</h2><span class="hint" id="hintHome"></span></summary>
+        <div class="body">
+          <label class="check"><input type="checkbox" id="hOnB" data-path="home.enabled" data-type="bool"> I'm thinking about buying a home</label>
+          <div class="row">
+            <div class="f"><label for="hPrice">Home price (today's $)</label><input id="hPrice" data-mine data-path="home.price" type="number" step="10000"></div>
+            <div class="f"><label for="hYear">Buy in year</label><input id="hYear" data-mine data-path="home.buyYear" type="number" step="1"></div>
+          </div>
+          <div class="row">
+            <div class="f"><label for="hDown">Down payment %</label><input id="hDown" data-mine data-path="home.downPct" data-type="pct" type="number" step="1"></div>
+            <div class="f"><label for="hClose">Closing costs %</label><input id="hClose" data-path="home.closingPct" data-type="pct" type="number" step="0.5"></div>
+          </div>
+          <div class="row">
+            <div class="f"><label for="hRate">Mortgage rate %</label><input id="hRate" data-mine data-path="home.rate" data-type="pct" type="number" step="0.125"></div>
+            <div class="f"><label for="hTerm">Loan term</label><select id="hTerm" data-mine data-path="home.term" data-type="num"><option value="15">15 years</option><option value="20">20 years</option><option value="30">30 years</option></select></div>
+          </div>
+          <div class="row">
+            <div class="f"><label for="hTax">Property tax (% of value/yr)</label><input id="hTax" data-mine data-path="home.propTaxPct" data-type="pct" type="number" step="0.1"></div>
+            <div class="f"><label for="hIns">Home insurance ($/yr, today's $)</label><input id="hIns" data-mine data-path="home.insurance" type="number" step="100"></div>
+          </div>
+          <div class="row">
+            <div class="f"><label for="hHoa">HOA ($/month)</label><input id="hHoa" data-mine data-path="home.hoaMonthly" type="number" step="25"></div>
+            <div class="f"><label for="hMaint">Upkeep (% of value/yr)</label><input id="hMaint" data-path="home.maintPct" data-type="pct" type="number" step="0.25"></div>
+          </div>
+          <div class="row">
+            <div class="f"><label for="hGrow">Home value growth (%/yr)</label><input id="hGrow" data-path="home.growth" data-type="pct" type="number" step="0.25"></div>
+            <div class="f"><label for="hPmi">PMI if under 20% down (%/yr)</label><input id="hPmi" data-path="home.pmiPct" data-type="pct" type="number" step="0.1"></div>
+          </div>
+          <div class="row">
+            <div class="f"><label for="hRent">Rent you pay now ($/month)</label><input id="hRent" data-mine data-path="home.rentMonthly" type="number" step="50"></div>
+            <div class="f"><label for="hFund">Saving for the down payment ($/month)</label><input id="hFund" data-mine data-path="home.fundMonthly" type="number" step="100"></div>
+          </div>
+          <p class="note" id="homeHelp"></p>
+          <p class="note">Your rent should already be part of your spending above; it stops the year you buy. The down-payment savings sit in a cash/bond fund until then.</p>
+        </div>
+      </details>
+
       <details class="sec">
         <summary><h2><span class="dot" aria-hidden="true"></span>One-time money events</h2><span class="hint" id="hintOne"></span></summary>
         <div class="body">
@@ -472,6 +518,18 @@ tr.short td:first-child { background: var(--bad-soft); }
         <div class="chart" id="chart3"></div>
       </section>
 
+      <section class="card" id="homeCard">
+        <div class="card-h"><h3>Rent vs. buy</h3><span class="note">Same plan, two paths, today's $</span></div>
+        <div id="homeOff" hidden><p class="note" style="margin:0">Turn on <b>Buying a home</b> on the left to compare buying with renting and investing the difference.</p></div>
+        <div id="homeOn">
+          <p class="home-head" id="homeHead"></p>
+          <div class="tablewrap" style="max-height:none"><table class="rvb" id="homeTbl"></table></div>
+          <div class="legend" style="margin-top:12px"><span><i class="line" style="border-color:var(--s1)"></i>Buy: savings + home equity</span><span><i class="line" style="border-color:var(--s2)"></i>Rent: savings (with the difference invested)</span></div>
+          <div class="chart" id="chart4"></div>
+          <p class="note" id="homeNote" style="margin-top:8px"></p>
+        </div>
+      </section>
+
       <section class="card" id="lifeCard">
         <div class="card-h"><h3>Life insurance: if a paycheck stops</h3><span class="note">Estimated 2026 prices</span></div>
         <div id="lifeSummary" class="life-sum"></div>
@@ -528,6 +586,7 @@ tr.short td:first-child { background: var(--bad-soft); }
           <li>RMDs start at 73 (born 1951–59) or 75 (born 1960+) using the IRS Uniform Lifetime Table. Social Security adjusts for claiming age and includes the 50% spousal top-up.</li>
 
           <li>Withdrawals happen at the start of each year; growth applies to what remains. Every account follows the same stock/bond mix.</li>
+          <li>Buying a home: the down payment and closing costs are paid in the buy year from your down-payment fund, then your other savings. The mortgage is a fixed monthly payment amortized month by month; property tax and upkeep follow the home's value; insurance and HOA rise with inflation; PMI applies until the loan falls to 80% of the price. Rent stops when you buy. Mortgage interest (on up to $750,000 of debt) and state and local taxes (up to the SALT cap: $40,400 in 2026, back to $10,000 from 2030) are itemized when that beats the standard deduction. "Keep renting" runs the same plan without buying: the down-payment fund stays invested, and whichever path costs less each year invests the difference.</li>
           <li>Term life: premiums are level for the term and added to spending while the insured person is alive. In the survivor test, if the insured dies during the term, the payout arrives tax-free that year and is invested. Prices are estimates from MoneyGeek's 2026 averages (20-year term, non-smoker, average health) scaled by term length, health class and smoking.</li>
           <li>Monthly investing (SIP): each fund type follows the year's stock and bond returns in its own mix (target-date funds follow your stock/bond glide path), minus its fee, so recessions and random markets hit SIPs too. International funds assume 0.5% a year less than US stocks. Brokerage SIPs are taxed on gains when sold after you retire.</li>
           <li>While you work: salary rises with inflation plus your raise; 401(k) and IRA limits, employer match and payroll tax (6.2% Social Security up to $184,500, 1.45% Medicare, 0.9% above $200,000 single / $250,000 joint) are applied. Leftover pay goes to the brokerage account.</li>
@@ -649,10 +708,19 @@ tr.short td:first-child { background: var(--bad-soft); }
     return 0;
   }
 
+  // SALT cap under the 2025 law: $40,000 in 2025 rising 1%/yr through 2029, reduced by 30% of MAGI over
+  // $500,000 (also +1%/yr) but not below $10,000; back to $10,000 from 2030.
+  function saltCap(year, magi) {
+    if (year >= 2030) return 10000;
+    const k = Math.max(0, Math.min(4, year - 2025));
+    const cap = 40000 * Math.pow(1.01, k), th = 500000 * Math.pow(1.01, k);
+    return Math.max(10000, cap - 0.3 * Math.max(0, magi - th));
+  }
+
   // Federal + state income tax for one year.
   function computeTax(o) {
     const { status, idx, wages, ordinaryOther, ss, ltcg, n65, year, stateRate } = o;
-    const medical = o.medical || 0;
+    const medical = o.medical || 0, mortInt = o.mortInt || 0, propTax = o.propTax || 0;
     const otherInc = wages + ordinaryOther + ltcg;
     const prov = otherInc + 0.5 * ss;
     const [b1, b2] = T.ssBase[status];
@@ -663,8 +731,11 @@ tr.short td:first-child { background: var(--bad-soft); }
     }
     const ordinary = wages + ordinaryOther + taxableSS;
     const agi = ordinary + ltcg;
-    // Standard deduction, or itemized medical costs above 7.5% of AGI if that is larger
-    const itemized = Math.max(0, medical - 0.075 * agi);
+    // Standard deduction, or itemized deductions if larger: medical costs above 7.5% of AGI,
+    // mortgage interest, and state + local taxes (property and state income tax) up to the SALT cap
+    const stateEst = stateRate * Math.max(0, agi - T.stdDed[status] * idx);
+    const salt = (mortInt > 0 || propTax > 0) ? Math.min(saltCap(year, agi), propTax + stateEst) : 0;
+    const itemized = Math.max(0, medical - 0.075 * agi) + mortInt + salt;
     let ded = Math.max(T.stdDed[status] * idx + T.age65Add[status] * idx * n65, itemized);
     if (year >= T.seniorBonusYears[0] && year <= T.seniorBonusYears[1] && n65 > 0) {
       const ph = T.seniorBonusPhase[status];
@@ -825,6 +896,14 @@ tr.short td:first-child { background: var(--bad-soft); }
     const convs = [];
     const rows = [];
     const investLeftover = !(p.saving && p.saving.investLeftover === false);
+    // Home purchase. homeMode 'rent' runs the same plan without buying (rent continues, the down-payment
+    // fund stays invested, and whichever path is cheaper each year invests the difference).
+    const HM = p.home && p.home.enabled ? p.home : null;
+    const homeMode = HM ? (opts.homeMode || 'own') : null;
+    const buyYear = HM ? num(HM.buyYear) : Infinity;
+    let homeFund = 0, homeValue = 0, loanBal = 0, loanPay = 0, loan0 = 0, price0 = 0;
+    // In rent mode, owning costs come from a shadow run of the same plan in own mode
+    const shadow = HM && homeMode === 'rent' ? project(p, { ...opts, homeMode: 'own', rng: null, shadowOnly: true }).rows : null;
     const sips = (p.sips || []).map(s => ({ ...s, bal: 0, basis: 0, paid: 0, merged: false }));
     let sipAtRetire = 0;
     const magiHist = {}; magiHist[y0 - 2] = p.priorMagi; magiHist[y0 - 1] = p.priorMagi;
@@ -952,6 +1031,47 @@ tr.short td:first-child { background: var(--bad-soft); }
       }
       spend += lifePrem; oneCash += lifePayout;
 
+      // ----- Buying a home -----
+      let homeFundOut = 0, downCash = 0, mortInt = 0, principal = 0, ownCost = 0, rentCost = 0, pmi = 0, propTax = 0, homeInvest = 0, fundToTaxable = 0;
+      if (HM) {
+        const rentNow = num(HM.rentMonthly) * 12 * infl;
+        if (y < buyYear && wages > 0) homeFundOut = num(HM.fundMonthly) * 12 * infl;
+        if (y === buyYear) {
+          price0 = num(HM.price) * Math.pow(1 + num(HM.growth), t);
+          const need = price0 * (num(HM.downPct) + num(HM.closingPct));
+          if (homeMode === 'own') {
+            const use = Math.min(homeFund, need); homeFund -= use; downCash = need - use;
+            fundToTaxable = homeFund; homeFund = 0;
+            homeValue = price0; loan0 = loanBal = price0 * (1 - num(HM.downPct));
+            const i = num(HM.rate) / 12, n = num(HM.term) * 12;
+            loanPay = loan0 > 0 ? (i > 0 ? loan0 * i / (1 - Math.pow(1 + i, -n)) : loan0 / n) : 0;
+          } else { fundToTaxable = homeFund; homeFund = 0; }
+        }
+        if (y >= buyYear) {
+          // what owning would cost this year, tracked in both modes so the cheaper path can invest the difference
+          if (homeMode === 'own') {
+            const i = num(HM.rate) / 12;
+            for (let m = 0; m < 12 && loanBal > 0.005; m++) {
+              const int = loanBal * i, pr = Math.min(loanBal, loanPay - int);
+              mortInt += int; principal += pr; loanBal -= pr;
+            }
+            pmi = num(HM.downPct) < 0.2 && loanBal > 0.8 * price0 ? num(HM.pmiPct) * loanBal : 0;
+            propTax = num(HM.propTaxPct) * homeValue;
+            ownCost = mortInt + principal + pmi + propTax + num(HM.insurance) * infl + num(HM.maintPct) * homeValue + num(HM.hoaMonthly) * 12 * infl;
+          }
+          rentCost = rentNow;
+          if (homeMode === 'own') spend = Math.max(0, spend - rentNow) + ownCost;
+          else { const sr = shadow && shadow.find(z => z.year === y); ownCost = sr ? sr.ownCost : 0; }
+          // the cheaper path invests the difference out of pay (when leftover pay isn't already invested)
+          if (!investLeftover && wages > 0) {
+            const diff = ownCost - rentCost;
+            if (homeMode === 'rent' && diff > 0) homeInvest = diff;
+            if (homeMode === 'own' && diff < 0) homeInvest = -diff;
+          }
+        }
+      }
+      spend += downCash;
+
       // ----- Health insurance before Medicare (only once nobody in the household works) -----
       let healthFull = 0, hh = 0;
       if (H.enabled && !anyWorking) {
@@ -1006,13 +1126,15 @@ tr.short td:first-child { background: var(--bad-soft); }
         }
       }
 
+      const mortIntDed = mortInt * (loanBal + principal > 750000 ? 750000 / (loanBal + principal) : 1);
+
       // ----- Withdrawals: iterate until taxes, penalties and health premiums settle -----
       const seasoned = convs.filter(c => y - c.y >= 5).reduce((s, c) => s + c.amt, 0);
       const order = early ? ['taxable', 'rothA', 'ira', 'rothE']
         : p.withdrawOrder === 'protect-ira' ? ['taxable', 'rothA', 'ira'] : ['taxable', 'ira', 'rothA'];
       let wTax = 0, wIra = 0, wRoth = 0, wRothE = 0, gain = 0, taxRes = null, need = 0, short = 0, pen = 0, health = 0;
       let taxGuess = 0;
-      const inflow = wagesCash - sipOut + ss + pension + oneCash;
+      const inflow = wagesCash - sipOut - homeFundOut - homeInvest + ss + pension + oneCash;
       const solve = () => {
         taxGuess = 0; health = healthCost(0);
         for (let it = 0; it < 16; it++) {
@@ -1033,7 +1155,7 @@ tr.short td:first-child { background: var(--bad-soft); }
           short = Math.max(0, gap);
           const gf = tax > 0 ? Math.max(0, 1 - basis / tax) : 0;
           gain = wTax * gf;
-          taxRes = computeTax({ status, idx, wages: wagesTaxable, ordinaryOther: pension + rmd + wIra + wRothE + conv + oneOrd, ss, ltcg: gain + oneGain, n65, year: y, stateRate: p.stateRate, medical });
+          taxRes = computeTax({ status, idx, wages: wagesTaxable, ordinaryOther: pension + rmd + wIra + wRothE + conv + oneOrd, ss, ltcg: gain + oneGain, n65, year: y, stateRate: p.stateRate, medical, mortInt: mortIntDed, propTax });
           pen = early ? 0.10 * (wIra + wRothE) : 0;
           const newHealth = healthCost(taxRes.agi);
           const tg = taxRes.total + pen;
@@ -1051,10 +1173,10 @@ tr.short td:first-child { background: var(--bad-soft); }
       need = spend + irmaa + fica + health + taxGuess;
       const surplus = Math.max(0, inflow + rmd + wTax + wIra + wRoth + wRothE - need);
       // Without "invest leftover pay", spare take-home pay is assumed spent; other surpluses are still invested.
-      const invested = investLeftover || !anyWorking ? surplus : Math.max(0, surplus - Math.max(0, wagesCash - sipOut));
+      const invested = investLeftover || !anyWorking ? surplus : Math.max(0, surplus - Math.max(0, wagesCash - sipOut - homeFundOut - homeInvest));
 
       // ----- Apply flows -----
-      const begin = ira + roth + tax + sips.reduce((a, s) => a + s.bal, 0);
+      const begin = ira + roth + tax + homeFund + sips.reduce((a, s) => a + s.bal, 0);
       const gFrac = tax > 0 ? Math.max(0, 1 - basis / tax) : 0;
       basis -= wTax * (1 - gFrac);
       tax -= wTax;
@@ -1065,7 +1187,8 @@ tr.short td:first-child { background: var(--bad-soft); }
       let left = wRoth + wRothE;
       const fromContrib = Math.min(left, rothContrib); rothContrib -= fromContrib; left -= fromContrib;
       for (const c of convs) { if (left <= 0) break; const k = Math.min(left, c.amt); c.amt -= k; left -= k; }
-      tax += invested; basis += invested;
+      tax += invested + homeInvest + fundToTaxable; basis += invested + homeInvest + fundToTaxable;
+      homeFund += homeFundOut;
       for (const s of sips) if (s.out > 0) { s.bal += s.out; s.basis += s.out; s.paid += s.out; }
       ira = Math.max(0, ira); roth = Math.max(0, roth); tax = Math.max(0, tax); basis = Math.max(0, Math.min(basis, tax));
       rothContrib = Math.min(rothContrib, roth);
@@ -1077,6 +1200,13 @@ tr.short td:first-child { background: var(--bad-soft); }
       ira *= 1 + blended; roth *= 1 + blended; tax *= 1 + blended;
       let sipBal = 0;
       for (const s of sips) if (!s.merged) { s.bal *= 1 + sipReturn(s, r, w); sipBal += s.bal; }
+      homeFund *= 1 + r.bd;
+      if (homeMode === 'own' && y >= buyYear) homeValue *= 1 + num(HM.growth);
+      let homeTaxSave = 0;
+      if (homeMode === 'own' && (mortIntDed > 0 || propTax > 0)) {
+        const t0 = computeTax({ status, idx, wages: wagesTaxable, ordinaryOther: pension + rmd + wIra + wRothE + conv + oneOrd, ss, ltcg: gain + oneGain, n65, year: y, stateRate: p.stateRate, medical });
+        homeTaxSave = Math.max(0, t0.total - taxRes.total);
+      }
 
       magiHist[y] = taxRes.agi; magiHist['s' + y] = status;
       if (short > 1 && shortfallYear == null) shortfallYear = y;
@@ -1088,11 +1218,14 @@ tr.short td:first-child { background: var(--bad-soft); }
         year: y, ageA: aliveA ? ageA : null, ageB: couple && aliveB ? ageB : null, status, survivor,
         begin, spend, wages, ss, pension, oneCash, rmd, conv, wTax, wIra, wRoth: wRoth + wRothE,
         lifePrem, lifePayout, medical, itemized: taxRes.itemized,
+        homeFund, homeFundOut, downCash, mortInt, principal, pmi, propTax, ownCost, rentCost, homeInvest, homeTaxSave,
+        homeValue: homeMode === 'own' && y >= buyYear ? homeValue : 0, loanBal: homeMode === 'own' ? loanBal : 0,
+        equity: homeMode === 'own' && y >= buyYear ? homeValue - loanBal : 0,
         contrib: pre + r401 + match + rira + sipOut, saved: pre + r401 + match + rira + sipOut + invested, sipOut, sipBal,
         fica, pen, health, healthFull, incomeTax: taxRes.total,
         fedTax: taxRes.fed, stateTax: taxRes.state, tax: allTax, marg: taxRes.marg, agi: taxRes.agi,
         irmaa, irmaaTier: tierNow, short, eqW: w, ret: blended, tag: r.tag, working: anyWorking,
-        ira, roth, taxable: tax, end: ira + roth + tax + sipBal,
+        ira, roth, taxable: tax, end: ira + roth + tax + sipBal + homeFund,
       });
     }
     const last = rows[rows.length - 1];
@@ -1116,10 +1249,10 @@ tr.short td:first-child { background: var(--bad-soft); }
     return q;
   }
   // Earliest year Person A can stop working and still last to the plan's end age.
-  function earliestRetirement(p, maxAge = 70) {
+  function earliestRetirement(p, maxAge = 70, opts = {}) {
     const last = num(p.a.birthYear) + maxAge;
     for (let y = p.startYear; y <= last; y++) {
-      const r = project(withRetireYear(p, y));
+      const r = project(withRetireYear(p, y), opts);
       if (r.success) return { year: y, age: y - p.a.birthYear, result: r };
     }
     return null;
@@ -1147,7 +1280,7 @@ tr.short td:first-child { background: var(--bad-soft); }
     return { successRate: ok / n, p10: pct(0.10), p25: pct(0.25), p50: pct(0.5), p75: pct(0.75), p90: pct(0.9), n };
   }
 
-  const api = { T, FUNDS, LIFE, MED_2026, medicalOutOfPocket, termPrice, policyMonthly, sipReturn, project, monteCarlo, computeTax, ownFactor, rmdStartAge, rmdFactor, irmaaTier, equityWeight,
+  const api = { T, saltCap, FUNDS, LIFE, MED_2026, medicalOutOfPocket, termPrice, policyMonthly, sipReturn, project, monteCarlo, computeTax, ownFactor, rmdStartAge, rmdFactor, irmaaTier, equityWeight,
     earliestRetirement, withRetireYear, effectiveSS, ssEstimate, acaApplicable, acaAgeFactor, retYearOf };
   if (typeof module !== 'undefined') module.exports = api; else root.RetireEngine = api;
 })(this);
@@ -1182,6 +1315,7 @@ tr.short td:first-child { background: var(--bad-soft); }
     oneTime: [],
     saving: { investLeftover: false },
     life: [{ who: 'a', coverage: 500000, term: 20, sex: 'm', health: 'sp', quote: '' }],
+    home: { enabled: true, buyYear: 2030, price: 450000, downPct: 0.20, closingPct: 0.03, rate: 0.065, term: 30, propTaxPct: 0.011, insurance: 1800, hoaMonthly: 0, maintPct: 0.01, growth: 0.035, pmiPct: 0.006, rentMonthly: 2000, fundMonthly: 2000 },
     sips: [{ fund: 'sp500', monthly: 500, from: 2026, years: 0, stepUp: 0.03, account: 'taxable', fee: 0.0003, eqShare: 1 }],
     returns: { equity: 0.07, bond: 0.035 },
     glide: { enabled: true, startEq: 0.90, startAge: 40, endEq: 0.50, endAge: 70 },
@@ -1219,6 +1353,7 @@ tr.short td:first-child { background: var(--bad-soft); }
       p.accounts = { ira: 0, roth: 0, rothBasis: 0, taxable: 0, taxableBasisPct: 1 }; p.filing = 'Single';
       p.spending.base = 0; p.spending.retireBase = 0; p.spending.adjustments = []; p.oneTime = []; p.sips = [];
       p.saving = { investLeftover: false }; p.life = [];
+      p.home = Object.assign({}, p.home, { enabled: false, rentMonthly: 0, fundMonthly: 0, buyYear: p.startYear + 4 });
       return p;
     }
     Object.assign(p.a, { name: 'You', salary: 0, ssFRA: 0 }); Object.assign(p.b, { name: 'Spouse', salary: 0, ssFRA: 0 });
@@ -1389,7 +1524,7 @@ tr.short td:first-child { background: var(--bad-soft); }
   const normalize = q => { const c = JSON.parse(JSON.stringify(q)); c.oneTime = c.oneTime.map(e => e.kind === 'cash' ? { ...e, kind: 'ltcg', gainPct: 0 } : e); c.a.ssClaimAge = Math.min(70, Math.max(62, +c.a.ssClaimAge || 67)); c.b.ssClaimAge = Math.min(70, Math.max(62, +c.b.ssClaimAge || 67)); c.a.birthMonth = Math.min(12, Math.max(1, +c.a.birthMonth || 1)); c.b.birthMonth = Math.min(12, Math.max(1, +c.b.birthMonth || 1)); c.endAge = Math.min(110, Math.max(c.startYear - c.a.birthYear + 1, +c.endAge || 95)); return c; };
 
   // ---------- compute ----------
-  let res = null, base = null, mc = null, mcTimer = null, calcTimer = null, fire = null, noMed = null, fireNoSip, ladder = null, ladderJob = 0;
+  let resRent = null, fireRent = null, res = null, base = null, mc = null, mcTimer = null, calcTimer = null, fire = null, noMed = null, fireNoSip, ladder = null, ladderJob = 0;
   function changed() {
     if (p._example) { delete p._example; $('#exampleFlag').hidden = true; }
     store.set(DKEY, p);
@@ -1404,7 +1539,8 @@ tr.short td:first-child { background: var(--bad-soft); }
       if (!YOUNG && p.medical && p.medical.enabled && (p.medical.events || []).length) { const qm = JSON.parse(JSON.stringify(p)); qm.medical.enabled = false; noMed = run(qm); }
       if (YOUNG) {
         try { fire = E.earliestRetirement(normalize(p)); } catch (e) { console.error(e); fire = null; }
-        fireNoSip = undefined;
+        fireNoSip = undefined; resRent = null; fireRent = null;
+        if (p.home && p.home.enabled) { try { const qh = normalize(p); resRent = E.project(qh, { homeMode: 'rent' }); fireRent = E.earliestRetirement(qh, 70, { homeMode: 'rent' }); } catch (e) { console.error(e); } }
         if ((p.sips || []).length) { try { const q0 = normalize(p); q0.sips = []; fireNoSip = E.earliestRetirement(q0); } catch (e) { fireNoSip = null; } }
         startLadder();
       }
@@ -1412,7 +1548,7 @@ tr.short td:first-child { background: var(--bad-soft); }
     }
     if (!res) return;
     renderVerdict(); renderChart1(); renderTable(); renderMC(); renderCompare(); renderHints();
-    if (YOUNG) { renderLadder(); renderLife(); }
+    if (YOUNG) { renderLadder(); renderLife(); renderHome(); }
   }
 
   // ---------- formatting ----------
@@ -1519,6 +1655,7 @@ tr.short td:first-child { background: var(--bad-soft); }
     if (YOUNG) {
       const r0 = res.rows[0];
       $('#hintPay').textContent = (r0 && r0.contrib ? money(r0.contrib) + '/yr' : 'none') + ((p.sips || []).length ? ` · ${p.sips.length} SIP${p.sips.length > 1 ? 's' : ''}` : '');
+      $('#hintHome').textContent = p.home && p.home.enabled ? `${money(+p.home.price)} in ${p.home.buyYear}` : 'off';
       $('#hintLife').textContent = (p.life || []).length ? (p.life.length === 1 ? money(+p.life[0].coverage) + ' · ' + p.life[0].term + ' yrs' : p.life.length + ' policies') : 'none';
       $('#hintHealth').textContent = p.health && p.health.enabled ? (p.health.subsidy ? 'with credits' : 'full price') : 'off';
       $('#hintSpend').textContent = money(p.spending.base) + ' → ' + money(p.spending.retireBase || p.spending.base);
@@ -1544,9 +1681,12 @@ tr.short td:first-child { background: var(--bad-soft); }
       const t = mk(svg, 'text', { x: m.l - 8, y: y + 4, 'text-anchor': 'end' }); t.textContent = money(v);
     }
     const n = rows.length, step = n > 30 ? 5 : n > 14 ? 2 : 1;
+    const gap = 46 * (f.W / Math.max(1, f.svg.getBoundingClientRect().width || f.W)); // keep labels ~46px apart on screen
+    let lastX = -Infinity;
     rows.forEach((r, i) => {
       if ((r.year % step) !== 0 && i !== 0) return;
-      if (i !== 0 && i < 2 && (r.year % step) === 0 && step > 1) return;
+      if (x(i) - lastX < gap) return;
+      lastX = x(i);
       const t = mk(svg, 'text', { x: x(i), y: m.t + ih + 15, 'text-anchor': 'middle' }); t.textContent = r.year;
       if (r.ageA != null) { const a = mk(svg, 'text', { x: x(i), y: m.t + ih + 28, 'text-anchor': 'middle', style: 'font-size:10px;opacity:.8' }); a.textContent = 'age ' + r.ageA; }
     });
@@ -1667,13 +1807,14 @@ tr.short td:first-child { background: var(--bad-soft); }
   let pendingDelete = null;
   function renderTableYoung() {
     const rows = res.rows;
-    const head = ['Year', 'Age', 'Pay', 'Saved', 'Into SIPs', 'Spending', 'Life ins.', 'Health ins.', 'Social Sec.', 'Roth conv.', 'From taxable', 'From Roth', 'From 401(k)/IRA', 'Taxes', 'Penalty', 'Stocks', 'Return', 'End balance', 'Short'];
+    const HO = p.home && p.home.enabled;
+    const head = ['Year', 'Age', 'Pay', 'Saved', 'Into SIPs', 'Spending'].concat(HO ? ['Home costs', 'Mortgage interest', 'Tax saved', 'Home equity'] : []).concat(['Life ins.', 'Health ins.', 'Social Sec.', 'Roth conv.', 'From taxable', 'From Roth', 'From 401(k)/IRA', 'Taxes', 'Penalty', 'Stocks', 'Return', 'End balance', 'Short']);
     const h = '<thead><tr>' + head.map(x => `<th scope="col">${x}</th>`).join('') + '</tr></thead>';
     const c = (v, y) => v > 0.5 ? full(real(v, y)) : '<span style="opacity:.35">—</span>';
     const b = rows.map(r => {
       const tag = r.tag === 'recession' ? ' <span class="chip rec">R</span>' : r.tag === 'recovery' ? ' <span class="chip recov">↑</span>' : '';
       const rt = r.year === res.retireYear ? ' <span class="chip recov">retire</span>' : '';
-      return `<tr class="${r.short > 1 ? 'short' : ''}"><td>${r.year}${tag}${rt}</td><td>${ageStr(r)}</td><td>${c(r.wages + r.oneCash, r.year)}</td><td>${c(r.saved, r.year)}</td><td>${c(r.sipOut, r.year)}</td><td>${c(r.spend - r.lifePrem, r.year)}</td><td>${c(r.lifePrem, r.year)}</td><td>${c(r.health, r.year)}</td><td>${c(r.ss, r.year)}</td><td>${c(r.conv, r.year)}</td><td>${c(r.wTax, r.year)}</td><td>${c(r.wRoth, r.year)}</td><td>${c(r.wIra + r.rmd, r.year)}</td><td>${c(r.tax - r.pen, r.year)}</td><td>${c(r.pen, r.year)}</td><td>${Math.round(r.eqW * 100)}%</td><td>${(r.ret * 100).toFixed(1)}%</td><td><b>${full(real(r.end, r.year))}</b></td><td>${c(r.short, r.year)}</td></tr>`;
+      return `<tr class="${r.short > 1 ? 'short' : ''}"><td>${r.year}${tag}${rt}</td><td>${ageStr(r)}</td><td>${c(r.wages + r.oneCash, r.year)}</td><td>${c(r.saved, r.year)}</td><td>${c(r.sipOut, r.year)}</td><td>${c(r.spend - r.lifePrem - (HO ? (r.homeValue ? r.ownCost : 0) + (r.downCash || 0) : 0), r.year)}</td>${HO ? `<td>${c((r.homeValue ? r.ownCost : 0) + (r.downCash || 0), r.year)}</td><td>${c(r.mortInt, r.year)}</td><td>${c(r.homeTaxSave, r.year)}</td><td>${c(r.equity, r.year)}</td>` : ''}<td>${c(r.lifePrem, r.year)}</td><td>${c(r.health, r.year)}</td><td>${c(r.ss, r.year)}</td><td>${c(r.conv, r.year)}</td><td>${c(r.wTax, r.year)}</td><td>${c(r.wRoth, r.year)}</td><td>${c(r.wIra + r.rmd, r.year)}</td><td>${c(r.tax - r.pen, r.year)}</td><td>${c(r.pen, r.year)}</td><td>${Math.round(r.eqW * 100)}%</td><td>${(r.ret * 100).toFixed(1)}%</td><td><b>${full(real(r.end, r.year))}</b></td><td>${c(r.short, r.year)}</td></tr>`;
     }).join('');
     $('#tbl').innerHTML = h + '<tbody>' + b + '</tbody>';
     $('#tblNote').textContent = (dollars === 'real' ? `In ${p.startYear} dollars` : 'In each year\'s dollars') + '. Taxes include payroll tax.';
@@ -1728,6 +1869,67 @@ tr.short td:first-child { background: var(--bad-soft); }
       return `<b>Retire at ${age}</b> · ${p.a.birthYear + age}<div class="r"><em>Money lasts to ${p.endAge}</em>${d ? Math.round(d.rate * 100) + '%' : '…'}</div>`;
     }, sx => Math.floor((sx - f.m.l) / (f.iw / n)));
   }
+  // ---------- rent vs. buy card (Scale) ----------
+  function renderHome() {
+    const H = p.home || {}, on = !!H.enabled && resRent;
+    $('#homeOff').hidden = !!on; $('#homeOn').hidden = !on;
+    const help = $('#homeHelp');
+    if (help) {
+      if (H.enabled) {
+        const t = Math.max(0, +H.buyYear - p.startYear), g = +H.growth || 0, inf = p.inflation, bd = p.returns.bond;
+        const priceThen = (+H.price) * Math.pow(1 + g, t), need = priceThen * ((+H.downPct) + (+H.closingPct));
+        let k = 0; for (let y = 0; y < t; y++) k += 12 * Math.pow(1 + inf, y) * Math.pow(1 + bd, t - y);
+        help.textContent = t > 0 ? `In ${H.buyYear} the home would cost about ${money(priceThen)}, so you'd need about ${money(need)} for the down payment and closing. Saving about ${money(need / k)}/month from now (rising with inflation) gets you there.` : 'Buying this year: the down payment comes from your savings.';
+      } else help.textContent = '';
+    }
+    if (!on) return;
+    const R0 = res, R1 = resRent, by = +H.buyYear, td = (v, y) => v / Math.pow(1 + p.inflation, y - p.startYear);
+    const own = R0.rows.find(r => r.year === by) || R0.rows[0], rent = R1.rows.find(r => r.year === by) || R1.rows[0];
+    const pa = plannedAge(), planY = p.a.birthYear + pa;
+    const at = (rows, y) => rows.find(r => r.year === y) || rows[rows.length - 1];
+    const nwOwn = y => { const r = at(R0.rows, y); return td(r.end + (r.equity || 0), r.year); };
+    const nwRent = y => { const r = at(R1.rows, y); return td(r.end, r.year); };
+    const sum = (rows, k) => rows.reduce((a, r) => a + td(r[k] || 0, r.year), 0);
+    const fa = fire ? fire.age : null, fr = fireRent ? fireRent.age : null;
+    const fmtAge = a => a == null ? '70+' : String(a);
+    const lastY = R0.rows[R0.rows.length - 1].year;
+    let head;
+    if (fa != null && fr != null && fa !== fr) head = fa < fr ? `Buying in ${by} gets you free ${fr - fa} year${fr - fa > 1 ? 's' : ''} sooner (age ${fa} vs. ${fr}).` : `Renting and investing the difference gets you free ${fa - fr} year${fa - fr > 1 ? 's' : ''} sooner (age ${fr} vs. ${fa} if you buy in ${by}).`;
+    else if (fa == null && fr == null) head = 'Neither path reaches freedom by 70 yet.';
+    else head = fa === fr ? `Both paths reach freedom at ${fmtAge(fa)}.` : (fa == null ? `Only renting reaches freedom by 70 (age ${fr}).` : `Only buying reaches freedom by 70 (age ${fa}).`);
+    head += ` Buying leaves you with a home worth ${money(td(at(R0.rows, lastY).equity || 0, lastY))} at ${p.endAge} in today's dollars.`;
+    $('#homeHead').textContent = head;
+    const row = (label, a, b, betterLow) => {
+      const wa = betterLow === undefined ? '' : (betterLow ? a.v < b.v : a.v > b.v) ? ' class="win"' : '';
+      const wb = betterLow === undefined ? '' : (betterLow ? b.v < a.v : b.v > a.v) ? ' class="win"' : '';
+      return `<tr><td>${label}</td><td${wa}>${a.t}</td><td${wb}>${b.t}</td></tr>`;
+    };
+    const mo = v => `${full(v / 12)}/mo`;
+    $('#homeTbl').innerHTML = `<thead><tr><th scope="col"></th><th scope="col">Buy in ${by}</th><th scope="col">Keep renting</th></tr></thead><tbody>`
+      + row('Free at age', { v: fa ?? 99, t: fmtAge(fa) }, { v: fr ?? 99, t: fmtAge(fr) }, true)
+      + row(`Housing cost in ${by}`, { v: own.ownCost, t: mo(td(own.ownCost, by)) }, { v: rent.rentCost, t: mo(td(rent.rentCost, by)) }, true)
+      + row(`Down payment + closing, ${by}`, { v: 0, t: money(td(+H.price * Math.pow(1 + (+H.growth || 0), by - p.startYear) * ((+H.downPct) + (+H.closingPct)), by)) }, { v: 0, t: 'invested' })
+      + row('Mortgage interest, total', { v: 0, t: money(sum(R0.rows, 'mortInt')) }, { v: 0, t: '—' })
+      + row('Taxes saved by owning, total', { v: 0, t: money(sum(R0.rows, 'homeTaxSave')) }, { v: 0, t: '—' })
+      + row('Difference invested, total', { v: 0, t: money(sum(R0.rows, 'homeInvest')) }, { v: 0, t: money(sum(R1.rows, 'homeInvest')) })
+      + row(`Net worth at ${pa} (your plan)`, { v: nwOwn(planY), t: money(nwOwn(planY)) }, { v: nwRent(planY), t: money(nwRent(planY)) }, false)
+      + row(`Net worth at ${p.endAge}`, { v: nwOwn(lastY), t: money(nwOwn(lastY)) }, { v: nwRent(lastY), t: money(nwRent(lastY)) }, false)
+      + '</tbody>';
+    const itemYrs = R0.rows.filter(r => r.homeTaxSave > 0).length;
+    $('#homeNote').textContent = `Net worth for buying includes home equity, which isn't counted toward your freedom number because you live in the home. Owning cuts your taxes in ${itemYrs} year${itemYrs === 1 ? '' : 's'}, when mortgage interest plus property and state taxes beat the standard deduction. Selling costs and moving aren't modeled.`;
+    const el = $('#chart4'), rows = R0.rows, f = frame(el, 230);
+    const A = rows.map(r => nwOwn(r.year)), B = rows.map(r => nwRent(r.year));
+    const yMax = niceMax(Math.max(...A, ...B, 1));
+    const x = i => f.m.l + f.iw * i / Math.max(1, rows.length - 1), y = v => f.m.t + f.ih - f.ih * Math.max(0, v) / yMax;
+    axes(f, rows, yMax, x);
+    const bi = rows.findIndex(r => r.year === by);
+    if (bi > 0) { mk(f.svg, 'line', { x1: x(bi), x2: x(bi), y1: f.m.t, y2: f.m.t + f.ih, stroke: 'var(--ink-3)', 'stroke-dasharray': '3 3' }); const t = mk(f.svg, 'text', { x: x(bi) + 4, y: f.m.t + 12, style: 'fill:var(--ink-2)' }); t.textContent = 'buy'; }
+    const line = (a, col) => mk(f.svg, 'path', { d: a.map((v, i) => (i ? 'L' : 'M') + x(i).toFixed(1) + ' ' + y(v).toFixed(1)).join(' '), fill: 'none', stroke: col, 'stroke-width': 2 });
+    line(B, 'var(--s2)'); line(A, 'var(--s1)');
+    f.svg.setAttribute('aria-label', 'Net worth over time if you buy versus rent');
+    hover(el, f, rows, x, i => `<b>${rows[i].year}</b> · age ${ageStr(rows[i])}<div class="r"><em><span class="sw" style="background:var(--s1)"></span>Buy</em>${money(A[i])}</div><div class="r"><em>…of which home equity</em>${money(td(rows[i].equity || 0, rows[i].year))}</div><div class="r"><em><span class="sw" style="background:var(--s2)"></span>Rent</em>${money(B[i])}</div>`);
+  }
+
   // ---------- life insurance card (Scale) ----------
   const LIFE_COV = [250000, 500000, 750000, 1000000, 1500000, 2000000], LIFE_TERMS = [10, 15, 20, 25, 30];
   function renderLife() {
@@ -1843,7 +2045,7 @@ tr.short td:first-child { background: var(--bad-soft); }
     try {
       const o = JSON.parse(txt); const q = o.inputs || o;
       if (!q.a || !q.accounts || !q.spending) throw new Error('missing');
-      const d = BLANK(); p = Object.assign(d, q); ['a', 'b', 'accounts', 'spending', 'returns', 'glide', 'stress', 'roth', 'mc', 'pension', 'health', 'saving', 'medical'].forEach(k => p[k] = Object.assign(BLANK()[k], q[k] || {}));
+      const d = BLANK(); p = Object.assign(d, q); ['a', 'b', 'accounts', 'spending', 'returns', 'glide', 'stress', 'roth', 'mc', 'pension', 'health', 'saving', 'medical', 'home'].forEach(k => p[k] = Object.assign(BLANK()[k], q[k] || {}));
       if (Array.isArray(o.scenarios)) { o.scenarios.forEach(sc => { if (!sc || !sc.name || !sc.p) return; const k = scen.findIndex(x => x.name === sc.name); if (k >= 0) scen[k] = sc; else scen.push(sc); }); store.set(SCKEY, scen); }
       store.set(DKEY, p); bindStatic(); renderResults(true); toast('Plan loaded');
     } catch (e) { toast('Those inputs could not be read. Paste the full text from “Copy inputs”.'); }

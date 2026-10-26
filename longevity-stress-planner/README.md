@@ -24,7 +24,8 @@ Both pages open with a made-up example so you can explore first. Then press **St
 1. Enter your salary, savings, and spending now and in retirement. Read the headline: your earliest retirement age and the savings it takes.
 2. Add a **monthly investing (SIP)** amount and see how many years sooner you could retire.
 3. Pick a **term life** policy, or click a price in the grid, and see how many years of family spending it covers.
-4. Try **Crash the year you retire** and check the chance-of-success bars by retirement age.
+4. Turn on **Buying a home** and compare the **Rent vs. buy** card: which path gets you free sooner?
+5. Try **Crash the year you retire** and check the chance-of-success bars by retirement age.
 
 **Glide** (if you're retired or close):
 1. Enter your balances, Social Security and spending. Read the headline: does the money last to 95, and how much is left?
@@ -41,6 +42,7 @@ Built for someone in their 20s–40s. It adds what an early retirement depends o
 - **Payroll tax:** 6.2% Social Security up to $184,500, 1.45% Medicare, 0.9% above $200,000 single / $250,000 joint.
 - **Monthly investing (SIP):** invest a fixed amount every month into a fund type (S&P 500 index, total US market, international, target-date, balanced 60/40, bond index, or custom), for a set number of years or until retirement, with an optional yearly increase, in a brokerage account or Roth IRA. Each fund follows the year's stock and bond returns in its own mix, minus its fee. Scale shows how many years sooner your SIPs let you retire and what they're worth at retirement.
 - **Term life insurance:** choose who is insured, the coverage and the number of years (10–30), plus sex and health class for the price estimate, or enter a real quote. The planner shows the monthly price and total cost, how many years of the household's spending the payout covers, a suggested coverage (your retirement target minus today's savings) and term (years until financial independence), and a grid of monthly prices for more coverage or more years; clicking a price applies it. Premiums are added to spending, and in the survivor test a death during the term pays the coverage tax-free. Prices are estimates scaled from MoneyGeek's 2026 averages, not quotes.
+- **Buying a home, rent vs. buy:** enter the price, buy year, down payment, closing costs, mortgage rate and term, property tax, insurance, HOA, upkeep, home value growth, PMI, your current rent and what you save each month for the down payment (the planner tells you how much you'd need). It amortizes the mortgage, stops rent the year you buy, and itemizes mortgage interest and state and local taxes (SALT cap $40,400 in 2026, $10,000 from 2030) only when that beats the standard deduction. A **Rent vs. buy** card runs the same plan both ways, buying, or renting with the down-payment money and any cost difference invested, and compares freedom age, monthly housing cost, interest, taxes saved, and net worth with and without home equity.
 - **Leftover pay:** by default it's assumed spent, so only 401(k), Roth and SIPs count as saving. Turn on "invest all leftover pay" if you really do invest every spare dollar.
 - **Spending now vs. in retirement**, plus kids, college or a mortgage as extra costs, and a down payment as a one-time event.
 - **Health insurance before 65:** marketplace premiums that rise with age, with 2026 ACA tax credits (2.10%–9.96% of income for the benchmark plan, none above 400% of the poverty line).

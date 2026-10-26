@@ -102,10 +102,19 @@
     return 0;
   }
 
+  // SALT cap under the 2025 law: $40,000 in 2025 rising 1%/yr through 2029, reduced by 30% of MAGI over
+  // $500,000 (also +1%/yr) but not below $10,000; back to $10,000 from 2030.
+  function saltCap(year, magi) {
+    if (year >= 2030) return 10000;
+    const k = Math.max(0, Math.min(4, year - 2025));
+    const cap = 40000 * Math.pow(1.01, k), th = 500000 * Math.pow(1.01, k);
+    return Math.max(10000, cap - 0.3 * Math.max(0, magi - th));
+  }
+
   // Federal + state income tax for one year.
   function computeTax(o) {
     const { status, idx, wages, ordinaryOther, ss, ltcg, n65, year, stateRate } = o;
-    const medical = o.medical || 0;
+    const medical = o.medical || 0, mortInt = o.mortInt || 0, propTax = o.propTax || 0;
     const otherInc = wages + ordinaryOther + ltcg;
     const prov = otherInc + 0.5 * ss;
     const [b1, b2] = T.ssBase[status];
@@ -116,8 +125,11 @@
     }
     const ordinary = wages + ordinaryOther + taxableSS;
     const agi = ordinary + ltcg;
-    // Standard deduction, or itemized medical costs above 7.5% of AGI if that is larger
-    const itemized = Math.max(0, medical - 0.075 * agi);
+    // Standard deduction, or itemized deductions if larger: medical costs above 7.5% of AGI,
+    // mortgage interest, and state + local taxes (property and state income tax) up to the SALT cap
+    const stateEst = stateRate * Math.max(0, agi - T.stdDed[status] * idx);
+    const salt = (mortInt > 0 || propTax > 0) ? Math.min(saltCap(year, agi), propTax + stateEst) : 0;
+    const itemized = Math.max(0, medical - 0.075 * agi) + mortInt + salt;
     let ded = Math.max(T.stdDed[status] * idx + T.age65Add[status] * idx * n65, itemized);
     if (year >= T.seniorBonusYears[0] && year <= T.seniorBonusYears[1] && n65 > 0) {
       const ph = T.seniorBonusPhase[status];
@@ -278,6 +290,14 @@
     const convs = [];
     const rows = [];
     const investLeftover = !(p.saving && p.saving.investLeftover === false);
+    // Home purchase. homeMode 'rent' runs the same plan without buying (rent continues, the down-payment
+    // fund stays invested, and whichever path is cheaper each year invests the difference).
+    const HM = p.home && p.home.enabled ? p.home : null;
+    const homeMode = HM ? (opts.homeMode || 'own') : null;
+    const buyYear = HM ? num(HM.buyYear) : Infinity;
+    let homeFund = 0, homeValue = 0, loanBal = 0, loanPay = 0, loan0 = 0, price0 = 0;
+    // In rent mode, owning costs come from a shadow run of the same plan in own mode
+    const shadow = HM && homeMode === 'rent' ? project(p, { ...opts, homeMode: 'own', rng: null, shadowOnly: true }).rows : null;
     const sips = (p.sips || []).map(s => ({ ...s, bal: 0, basis: 0, paid: 0, merged: false }));
     let sipAtRetire = 0;
     const magiHist = {}; magiHist[y0 - 2] = p.priorMagi; magiHist[y0 - 1] = p.priorMagi;
@@ -405,6 +425,47 @@
       }
       spend += lifePrem; oneCash += lifePayout;
 
+      // ----- Buying a home -----
+      let homeFundOut = 0, downCash = 0, mortInt = 0, principal = 0, ownCost = 0, rentCost = 0, pmi = 0, propTax = 0, homeInvest = 0, fundToTaxable = 0;
+      if (HM) {
+        const rentNow = num(HM.rentMonthly) * 12 * infl;
+        if (y < buyYear && wages > 0) homeFundOut = num(HM.fundMonthly) * 12 * infl;
+        if (y === buyYear) {
+          price0 = num(HM.price) * Math.pow(1 + num(HM.growth), t);
+          const need = price0 * (num(HM.downPct) + num(HM.closingPct));
+          if (homeMode === 'own') {
+            const use = Math.min(homeFund, need); homeFund -= use; downCash = need - use;
+            fundToTaxable = homeFund; homeFund = 0;
+            homeValue = price0; loan0 = loanBal = price0 * (1 - num(HM.downPct));
+            const i = num(HM.rate) / 12, n = num(HM.term) * 12;
+            loanPay = loan0 > 0 ? (i > 0 ? loan0 * i / (1 - Math.pow(1 + i, -n)) : loan0 / n) : 0;
+          } else { fundToTaxable = homeFund; homeFund = 0; }
+        }
+        if (y >= buyYear) {
+          // what owning would cost this year, tracked in both modes so the cheaper path can invest the difference
+          if (homeMode === 'own') {
+            const i = num(HM.rate) / 12;
+            for (let m = 0; m < 12 && loanBal > 0.005; m++) {
+              const int = loanBal * i, pr = Math.min(loanBal, loanPay - int);
+              mortInt += int; principal += pr; loanBal -= pr;
+            }
+            pmi = num(HM.downPct) < 0.2 && loanBal > 0.8 * price0 ? num(HM.pmiPct) * loanBal : 0;
+            propTax = num(HM.propTaxPct) * homeValue;
+            ownCost = mortInt + principal + pmi + propTax + num(HM.insurance) * infl + num(HM.maintPct) * homeValue + num(HM.hoaMonthly) * 12 * infl;
+          }
+          rentCost = rentNow;
+          if (homeMode === 'own') spend = Math.max(0, spend - rentNow) + ownCost;
+          else { const sr = shadow && shadow.find(z => z.year === y); ownCost = sr ? sr.ownCost : 0; }
+          // the cheaper path invests the difference out of pay (when leftover pay isn't already invested)
+          if (!investLeftover && wages > 0) {
+            const diff = ownCost - rentCost;
+            if (homeMode === 'rent' && diff > 0) homeInvest = diff;
+            if (homeMode === 'own' && diff < 0) homeInvest = -diff;
+          }
+        }
+      }
+      spend += downCash;
+
       // ----- Health insurance before Medicare (only once nobody in the household works) -----
       let healthFull = 0, hh = 0;
       if (H.enabled && !anyWorking) {
@@ -459,13 +520,15 @@
         }
       }
 
+      const mortIntDed = mortInt * (loanBal + principal > 750000 ? 750000 / (loanBal + principal) : 1);
+
       // ----- Withdrawals: iterate until taxes, penalties and health premiums settle -----
       const seasoned = convs.filter(c => y - c.y >= 5).reduce((s, c) => s + c.amt, 0);
       const order = early ? ['taxable', 'rothA', 'ira', 'rothE']
         : p.withdrawOrder === 'protect-ira' ? ['taxable', 'rothA', 'ira'] : ['taxable', 'ira', 'rothA'];
       let wTax = 0, wIra = 0, wRoth = 0, wRothE = 0, gain = 0, taxRes = null, need = 0, short = 0, pen = 0, health = 0;
       let taxGuess = 0;
-      const inflow = wagesCash - sipOut + ss + pension + oneCash;
+      const inflow = wagesCash - sipOut - homeFundOut - homeInvest + ss + pension + oneCash;
       const solve = () => {
         taxGuess = 0; health = healthCost(0);
         for (let it = 0; it < 16; it++) {
@@ -486,7 +549,7 @@
           short = Math.max(0, gap);
           const gf = tax > 0 ? Math.max(0, 1 - basis / tax) : 0;
           gain = wTax * gf;
-          taxRes = computeTax({ status, idx, wages: wagesTaxable, ordinaryOther: pension + rmd + wIra + wRothE + conv + oneOrd, ss, ltcg: gain + oneGain, n65, year: y, stateRate: p.stateRate, medical });
+          taxRes = computeTax({ status, idx, wages: wagesTaxable, ordinaryOther: pension + rmd + wIra + wRothE + conv + oneOrd, ss, ltcg: gain + oneGain, n65, year: y, stateRate: p.stateRate, medical, mortInt: mortIntDed, propTax });
           pen = early ? 0.10 * (wIra + wRothE) : 0;
           const newHealth = healthCost(taxRes.agi);
           const tg = taxRes.total + pen;
@@ -504,10 +567,10 @@
       need = spend + irmaa + fica + health + taxGuess;
       const surplus = Math.max(0, inflow + rmd + wTax + wIra + wRoth + wRothE - need);
       // Without "invest leftover pay", spare take-home pay is assumed spent; other surpluses are still invested.
-      const invested = investLeftover || !anyWorking ? surplus : Math.max(0, surplus - Math.max(0, wagesCash - sipOut));
+      const invested = investLeftover || !anyWorking ? surplus : Math.max(0, surplus - Math.max(0, wagesCash - sipOut - homeFundOut - homeInvest));
 
       // ----- Apply flows -----
-      const begin = ira + roth + tax + sips.reduce((a, s) => a + s.bal, 0);
+      const begin = ira + roth + tax + homeFund + sips.reduce((a, s) => a + s.bal, 0);
       const gFrac = tax > 0 ? Math.max(0, 1 - basis / tax) : 0;
       basis -= wTax * (1 - gFrac);
       tax -= wTax;
@@ -518,7 +581,8 @@
       let left = wRoth + wRothE;
       const fromContrib = Math.min(left, rothContrib); rothContrib -= fromContrib; left -= fromContrib;
       for (const c of convs) { if (left <= 0) break; const k = Math.min(left, c.amt); c.amt -= k; left -= k; }
-      tax += invested; basis += invested;
+      tax += invested + homeInvest + fundToTaxable; basis += invested + homeInvest + fundToTaxable;
+      homeFund += homeFundOut;
       for (const s of sips) if (s.out > 0) { s.bal += s.out; s.basis += s.out; s.paid += s.out; }
       ira = Math.max(0, ira); roth = Math.max(0, roth); tax = Math.max(0, tax); basis = Math.max(0, Math.min(basis, tax));
       rothContrib = Math.min(rothContrib, roth);
@@ -530,6 +594,13 @@
       ira *= 1 + blended; roth *= 1 + blended; tax *= 1 + blended;
       let sipBal = 0;
       for (const s of sips) if (!s.merged) { s.bal *= 1 + sipReturn(s, r, w); sipBal += s.bal; }
+      homeFund *= 1 + r.bd;
+      if (homeMode === 'own' && y >= buyYear) homeValue *= 1 + num(HM.growth);
+      let homeTaxSave = 0;
+      if (homeMode === 'own' && (mortIntDed > 0 || propTax > 0)) {
+        const t0 = computeTax({ status, idx, wages: wagesTaxable, ordinaryOther: pension + rmd + wIra + wRothE + conv + oneOrd, ss, ltcg: gain + oneGain, n65, year: y, stateRate: p.stateRate, medical });
+        homeTaxSave = Math.max(0, t0.total - taxRes.total);
+      }
 
       magiHist[y] = taxRes.agi; magiHist['s' + y] = status;
       if (short > 1 && shortfallYear == null) shortfallYear = y;
@@ -541,11 +612,14 @@
         year: y, ageA: aliveA ? ageA : null, ageB: couple && aliveB ? ageB : null, status, survivor,
         begin, spend, wages, ss, pension, oneCash, rmd, conv, wTax, wIra, wRoth: wRoth + wRothE,
         lifePrem, lifePayout, medical, itemized: taxRes.itemized,
+        homeFund, homeFundOut, downCash, mortInt, principal, pmi, propTax, ownCost, rentCost, homeInvest, homeTaxSave,
+        homeValue: homeMode === 'own' && y >= buyYear ? homeValue : 0, loanBal: homeMode === 'own' ? loanBal : 0,
+        equity: homeMode === 'own' && y >= buyYear ? homeValue - loanBal : 0,
         contrib: pre + r401 + match + rira + sipOut, saved: pre + r401 + match + rira + sipOut + invested, sipOut, sipBal,
         fica, pen, health, healthFull, incomeTax: taxRes.total,
         fedTax: taxRes.fed, stateTax: taxRes.state, tax: allTax, marg: taxRes.marg, agi: taxRes.agi,
         irmaa, irmaaTier: tierNow, short, eqW: w, ret: blended, tag: r.tag, working: anyWorking,
-        ira, roth, taxable: tax, end: ira + roth + tax + sipBal,
+        ira, roth, taxable: tax, end: ira + roth + tax + sipBal + homeFund,
       });
     }
     const last = rows[rows.length - 1];
@@ -569,10 +643,10 @@
     return q;
   }
   // Earliest year Person A can stop working and still last to the plan's end age.
-  function earliestRetirement(p, maxAge = 70) {
+  function earliestRetirement(p, maxAge = 70, opts = {}) {
     const last = num(p.a.birthYear) + maxAge;
     for (let y = p.startYear; y <= last; y++) {
-      const r = project(withRetireYear(p, y));
+      const r = project(withRetireYear(p, y), opts);
       if (r.success) return { year: y, age: y - p.a.birthYear, result: r };
     }
     return null;
@@ -600,7 +674,7 @@
     return { successRate: ok / n, p10: pct(0.10), p25: pct(0.25), p50: pct(0.5), p75: pct(0.75), p90: pct(0.9), n };
   }
 
-  const api = { T, FUNDS, LIFE, MED_2026, medicalOutOfPocket, termPrice, policyMonthly, sipReturn, project, monteCarlo, computeTax, ownFactor, rmdStartAge, rmdFactor, irmaaTier, equityWeight,
+  const api = { T, saltCap, FUNDS, LIFE, MED_2026, medicalOutOfPocket, termPrice, policyMonthly, sipReturn, project, monteCarlo, computeTax, ownFactor, rmdStartAge, rmdFactor, irmaaTier, equityWeight,
     earliestRetirement, withRetireYear, effectiveSS, ssEstimate, acaApplicable, acaAgeFactor, retYearOf };
   if (typeof module !== 'undefined') module.exports = api; else root.RetireEngine = api;
 })(this);

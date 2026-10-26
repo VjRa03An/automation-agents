@@ -120,4 +120,20 @@ m1.medical = evs('none'); m2.medical = evs('medigap');
 const e0 = E.project(m0).endBalance, e1 = E.project(m1).endBalance, e2 = E.project(m2).endBalance;
 assert.ok(e1 < e0 - 500000 && e2 > e0 - 50000);
 
+// ---------- Buying a home (Scale) ----------
+// $450K home, 20% down, 6.5% for 30 years, bought now with no inflation: standard amortization
+const hp = young(); hp.inflation = 0; hp.stress.enabled = false; hp.saving = { investLeftover: false };
+hp.home = { enabled: true, buyYear: 2026, price: 450000, downPct: 0.2, closingPct: 0.03, rate: 0.065, term: 30, propTaxPct: 0.011, insurance: 1800, hoaMonthly: 0, maintPct: 0.01, growth: 0, pmiPct: 0.006, rentMonthly: 2000, fundMonthly: 0 };
+const h1 = E.project(hp).rows[0];
+assert.ok(Math.abs((h1.mortInt + h1.principal) / 12 - 2275.44) < 0.01, 'monthly mortgage payment');
+assert.ok(Math.abs(h1.mortInt - 23282) < 1, 'first-year interest');
+assert.strictEqual(E.project(hp).rows.find(r => r.year === 2056).mortInt, 0, 'paid off after 30 years');
+// SALT cap: $40,400 in 2026, phased down above $505,000 of income, $10,000 from 2030
+assert.strictEqual(Math.round(E.saltCap(2026, 100000)), 40400);
+assert.strictEqual(Math.round(E.saltCap(2026, 600000)), 11900);
+assert.strictEqual(E.saltCap(2030, 100000), 10000);
+// Rent mode runs the same plan without buying: no mortgage, no equity
+const rentRows = E.project(hp, { homeMode: 'rent' }).rows;
+assert.ok(rentRows.every(r => !r.mortInt && !r.equity));
+
 console.log('All engine checks passed.');
