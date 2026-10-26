@@ -329,6 +329,21 @@ tr.short td:first-child { background: var(--bad-soft); }
         </div>
       </details>
 
+      <details class="sec" open>
+        <summary><h2>Medical stress test</h2><span class="hint" id="hintMed"></span></summary>
+        <div class="body">
+          <label class="check"><input type="checkbox" id="medOn" data-path="medical.enabled" data-type="bool"> Apply these medical events</label>
+          <div class="presets"><button type="button" class="btn small" id="medPreset">Two $250K hospital stays</button></div>
+          <p class="note">A hospital stay followed by 6–8 weeks of home nursing, billed in one year, in today's dollars. Pick the coverage to see what you would actually pay under 2026 Medicare rules: Medigap Plan G leaves about the $283 Part B deductible, Medicare Advantage caps in-network costs at $9,250 a year, and Original Medicare alone has no cap on its 20% share. Medicare doesn't pay for long-term custodial care, so use “Not covered” for that.</p>
+          <div class="list" id="list-med"></div>
+          <button type="button" class="btn small" data-add="med">Add a medical event</button>
+          <div class="row">
+            <div class="f"><label for="medX">Medical costs rise faster than inflation by</label><input id="medX" data-path="medical.extra" data-type="pct" type="number" step="0.5"></div>
+            <div class="f" style="justify-content:end"><p class="note">Bills above 7.5% of income are deducted from taxable income when that beats the standard deduction.</p></div>
+          </div>
+        </div>
+      </details>
+
       <details class="sec">
         <summary><h2>Investments</h2><span class="hint" id="hintInv"></span></summary>
         <div class="body">
@@ -415,7 +430,7 @@ tr.short td:first-child { background: var(--bad-soft); }
         </div>
         <div class="legend" id="legend1">
           <span><i style="background:var(--s1)"></i>Traditional IRA</span><span><i style="background:var(--s3)"></i>Taxable</span><span><i style="background:var(--s2)"></i>Roth</span>
-          <span><i class="dash"></i>Same plan, no recessions</span><span><i style="background:var(--band-rec);border:1px solid var(--bad)"></i>Recession year</span>
+          <span><i class="dash"></i>Same plan, no recessions</span><span><i style="background:var(--warn);border-radius:50%"></i>Medical event</span><span><i style="background:var(--band-rec);border:1px solid var(--bad)"></i>Recession year</span>
         </div>
         <div class="chart" id="chart1"></div>
       </section>
@@ -452,6 +467,8 @@ tr.short td:first-child { background: var(--bad-soft); }
           <li>Federal tax uses 2026 IRS brackets, standard deduction, the 65+ additions, the 2025–2028 senior deduction, 0/15/20% capital-gains rates, 3.8% NIIT and Social Security taxation. Brackets rise with your inflation rate. State tax is a flat rate on income above the standard deduction.</li>
           <li>Medicare surcharges (IRMAA) use 2026 CMS tiers and your income from two years earlier, per person on Medicare. Only the surcharge above the standard premium is added; put base premiums in spending.</li>
           <li>RMDs start at 73 (born 1951–59) or 75 (born 1960+) using the IRS Uniform Lifetime Table. Social Security adjusts for claiming age and includes the 50% spousal top-up.</li>
+          <li>Medical out-of-pocket by coverage (2026): Medigap Plan G pays everything after the $283 Part B deductible; Medicare Advantage is capped at the $9,250 in-network maximum; Original Medicare alone charges the $1,736 Part A deductible plus 20% of Part B services with no cap, assumed to be 35% of the bill. Skilled home health care is covered at $0 when you qualify; custodial care isn't covered.</li>
+          <li>Medical events: each bill is paid in the year it happens, from the same accounts as other spending, and rises with inflation (plus any extra you set). Medical costs above 7.5% of adjusted gross income are itemized when that beats the standard deduction; extra withdrawals can raise Medicare surcharges two years later.</li>
           <li>Withdrawals happen at the start of each year; growth applies to what remains. Every account follows the same stock/bond mix.</li>
 
           <li>This is a planning tool, not tax, legal or investment advice. Tax rules and thresholds change every year; check current figures and review large decisions with a licensed professional.</li>
@@ -571,6 +588,7 @@ tr.short td:first-child { background: var(--bad-soft); }
   // Federal + state income tax for one year.
   function computeTax(o) {
     const { status, idx, wages, ordinaryOther, ss, ltcg, n65, year, stateRate } = o;
+    const medical = o.medical || 0;
     const otherInc = wages + ordinaryOther + ltcg;
     const prov = otherInc + 0.5 * ss;
     const [b1, b2] = T.ssBase[status];
@@ -581,7 +599,9 @@ tr.short td:first-child { background: var(--bad-soft); }
     }
     const ordinary = wages + ordinaryOther + taxableSS;
     const agi = ordinary + ltcg;
-    let ded = T.stdDed[status] * idx + T.age65Add[status] * idx * n65;
+    // Standard deduction, or itemized medical costs above 7.5% of AGI if that is larger
+    const itemized = Math.max(0, medical - 0.075 * agi);
+    let ded = Math.max(T.stdDed[status] * idx + T.age65Add[status] * idx * n65, itemized);
     if (year >= T.seniorBonusYears[0] && year <= T.seniorBonusYears[1] && n65 > 0) {
       const ph = T.seniorBonusPhase[status];
       ded += Math.max(0, T.seniorBonus * n65 - 0.06 * Math.max(0, agi - ph));
@@ -599,7 +619,7 @@ tr.short td:first-child { background: var(--bad-soft); }
     const fed = ordTax + gt + niit;
     let marg = 0.10;
     for (const [top, r] of T.brackets[status]) { marg = r; if (taxableOrd < top * idx) break; }
-    return { fed, state: stateTax, total: fed + stateTax, agi, taxableSS, taxableOrd, marg, niit };
+    return { fed, state: stateTax, total: fed + stateTax, agi, taxableSS, taxableOrd, marg, niit, itemized: itemized > T.stdDed[status] * idx + T.age65Add[status] * idx * n65 };
   }
 
   function irmaaTier(magi, status, idx) {
@@ -683,6 +703,19 @@ tr.short td:first-child { background: var(--bad-soft); }
     return termPrice({ age: num(pol.start || startYear) - num(P.birthYear), sex: pol.sex, health: pol.health, coverage: pol.coverage, term: pol.term });
   }
 
+  // ---------- Medical events: out-of-pocket by coverage (2026 CMS / KFF figures, today's $) ----------
+  const MED_2026 = { partADed: 1736, partBDed: 283, maMoop: 9250, partBShare: 0.35 };
+  function medicalOutOfPocket(ev) {
+    const bill = num(ev.amount), M = MED_2026;
+    switch (ev.cover) {
+      case 'medigap':   return Math.min(bill, M.partBDed);                         // Plan G: only the Part B deductible
+      case 'advantage': return Math.min(bill, M.maMoop);                            // capped at the in-network maximum
+      case 'original':  return Math.min(bill, M.partADed + M.partBDed + 0.2 * Math.max(0, M.partBShare * bill - M.partBDed)); // no cap on Part B's 20%
+      case 'custom':    return bill * (has(ev.pay) ? num(ev.pay) : 1);
+      default:          return bill;                                                // not covered: you pay it all
+    }
+  }
+
   // ---------- Return path ----------
   function eventYears(p, retA) {
     return (p.stress.enabled ? p.stress.events : []).map(e => ({
@@ -731,6 +764,7 @@ tr.short td:first-child { background: var(--bad-soft); }
     const sips = (p.sips || []).map(s => ({ ...s, bal: 0, basis: 0, paid: 0, merged: false }));
     let sipAtRetire = 0;
     const magiHist = {}; magiHist[y0 - 2] = p.priorMagi; magiHist[y0 - 1] = p.priorMagi;
+    let totalMedical = 0;
     let shortfallYear = null, totalTax = 0, totalIrmaa = 0, totalShort = 0, totalPen = 0, totalHealth = 0;
     const deathA = has(A.deathAge) ? A.birthYear + +A.deathAge : Infinity;
     const deathB = couple && has(B.deathAge) ? B.birthYear + +B.deathAge : Infinity;
@@ -833,6 +867,16 @@ tr.short td:first-child { background: var(--bad-soft); }
       }
       spend += oneExpense;
 
+      // ----- Medical stress test: hospital stays / home nursing at chosen ages -----
+      let medical = 0;
+      const MED = p.medical || {};
+      if (MED.enabled) for (const ev of (MED.events || [])) {
+        const isB = ev.who === 'b' && couple, P = isB ? B : A;
+        if (y !== num(P.birthYear) + num(ev.age) || !(isB ? aliveB : aliveA)) continue;
+        medical += medicalOutOfPocket(ev) * infl * Math.pow(1 + num(MED.extra), t);
+      }
+      spend += medical;
+
       // ----- Term life: level premiums while insured and alive; tax-free payout if the insured dies in the term -----
       let lifePrem = 0, lifePayout = 0;
       for (const pol of (p.life || [])) {
@@ -925,7 +969,7 @@ tr.short td:first-child { background: var(--bad-soft); }
           short = Math.max(0, gap);
           const gf = tax > 0 ? Math.max(0, 1 - basis / tax) : 0;
           gain = wTax * gf;
-          taxRes = computeTax({ status, idx, wages: wagesTaxable, ordinaryOther: pension + rmd + wIra + wRothE + conv + oneOrd, ss, ltcg: gain + oneGain, n65, year: y, stateRate: p.stateRate });
+          taxRes = computeTax({ status, idx, wages: wagesTaxable, ordinaryOther: pension + rmd + wIra + wRothE + conv + oneOrd, ss, ltcg: gain + oneGain, n65, year: y, stateRate: p.stateRate, medical });
           pen = early ? 0.10 * (wIra + wRothE) : 0;
           const newHealth = healthCost(taxRes.agi);
           const tg = taxRes.total + pen;
@@ -973,12 +1017,13 @@ tr.short td:first-child { background: var(--bad-soft); }
       magiHist[y] = taxRes.agi; magiHist['s' + y] = status;
       if (short > 1 && shortfallYear == null) shortfallYear = y;
       const allTax = taxRes.total + fica + pen;
+      totalMedical += medical / infl;
       totalTax += allTax; totalIrmaa += irmaa; totalShort += short; totalPen += pen; totalHealth += health;
 
       rows.push({
         year: y, ageA: aliveA ? ageA : null, ageB: couple && aliveB ? ageB : null, status, survivor,
         begin, spend, wages, ss, pension, oneCash, rmd, conv, wTax, wIra, wRoth: wRoth + wRothE,
-        lifePrem, lifePayout,
+        lifePrem, lifePayout, medical, itemized: taxRes.itemized,
         contrib: pre + r401 + match + rira + sipOut, saved: pre + r401 + match + rira + sipOut + invested, sipOut, sipBal,
         fica, pen, health, healthFull, incomeTax: taxRes.total,
         fedTax: taxRes.fed, stateTax: taxRes.state, tax: allTax, marg: taxRes.marg, agi: taxRes.agi,
@@ -989,7 +1034,7 @@ tr.short td:first-child { background: var(--bad-soft); }
     const last = rows[rows.length - 1];
     const minRow = rows.reduce((m, r) => r.end < m.end ? r : m, rows[0]);
     return {
-      rows, shortfallYear, totalTax, totalIrmaa, totalShort, totalPen, totalHealth,
+      rows, shortfallYear, totalMedical, totalTax, totalIrmaa, totalShort, totalPen, totalHealth,
       endBalance: last.end, endReal: last.end / Math.pow(1 + p.inflation, last.year - y0),
       minRow, success: shortfallYear == null, endYear: last.year,
       retireYear: retA, ssFRA: { a: FA, b: FB },
@@ -1038,7 +1083,7 @@ tr.short td:first-child { background: var(--bad-soft); }
     return { successRate: ok / n, p10: pct(0.10), p25: pct(0.25), p50: pct(0.5), p75: pct(0.75), p90: pct(0.9), n };
   }
 
-  const api = { T, FUNDS, LIFE, termPrice, policyMonthly, sipReturn, project, monteCarlo, computeTax, ownFactor, rmdStartAge, rmdFactor, irmaaTier, equityWeight,
+  const api = { T, FUNDS, LIFE, MED_2026, medicalOutOfPocket, termPrice, policyMonthly, sipReturn, project, monteCarlo, computeTax, ownFactor, rmdStartAge, rmdFactor, irmaaTier, equityWeight,
     earliestRetirement, withRetireYear, effectiveSS, ssEstimate, acaApplicable, acaAgeFactor, retYearOf };
   if (typeof module !== 'undefined') module.exports = api; else root.RetireEngine = api;
 })(this);
@@ -1097,6 +1142,7 @@ tr.short td:first-child { background: var(--bad-soft); }
     returns: { equity: 0.07, bond: 0.035 },
     glide: { enabled: true, startEq: 0.40, startAge: 67, endEq: 0.30, endAge: 90 },
     stress: { enabled: true, recoveryYears: 3, recoveryEquity: 0.12, events: presetEvents('sept', 2026) },
+    medical: { enabled: true, extra: 0, events: medPreset({ filing: 'MFJ', startYear: 2026, a: { birthYear: 1964 }, b: { birthYear: 1966 } }) },
     roth: { enabled: false, mode: 'fill', bracket: 0.22, amount: 40000, from: 2027, to: 2038, irmaaCap: true },
     withdrawOrder: 'protect-ira',
     mc: { equitySd: 0.17, bondSd: 0.06 },
@@ -1115,6 +1161,16 @@ tr.short td:first-child { background: var(--bad-soft); }
     p.accounts = { ira: 0, roth: 0, taxable: 0, taxableBasisPct: 0.5 }; p.priorMagi = 0;
     p.spending.base = 0; p.spending.adjustments = []; p.oneTime = [];
     return p;
+  }
+  // Two $250K stays: Person A in their late 70s, then Person B (or A again) in their 80s
+  function medPreset(q) {
+    const ageA = q.startYear - q.a.birthYear;
+    const a1 = Math.max(ageA + 3, 78);
+    if (q.filing === 'MFJ') {
+      const ageB = q.startYear - q.b.birthYear;
+      return [{ who: 'a', age: a1, amount: 250000, cover: 'none', pay: 1 }, { who: 'b', age: Math.max(ageB + 3, 84), amount: 250000, cover: 'none', pay: 1 }];
+    }
+    return [{ who: 'a', age: a1, amount: 250000, cover: 'none', pay: 1 }, { who: 'a', age: a1 + 7, amount: 250000, cover: 'none', pay: 1 }];
   }
   function presetEvents(kind, y0) {
     if (kind === 'sept') return [
@@ -1153,7 +1209,7 @@ tr.short td:first-child { background: var(--bad-soft); }
     setNames();
     if ($('#paySpouse')) $('#paySpouse').hidden = single;
     $('#exampleFlag').hidden = !p._example;
-    ['phases', 'adjustments', 'oneTime', 'events'].concat($('#list-sips') ? ['sips', 'life'] : []).forEach(renderList);
+    ['phases', 'adjustments', 'oneTime', 'events'].concat($('#list-sips') ? ['sips', 'life'] : []).concat($('#list-med') ? ['med'] : []).forEach(renderList);
   }
 
   function setNames() {
@@ -1175,7 +1231,7 @@ tr.short td:first-child { background: var(--bad-soft); }
     const el = e.target;
     if (el.dataset.path) {
       setP(el.dataset.path, readField(el));
-      if (el.dataset.path.endsWith('.name')) { setNames(); if ($('#list-life') && !el.closest('#list-life')) renderList('life'); }
+      if (el.dataset.path.endsWith('.name')) { setNames(); if ($('#list-life')) renderList('life'); if ($('#list-med')) renderList('med'); }
       changed();
     }
   });
@@ -1203,6 +1259,12 @@ tr.short td:first-child { background: var(--bad-soft); }
         ['sex', 'Sex (for rates)', 'sel', '', [['m', 'Male'], ['f', 'Female']]],
         ['health', 'Health', 'sel', 'wide', [['pp', 'Excellent (Preferred Plus)'], ['p', 'Very good (Preferred)'], ['sp', 'Average (Standard Plus)'], ['s', 'Fair (Standard)'], ['smoker', 'Smoker']]],
         ['quote', 'Your quote $/mo (optional)', 'numopt', 'wide']] },
+    med: { arr: () => { p.medical = p.medical || { enabled: true, extra: 0, events: [] }; return (p.medical.events = p.medical.events || []); }, cls: 'med',
+      blank: () => ({ who: 'a', age: (p.startYear - p.a.birthYear) + 10, amount: 250000, cover: 'none', pay: 1 }),
+      fields: [['who', 'Who', 'sel', 'wide', () => [['a', p.a.name || 'Person A']].concat(p.filing === 'MFJ' ? [['b', p.b.name || 'Person B']] : [])],
+        ['age', 'At age', 'num'], ['amount', 'Total bill (today\'s $)', 'num'],
+        ['cover', 'Coverage', 'sel', 'wide', [['none', 'Not covered: you pay it all'], ['medigap', 'Original Medicare + Medigap (Plan G)'], ['advantage', 'Medicare Advantage'], ['original', 'Original Medicare only'], ['custom', 'Custom: you pay a share']]],
+        ['pay', 'You pay %', 'pct', '', null, it => it.cover === 'custom'], ['oop', 'You pay (est.)', 'oop', 'wide']] },
     events: { arr: () => p.stress.events, cls: 'ev', blank: () => ({ year: p.startYear + 10, equity: -0.25, bond: '', label: 'Recession' }),
       fields: [['year', 'Year', 'num'], ['equity', 'Stocks %', 'pct'], ['bond', 'Bonds %', 'pctopt'], ['label', 'Label', 'text', 'wide']] },
   };
@@ -1226,11 +1288,14 @@ tr.short td:first-child { background: var(--bad-soft); }
           s.addEventListener('change', () => {
             item[k] = k === 'term' ? +s.value : s.value;
             if (name === 'sips' && k === 'fund') { item.fee = E.FUNDS[s.value].fee; renderList(name); }
+            if (name === 'med' && k === 'cover') renderList(name);
             changed();
           });
         } else if (type === 'kind') {
           f.innerHTML = `<label class="lbl" for="${id}">${label}</label><select id="${id}"><option value="ltcg">Sale (capital gain)</option><option value="ordinary">Income (taxed as wages)</option><option value="cash">Tax-free cash</option><option value="expense">Expense</option></select>`;
           const s = f.querySelector('select'); s.value = item[k]; s.addEventListener('change', () => { item[k] = s.value; changed(); });
+        } else if (type === 'oop') {
+          f.innerHTML = `<span class="lbl">${label}</span><div class="ro" data-oop="${i}">${full(E.medicalOutOfPocket(item))} per event, today's $</div>`;
         } else if (name === 'events' && k === 'year' && item.retireOffset !== undefined && item.retireOffset !== '') {
           f.innerHTML = `<span class="lbl">${label}</span><div class="ro">At retirement</div>`;
         } else {
@@ -1244,6 +1309,7 @@ tr.short td:first-child { background: var(--bad-soft); }
             if (type === 'text') item[k] = raw;
             else if (isOpt && raw === '') item[k] = '';
             else { const n = parseFloat(raw); item[k] = isFinite(n) ? (isPct ? n / 100 : n) : 0; }
+            if (name === 'med') { const o = box.querySelector(`[data-oop="${i}"]`); if (o) o.textContent = `${full(E.medicalOutOfPocket(item))} per event, today's $`; }
             changed();
           });
         }
@@ -1259,7 +1325,7 @@ tr.short td:first-child { background: var(--bad-soft); }
   const normalize = q => { const c = JSON.parse(JSON.stringify(q)); c.oneTime = c.oneTime.map(e => e.kind === 'cash' ? { ...e, kind: 'ltcg', gainPct: 0 } : e); c.a.ssClaimAge = Math.min(70, Math.max(62, +c.a.ssClaimAge || 67)); c.b.ssClaimAge = Math.min(70, Math.max(62, +c.b.ssClaimAge || 67)); c.a.birthMonth = Math.min(12, Math.max(1, +c.a.birthMonth || 1)); c.b.birthMonth = Math.min(12, Math.max(1, +c.b.birthMonth || 1)); c.endAge = Math.min(110, Math.max(c.startYear - c.a.birthYear + 1, +c.endAge || 95)); return c; };
 
   // ---------- compute ----------
-  let res = null, base = null, mc = null, mcTimer = null, calcTimer = null, fire = null, fireNoSip, ladder = null, ladderJob = 0;
+  let res = null, base = null, mc = null, mcTimer = null, calcTimer = null, fire = null, noMed = null, fireNoSip, ladder = null, ladderJob = 0;
   function changed() {
     if (p._example) { delete p._example; $('#exampleFlag').hidden = true; }
     store.set(DKEY, p);
@@ -1270,6 +1336,8 @@ tr.short td:first-child { background: var(--bad-soft); }
     if (recalc || !res) {
       res = run(p);
       const qb = JSON.parse(JSON.stringify(p)); qb.stress.enabled = false; base = run(qb);
+      noMed = null;
+      if (!YOUNG && p.medical && p.medical.enabled && (p.medical.events || []).length) { const qm = JSON.parse(JSON.stringify(p)); qm.medical.enabled = false; noMed = run(qm); }
       if (YOUNG) {
         try { fire = E.earliestRetirement(normalize(p)); } catch (e) { console.error(e); fire = null; }
         fireNoSip = undefined;
@@ -1352,12 +1420,14 @@ tr.short td:first-child { background: var(--bad-soft); }
       stamp.textContent = 'Lasts'; stamp.className = 'stamp ok';
       $('#vHead').textContent = `Money lasts to ${poss} age ${p.endAge} with ${money(r.endReal)} left in today's dollars`;
       const nRec = p.stress.enabled ? p.stress.events.length : 0;
-      $('#vSub').textContent = `${full(r.endBalance)} in ${last.year} dollars` + (nRec ? `, after ${nRec} recession${nRec > 1 ? 's' : ''}. Without them: ${money(base.endBalance)}.` : '. No recessions applied.');
+      const nMed = r.rows.filter(x => x.medical > 0).length;
+      const what = [nRec ? `${nRec} recession${nRec > 1 ? 's' : ''}` : '', nMed ? `${nMed} medical event${nMed > 1 ? 's' : ''}` : ''].filter(Boolean).join(' and ');
+      $('#vSub').textContent = `${full(r.endBalance)} in ${last.year} dollars` + (what ? `, after ${what}.` : '. No recessions or medical events applied.') + (nRec ? ` Without the recessions: ${money(base.endBalance)}.` : '');
     } else {
       const sr = r.rows.find(x => x.year === r.shortfallYear);
       stamp.textContent = 'Runs short'; stamp.className = 'stamp fail';
       $('#vHead').textContent = `Savings run out in ${r.shortfallYear}, when ${isYou ? 'you are' : nm + ' is'} ${sr.ageA ?? '—'}`;
-      $('#vSub').textContent = `Total shortfall of ${money(r.totalShort)} through ${last.year}. ` + (base && base.success ? 'Without the recessions the plan lasts.' : 'The plan falls short even without recessions.');
+      $('#vSub').textContent = `Total shortfall of ${money(r.totalShort)} through ${last.year}. ` + (base && base.success ? 'Without the recessions the plan lasts.' : noMed && noMed.success ? 'Without the medical events the plan lasts.' : 'The plan falls short even without recessions.');
     }
     const afterTax = last.roth + last.taxable + last.ira * 0.76;
     const k = [
@@ -1366,6 +1436,7 @@ tr.short td:first-child { background: var(--bad-soft); }
       ['Lifetime taxes', money(r.totalTax), 'income + payroll, future $'],
       ['Medicare surcharges', money(r.totalIrmaa), r.totalIrmaa > 0 ? (n => `${n} year${n === 1 ? '' : 's'} above standard`)(r.rows.filter(x => x.irmaaTier > 0).length) : 'never above standard'],
       ['Recession cost', base ? money(real(base.endBalance - r.endBalance, last.year)) : '—', 'vs. the same plan without them'],
+      ['Medical events', noMed ? money(real(noMed.endBalance - r.endBalance, last.year)) : 'None', noMed ? `lower ending balance; bills total ${money(r.totalMedical)} today's $` : 'add them under Medical stress test'],
     ];
     $('#kpis').innerHTML = k.map(([a, b, c]) => `<div class="kpi"><span>${a}</span><b>${b}</b><small>${c}</small></div>`).join('');
   }
@@ -1378,6 +1449,7 @@ tr.short td:first-child { background: var(--bad-soft); }
     $('#hintStress').textContent = p.stress.enabled ? `${p.stress.events.length} shock${p.stress.events.length === 1 ? '' : 's'}` : 'off';
     $('#hintInv').textContent = `${Math.round(p.returns.equity * 100)}% / ${(p.returns.bond * 100).toFixed(1)}%`;
     $('#hintOne').textContent = p.oneTime.length ? `${p.oneTime.length}` : 'none';
+    if ($('#hintMed')) { const m = p.medical || {}; $('#hintMed').textContent = m.enabled && (m.events || []).length ? `${m.events.length} event${m.events.length > 1 ? 's' : ''}` : 'off'; }
     $('#hintSurv').textContent = (p.a.deathAge || (p.filing === 'MFJ' && p.b.deathAge)) ? 'on' : 'off';
     $('#hintRoth').textContent = p.roth.enabled ? (p.roth.ladder ? 'ladder' : 'on') : 'off';
     if (YOUNG) {
@@ -1455,6 +1527,7 @@ tr.short td:first-child { background: var(--bad-soft); }
     });
     if (base && p.stress.enabled) mk(f.svg, 'path', { d: bv.map((u, i) => (i ? 'L' : 'M') + x(i).toFixed(1) + ' ' + y(u).toFixed(1)).join(' '), fill: 'none', stroke: 'var(--ink-3)', 'stroke-width': 2, 'stroke-dasharray': '5 4' });
     // shortfall markers
+    rows.forEach((r, i) => { if (r.medical > 0) { mk(f.svg, 'line', { x1: x(i), x2: x(i), y1: f.m.t, y2: f.m.t + f.ih, stroke: 'var(--warn)', 'stroke-width': 1.5, 'stroke-dasharray': '2 2' }); mk(f.svg, 'circle', { cx: x(i), cy: f.m.t + 5, r: 5, fill: 'var(--warn)', stroke: 'var(--panel)', 'stroke-width': 2 }); } });
     rows.forEach((r, i) => { if (r.short > 1) mk(f.svg, 'circle', { cx: x(i), cy: y(0), r: 4, fill: 'var(--bad)', stroke: 'var(--panel)', 'stroke-width': 2 }); });
     if (YOUNG) {
       const ri = rows.findIndex(r => r.year === res.retireYear);
@@ -1474,6 +1547,7 @@ tr.short td:first-child { background: var(--bad-soft); }
         <div class="r"><em><span class="sw" style="background:var(--s1)"></span>IRA</em>${money(o.ira)}</div>
         <div class="r" style="border-top:1px solid var(--line);margin-top:3px;padding-top:3px"><em>Total</em><b>${money(o.ira + o.tax + o.roth + o.sip)}</b></div>
         ${bv.length && p.stress.enabled ? `<div class="r"><em>No recessions</em>${money(bv[i])}</div>` : ''}
+        ${r.medical > 0 ? `<div class="r"><em>Medical bill</em>${money(real(r.medical, r.year))}</div>` : ''}
         <div class="r"><em>Return</em>${(r.ret * 100).toFixed(1)}%</div>`;
     });
   }
@@ -1512,13 +1586,13 @@ tr.short td:first-child { background: var(--bad-soft); }
   function renderTable() {
     if (YOUNG) return renderTableYoung();
     const rows = res.rows, couple = p.filing === 'MFJ';
-    const head = ['Year', 'Age', 'Spending', 'Social Sec.', 'Wages & other', 'RMD', 'Roth conv.', 'From taxable', 'From Roth', 'From IRA', 'Taxes', 'IRMAA', 'Stocks', 'Return', 'End balance', 'Short'];
+    const head = ['Year', 'Age', 'Spending', 'Medical', 'Social Sec.', 'Wages & other', 'RMD', 'Roth conv.', 'From taxable', 'From Roth', 'From IRA', 'Taxes', 'IRMAA', 'Stocks', 'Return', 'End balance', 'Short'];
     const h = '<thead><tr>' + head.map(x => `<th scope="col">${x}</th>`).join('') + '</tr></thead>';
     const c = (v, y) => v ? full(real(v, y)) : '<span style="opacity:.35">—</span>';
     const b = rows.map(r => {
       const tag = r.tag === 'recession' ? ' <span class="chip rec">R</span>' : r.tag === 'recovery' ? ' <span class="chip recov">↑</span>' : '';
-      const sv = r.survivor ? ' <span class="chip surv">single</span>' : '';
-      return `<tr class="${r.short > 1 ? 'short' : ''}"><td>${r.year}${tag}${sv}</td><td>${ageStr(r)}</td><td>${c(r.spend, r.year)}</td><td>${c(r.ss, r.year)}</td><td>${c(r.wages + r.pension + r.oneCash, r.year)}</td><td>${c(r.rmd, r.year)}</td><td>${c(r.conv, r.year)}</td><td>${c(r.wTax, r.year)}</td><td>${c(r.wRoth, r.year)}</td><td>${c(r.wIra, r.year)}</td><td>${c(r.tax, r.year)}</td><td>${r.irmaa ? c(r.irmaa, r.year) + ` <small>T${r.irmaaTier}</small>` : c(0)}</td><td>${Math.round(r.eqW * 100)}%</td><td>${(r.ret * 100).toFixed(1)}%</td><td><b>${full(real(r.end, r.year))}</b></td><td>${c(r.short, r.year)}</td></tr>`;
+      const sv = (r.survivor ? ' <span class="chip surv">single</span>' : '') + (r.medical > 0 ? ' <span class="chip rec">Med</span>' : '');
+      return `<tr class="${r.short > 1 ? 'short' : ''}"><td>${r.year}${tag}${sv}</td><td>${ageStr(r)}</td><td>${c(r.spend - (r.medical || 0), r.year)}</td><td>${c(r.medical || 0, r.year)}</td><td>${c(r.ss, r.year)}</td><td>${c(r.wages + r.pension + r.oneCash, r.year)}</td><td>${c(r.rmd, r.year)}</td><td>${c(r.conv, r.year)}</td><td>${c(r.wTax, r.year)}</td><td>${c(r.wRoth, r.year)}</td><td>${c(r.wIra, r.year)}</td><td>${c(r.tax, r.year)}</td><td>${r.irmaa ? c(r.irmaa, r.year) + ` <small>T${r.irmaaTier}</small>` : c(0)}</td><td>${Math.round(r.eqW * 100)}%</td><td>${(r.ret * 100).toFixed(1)}%</td><td><b>${full(real(r.end, r.year))}</b></td><td>${c(r.short, r.year)}</td></tr>`;
     }).join('');
     $('#tbl').innerHTML = h + '<tbody>' + b + '</tbody>';
     $('#tblNote').textContent = dollars === 'real' ? `In ${p.startYear} dollars` : 'In each year\'s dollars';
@@ -1639,6 +1713,10 @@ tr.short td:first-child { background: var(--bad-soft); }
     renderList('life'); changed(); toast(`Policy set to ${money(+b.dataset.cov)} for ${b.dataset.term} years`);
   });
 
+  if ($('#medPreset')) $('#medPreset').addEventListener('click', () => {
+    p.medical = p.medical || { extra: 0 }; p.medical.enabled = true; p.medical.events = medPreset(p);
+    bindStatic(); changed(); toast('Two $250K medical events added');
+  });
   if ($('#btnUseAge')) $('#btnUseAge').addEventListener('click', () => {
     if (!fire) return;
     const delta = fire.age - (+p.a.retireAge || plannedAge());
@@ -1701,7 +1779,7 @@ tr.short td:first-child { background: var(--bad-soft); }
     try {
       const o = JSON.parse(txt); const q = o.inputs || o;
       if (!q.a || !q.accounts || !q.spending) throw new Error('missing');
-      const d = BLANK(); p = Object.assign(d, q); ['a', 'b', 'accounts', 'spending', 'returns', 'glide', 'stress', 'roth', 'mc', 'pension', 'health', 'saving'].forEach(k => p[k] = Object.assign(BLANK()[k], q[k] || {}));
+      const d = BLANK(); p = Object.assign(d, q); ['a', 'b', 'accounts', 'spending', 'returns', 'glide', 'stress', 'roth', 'mc', 'pension', 'health', 'saving', 'medical'].forEach(k => p[k] = Object.assign(BLANK()[k], q[k] || {}));
       if (Array.isArray(o.scenarios)) { o.scenarios.forEach(sc => { if (!sc || !sc.name || !sc.p) return; const k = scen.findIndex(x => x.name === sc.name); if (k >= 0) scen[k] = sc; else scen.push(sc); }); store.set(SCKEY, scen); }
       store.set(DKEY, p); bindStatic(); renderResults(true); toast('Plan loaded');
     } catch (e) { toast('Those inputs could not be read. Paste the full text from “Copy inputs”.'); }

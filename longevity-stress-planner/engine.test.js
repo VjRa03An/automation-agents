@@ -103,4 +103,21 @@ const ld = young(); ld.filing = 'MFJ'; ld.b = { ...ld.a, birthYear: 1994, retire
 ld.life = [{ who: 'a', coverage: 500000, term: 20, sex: 'm', health: 'sp', quote: '' }];
 assert.strictEqual(E.project(ld).rows.find(r => r.year === 1993 + 40).lifePayout, 500000);
 
+// ---------- Medical stress test (Glide Down) ----------
+// Out-of-pocket on a $250,000 bill by coverage, 2026 rules
+assert.strictEqual(E.medicalOutOfPocket({ amount: 250000, cover: 'none' }), 250000);
+assert.strictEqual(E.medicalOutOfPocket({ amount: 250000, cover: 'medigap' }), 283);
+assert.strictEqual(E.medicalOutOfPocket({ amount: 250000, cover: 'advantage' }), 9250);
+// Medical costs above 7.5% of AGI are itemized when that beats the standard deduction
+const noMed = E.computeTax({ status: 'MFJ', idx: 1, wages: 0, ordinaryOther: 100000, ss: 0, ltcg: 0, n65: 2, year: 2030, stateRate: 0 });
+const withMed = E.computeTax({ status: 'MFJ', idx: 1, wages: 0, ordinaryOther: 100000, ss: 0, ltcg: 0, n65: 2, year: 2030, stateRate: 0, medical: 50000 });
+assert.strictEqual(Math.round(noMed.fed), 7244);
+assert.strictEqual(Math.round(withMed.fed), 6404);
+// Two uncovered $250K events lower the ending balance; covered ones barely do
+const m0 = plan(), m1 = plan(), m2 = plan();
+const evs = cover => ({ enabled: true, extra: 0, events: [{ who: 'a', age: 78, amount: 250000, cover }, { who: 'b', age: 84, amount: 250000, cover }] });
+m1.medical = evs('none'); m2.medical = evs('medigap');
+const e0 = E.project(m0).endBalance, e1 = E.project(m1).endBalance, e2 = E.project(m2).endBalance;
+assert.ok(e1 < e0 - 500000 && e2 > e0 - 50000);
+
 console.log('All engine checks passed.');

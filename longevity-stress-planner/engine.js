@@ -105,6 +105,7 @@
   // Federal + state income tax for one year.
   function computeTax(o) {
     const { status, idx, wages, ordinaryOther, ss, ltcg, n65, year, stateRate } = o;
+    const medical = o.medical || 0;
     const otherInc = wages + ordinaryOther + ltcg;
     const prov = otherInc + 0.5 * ss;
     const [b1, b2] = T.ssBase[status];
@@ -115,7 +116,9 @@
     }
     const ordinary = wages + ordinaryOther + taxableSS;
     const agi = ordinary + ltcg;
-    let ded = T.stdDed[status] * idx + T.age65Add[status] * idx * n65;
+    // Standard deduction, or itemized medical costs above 7.5% of AGI if that is larger
+    const itemized = Math.max(0, medical - 0.075 * agi);
+    let ded = Math.max(T.stdDed[status] * idx + T.age65Add[status] * idx * n65, itemized);
     if (year >= T.seniorBonusYears[0] && year <= T.seniorBonusYears[1] && n65 > 0) {
       const ph = T.seniorBonusPhase[status];
       ded += Math.max(0, T.seniorBonus * n65 - 0.06 * Math.max(0, agi - ph));
@@ -133,7 +136,7 @@
     const fed = ordTax + gt + niit;
     let marg = 0.10;
     for (const [top, r] of T.brackets[status]) { marg = r; if (taxableOrd < top * idx) break; }
-    return { fed, state: stateTax, total: fed + stateTax, agi, taxableSS, taxableOrd, marg, niit };
+    return { fed, state: stateTax, total: fed + stateTax, agi, taxableSS, taxableOrd, marg, niit, itemized: itemized > T.stdDed[status] * idx + T.age65Add[status] * idx * n65 };
   }
 
   function irmaaTier(magi, status, idx) {
@@ -217,6 +220,19 @@
     return termPrice({ age: num(pol.start || startYear) - num(P.birthYear), sex: pol.sex, health: pol.health, coverage: pol.coverage, term: pol.term });
   }
 
+  // ---------- Medical events: out-of-pocket by coverage (2026 CMS / KFF figures, today's $) ----------
+  const MED_2026 = { partADed: 1736, partBDed: 283, maMoop: 9250, partBShare: 0.35 };
+  function medicalOutOfPocket(ev) {
+    const bill = num(ev.amount), M = MED_2026;
+    switch (ev.cover) {
+      case 'medigap':   return Math.min(bill, M.partBDed);                         // Plan G: only the Part B deductible
+      case 'advantage': return Math.min(bill, M.maMoop);                            // capped at the in-network maximum
+      case 'original':  return Math.min(bill, M.partADed + M.partBDed + 0.2 * Math.max(0, M.partBShare * bill - M.partBDed)); // no cap on Part B's 20%
+      case 'custom':    return bill * (has(ev.pay) ? num(ev.pay) : 1);
+      default:          return bill;                                                // not covered: you pay it all
+    }
+  }
+
   // ---------- Return path ----------
   function eventYears(p, retA) {
     return (p.stress.enabled ? p.stress.events : []).map(e => ({
@@ -265,6 +281,7 @@
     const sips = (p.sips || []).map(s => ({ ...s, bal: 0, basis: 0, paid: 0, merged: false }));
     let sipAtRetire = 0;
     const magiHist = {}; magiHist[y0 - 2] = p.priorMagi; magiHist[y0 - 1] = p.priorMagi;
+    let totalMedical = 0;
     let shortfallYear = null, totalTax = 0, totalIrmaa = 0, totalShort = 0, totalPen = 0, totalHealth = 0;
     const deathA = has(A.deathAge) ? A.birthYear + +A.deathAge : Infinity;
     const deathB = couple && has(B.deathAge) ? B.birthYear + +B.deathAge : Infinity;
@@ -367,6 +384,16 @@
       }
       spend += oneExpense;
 
+      // ----- Medical stress test: hospital stays / home nursing at chosen ages -----
+      let medical = 0;
+      const MED = p.medical || {};
+      if (MED.enabled) for (const ev of (MED.events || [])) {
+        const isB = ev.who === 'b' && couple, P = isB ? B : A;
+        if (y !== num(P.birthYear) + num(ev.age) || !(isB ? aliveB : aliveA)) continue;
+        medical += medicalOutOfPocket(ev) * infl * Math.pow(1 + num(MED.extra), t);
+      }
+      spend += medical;
+
       // ----- Term life: level premiums while insured and alive; tax-free payout if the insured dies in the term -----
       let lifePrem = 0, lifePayout = 0;
       for (const pol of (p.life || [])) {
@@ -459,7 +486,7 @@
           short = Math.max(0, gap);
           const gf = tax > 0 ? Math.max(0, 1 - basis / tax) : 0;
           gain = wTax * gf;
-          taxRes = computeTax({ status, idx, wages: wagesTaxable, ordinaryOther: pension + rmd + wIra + wRothE + conv + oneOrd, ss, ltcg: gain + oneGain, n65, year: y, stateRate: p.stateRate });
+          taxRes = computeTax({ status, idx, wages: wagesTaxable, ordinaryOther: pension + rmd + wIra + wRothE + conv + oneOrd, ss, ltcg: gain + oneGain, n65, year: y, stateRate: p.stateRate, medical });
           pen = early ? 0.10 * (wIra + wRothE) : 0;
           const newHealth = healthCost(taxRes.agi);
           const tg = taxRes.total + pen;
@@ -507,12 +534,13 @@
       magiHist[y] = taxRes.agi; magiHist['s' + y] = status;
       if (short > 1 && shortfallYear == null) shortfallYear = y;
       const allTax = taxRes.total + fica + pen;
+      totalMedical += medical / infl;
       totalTax += allTax; totalIrmaa += irmaa; totalShort += short; totalPen += pen; totalHealth += health;
 
       rows.push({
         year: y, ageA: aliveA ? ageA : null, ageB: couple && aliveB ? ageB : null, status, survivor,
         begin, spend, wages, ss, pension, oneCash, rmd, conv, wTax, wIra, wRoth: wRoth + wRothE,
-        lifePrem, lifePayout,
+        lifePrem, lifePayout, medical, itemized: taxRes.itemized,
         contrib: pre + r401 + match + rira + sipOut, saved: pre + r401 + match + rira + sipOut + invested, sipOut, sipBal,
         fica, pen, health, healthFull, incomeTax: taxRes.total,
         fedTax: taxRes.fed, stateTax: taxRes.state, tax: allTax, marg: taxRes.marg, agi: taxRes.agi,
@@ -523,7 +551,7 @@
     const last = rows[rows.length - 1];
     const minRow = rows.reduce((m, r) => r.end < m.end ? r : m, rows[0]);
     return {
-      rows, shortfallYear, totalTax, totalIrmaa, totalShort, totalPen, totalHealth,
+      rows, shortfallYear, totalMedical, totalTax, totalIrmaa, totalShort, totalPen, totalHealth,
       endBalance: last.end, endReal: last.end / Math.pow(1 + p.inflation, last.year - y0),
       minRow, success: shortfallYear == null, endYear: last.year,
       retireYear: retA, ssFRA: { a: FA, b: FB },
@@ -572,7 +600,7 @@
     return { successRate: ok / n, p10: pct(0.10), p25: pct(0.25), p50: pct(0.5), p75: pct(0.75), p90: pct(0.9), n };
   }
 
-  const api = { T, FUNDS, LIFE, termPrice, policyMonthly, sipReturn, project, monteCarlo, computeTax, ownFactor, rmdStartAge, rmdFactor, irmaaTier, equityWeight,
+  const api = { T, FUNDS, LIFE, MED_2026, medicalOutOfPocket, termPrice, policyMonthly, sipReturn, project, monteCarlo, computeTax, ownFactor, rmdStartAge, rmdFactor, irmaaTier, equityWeight,
     earliestRetirement, withRetireYear, effectiveSS, ssEstimate, acaApplicable, acaAgeFactor, retYearOf };
   if (typeof module !== 'undefined') module.exports = api; else root.RetireEngine = api;
 })(this);

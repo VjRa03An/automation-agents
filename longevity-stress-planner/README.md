@@ -37,6 +37,8 @@ Not modeled: 72(t) payments, HSA accounts, Roth IRA income limits, kids on the A
 
 ## Glide Down: will my money last?
 
+**Medical stress test (new).** Add hospital stays with home nursing at chosen ages; a preset adds two $250,000 events. Each event has a coverage choice, and the planner estimates what you'd actually pay under 2026 Medicare rules: about $283 with Original Medicare + Medigap Plan G, up to $9,250 with Medicare Advantage (the in-network maximum), roughly $19,000 on a $250,000 bill with Original Medicare alone (20% of Part B services has no cap), or the full bill if it isn't covered (Medicare doesn't pay for long-term custodial care). Large bills are itemized (costs above 7.5% of income) when that beats the standard deduction, and the extra withdrawals can raise Medicare premiums two years later. Results show the bills on the chart and table and how much they lower the ending balance.
+
 A single-page retirement planner that projects a household's savings year by year and then stress-tests the plan: market recessions with rebounds, a spouse's death, Roth conversions, Medicare surcharges and taxes. It answers one question: **does the money last, and how close is it?**
 
 It grew out of a real household's retirement spreadsheet (a concentrated stock sale timed around Medicare thresholds, a glide path, and four recessions spread across a 30-year horizon) and turns that method into a tool anyone can fill in with their own numbers.
