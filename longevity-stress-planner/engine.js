@@ -186,6 +186,37 @@
     return e * r.eq + (1 - e) * r.bd + F.ex - fee;
   }
 
+  // ---------- Term life insurance price estimate ----------
+  // MoneyGeek 2026 averages: 20-year term, non-smoker, average health (Standard Plus), monthly $
+  // for $250K / $500K / $1M at ages 25–65. Other terms, health classes and smokers are scaled.
+  const LIFE = {
+    ages: [25, 30, 35, 40, 45, 50, 55, 60, 65],
+    m: [[23, 32, 67], [26, 38, 74], [28, 47, 85], [35, 59, 109], [44, 90, 170], [77, 137, 262], [100, 231, 440], [215, 395, 771], [245, 591, 1195]],
+    f: [[22, 30, 54], [23, 32, 60], [24, 37, 68], [28, 47, 86], [35, 69, 130], [59, 102, 194], [75, 168, 317], [157, 286, 545], [178, 415, 806]],
+    term: { 10: 0.70, 15: 0.82, 20: 1.0, 25: 1.30, 30: 1.75 },
+    health: { pp: 0.59, p: 0.73, sp: 1.0, s: 1.12, smoker: 3.3 },
+  };
+  function termPrice({ age, sex, health, coverage, term }) {
+    const tbl = LIFE[sex === 'f' ? 'f' : 'm'], A = LIFE.ages;
+    const a = Math.min(65, Math.max(25, num(age)));
+    let i = 0; while (i < A.length - 2 && a > A[i + 1]) i++;
+    const fr = (a - A[i]) / (A[i + 1] - A[i]);
+    const row = tbl[i].map((v, k) => v + (tbl[i + 1][k] - v) * fr);
+    const c = Math.max(0, num(coverage)), pts = [250000, 500000, 1000000];
+    let m;
+    if (c <= pts[0]) m = row[0] * Math.max(0.5, c / pts[0]);
+    else if (c <= pts[1]) m = row[0] + (row[1] - row[0]) * (c - pts[0]) / (pts[1] - pts[0]);
+    else if (c <= pts[2]) m = row[1] + (row[2] - row[1]) * (c - pts[1]) / (pts[2] - pts[1]);
+    else m = row[2] * c / pts[2] * 0.95;
+    const tk = Object.keys(LIFE.term).map(Number).reduce((b, k) => Math.abs(k - num(term)) < Math.abs(b - num(term)) ? k : b, 20);
+    return m * LIFE.term[tk] * (LIFE.health[health] || 1);
+  }
+  // Monthly premium for a policy: your own quote if entered, otherwise the estimate at the start age.
+  function policyMonthly(pol, P, startYear) {
+    if (has(pol.quote) && num(pol.quote) > 0) return num(pol.quote);
+    return termPrice({ age: num(pol.start || startYear) - num(P.birthYear), sex: pol.sex, health: pol.health, coverage: pol.coverage, term: pol.term });
+  }
+
   // ---------- Return path ----------
   function eventYears(p, retA) {
     return (p.stress.enabled ? p.stress.events : []).map(e => ({
@@ -336,6 +367,17 @@
       }
       spend += oneExpense;
 
+      // ----- Term life: level premiums while insured and alive; tax-free payout if the insured dies in the term -----
+      let lifePrem = 0, lifePayout = 0;
+      for (const pol of (p.life || [])) {
+        const P = pol.who === 'b' && couple ? B : A, dYear = pol.who === 'b' && couple ? deathB : deathA;
+        const from = num(pol.start || y0), to = from + num(pol.term);
+        if (y < from || y >= to) continue;
+        if (y < dYear) lifePrem += policyMonthly(pol, P, y0) * 12;
+        else if (y === dYear) lifePayout += num(pol.coverage);
+      }
+      spend += lifePrem; oneCash += lifePayout;
+
       // ----- Health insurance before Medicare (only once nobody in the household works) -----
       let healthFull = 0, hh = 0;
       if (H.enabled && !anyWorking) {
@@ -470,6 +512,7 @@
       rows.push({
         year: y, ageA: aliveA ? ageA : null, ageB: couple && aliveB ? ageB : null, status, survivor,
         begin, spend, wages, ss, pension, oneCash, rmd, conv, wTax, wIra, wRoth: wRoth + wRothE,
+        lifePrem, lifePayout,
         contrib: pre + r401 + match + rira + sipOut, saved: pre + r401 + match + rira + sipOut + invested, sipOut, sipBal,
         fica, pen, health, healthFull, incomeTax: taxRes.total,
         fedTax: taxRes.fed, stateTax: taxRes.state, tax: allTax, marg: taxRes.marg, agi: taxRes.agi,
@@ -529,7 +572,7 @@
     return { successRate: ok / n, p10: pct(0.10), p25: pct(0.25), p50: pct(0.5), p75: pct(0.75), p90: pct(0.9), n };
   }
 
-  const api = { T, FUNDS, sipReturn, project, monteCarlo, computeTax, ownFactor, rmdStartAge, rmdFactor, irmaaTier, equityWeight,
+  const api = { T, FUNDS, LIFE, termPrice, policyMonthly, sipReturn, project, monteCarlo, computeTax, ownFactor, rmdStartAge, rmdFactor, irmaaTier, equityWeight,
     earliestRetirement, withRetireYear, effectiveSS, ssEstimate, acaApplicable, acaAgeFactor, retYearOf };
   if (typeof module !== 'undefined') module.exports = api; else root.RetireEngine = api;
 })(this);

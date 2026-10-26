@@ -88,4 +88,19 @@ const lo = q => { const e = E.earliestRetirement(q); return e ? e.age : 99; };
 const inv = young(), spent = young(); spent.saving = { investLeftover: false };
 assert.ok(lo(spent) >= lo(inv));
 
+// ---------- Term life insurance ----------
+// Estimates reproduce MoneyGeek's 2026 table points
+assert.strictEqual(Math.round(E.termPrice({ age: 40, sex: 'm', health: 'sp', coverage: 500000, term: 20 })), 59);
+assert.strictEqual(Math.round(E.termPrice({ age: 40, sex: 'm', health: 'sp', coverage: 500000, term: 10 })), 41);
+assert.strictEqual(Math.round(E.termPrice({ age: 30, sex: 'f', health: 'sp', coverage: 1000000, term: 20 })), 60);
+// Premiums run only for the term; a quote replaces the estimate
+const lp = young(); lp.life = [{ who: 'a', coverage: 500000, term: 20, sex: 'm', health: 'sp', quote: 40 }];
+const lr = E.project(lp).rows;
+assert.strictEqual(Math.round(lr.find(r => r.year === 2045).lifePrem), 480);
+assert.strictEqual(lr.find(r => r.year === 2046).lifePrem, 0);
+// Death during the term pays the coverage tax-free that year
+const ld = young(); ld.filing = 'MFJ'; ld.b = { ...ld.a, birthYear: 1994, retireAge: 55 }; ld.a.deathAge = 40;
+ld.life = [{ who: 'a', coverage: 500000, term: 20, sex: 'm', health: 'sp', quote: '' }];
+assert.strictEqual(E.project(ld).rows.find(r => r.year === 1993 + 40).lifePayout, 500000);
+
 console.log('All engine checks passed.');

@@ -113,6 +113,18 @@ details.sec[open] > summary::after { content: "–"; }
 .useage { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-top: 12px; }
 .ro { padding: 6px 8px; border: 1px dashed var(--line); border-radius: 5px; color: var(--ink-2); font-size: 13px; }
 
+/* Life insurance */
+.life-sum { display: flex; flex-direction: column; gap: 10px; }
+.life-pol { padding: 10px 12px; background: var(--sunk); border-radius: 8px; }
+.life-pol b { font-family: var(--f-display); font-size: 15px; }
+.life-pol .big { font-family: var(--f-mono); font-size: 18px; color: var(--ink); }
+.lgrid th, .lgrid td { text-align: center; }
+.lgrid td:first-child, .lgrid th:first-child { text-align: left; }
+.lgrid button { font: inherit; font-family: var(--f-mono); width: 100%; padding: 5px 4px; border: 1px solid transparent; border-radius: 5px; background: transparent; cursor: pointer; color: var(--ink); }
+.lgrid button:hover { border-color: var(--accent); }
+.lgrid button[aria-pressed="true"] { background: var(--accent); color: var(--accent-ink); }
+.lgrid small { display: block; color: var(--ink-3); font-family: var(--f-body); font-size: 11px; }
+
 /* Results */
 .results { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
 .card { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 16px; min-width: 0; }
@@ -332,6 +344,15 @@ tr.short td:first-child { background: var(--bad-soft); }
         </div>
       </details>
 
+      <details class="sec" open>
+        <summary><h2><span class="dot" aria-hidden="true"></span>Life insurance (term)</h2><span class="hint" id="hintLife"></span></summary>
+        <div class="body">
+          <p class="note">Protects the family if a paycheck stops. Pick the coverage and how many years; the planner estimates the monthly price and adds it to your spending. If you have a real quote, enter it to replace the estimate.</p>
+          <div class="list mine" id="list-life"></div>
+          <button type="button" class="btn small" data-add="life">Add a policy</button>
+        </div>
+      </details>
+
       <details class="sec">
         <summary><h2>Health insurance before 65</h2><span class="hint" id="hintHealth"></span></summary>
         <div class="body">
@@ -450,6 +471,15 @@ tr.short td:first-child { background: var(--bad-soft); }
         <div class="chart" id="chart3"></div>
       </section>
 
+      <section class="card" id="lifeCard">
+        <div class="card-h"><h3>Life insurance: if a paycheck stops</h3><span class="note">Estimated 2026 prices</span></div>
+        <div id="lifeSummary" class="life-sum"></div>
+        <div class="sub" style="margin-top:12px">More coverage or more years: price per month</div>
+        <p class="note" id="lifeGridNote" style="margin:2px 0 8px"></p>
+        <div class="tablewrap" style="max-height:none"><table class="lgrid" id="lifeGrid"></table></div>
+        <p class="note" style="margin-top:8px">Estimates from average 2026 rates across 21 insurers (MoneyGeek), for a fully underwritten level-premium term policy. Your price depends on your health exam, history and insurer, so get real quotes before buying. This is not insurance advice.</p>
+      </section>
+
 
       <section class="card">
         <div class="card-h">
@@ -496,6 +526,7 @@ tr.short td:first-child { background: var(--bad-soft); }
           <li>Medicare surcharges (IRMAA) use 2026 CMS tiers and your income from two years earlier, per person on Medicare. Only the surcharge above the standard premium is added; put base premiums in spending.</li>
           <li>RMDs start at 73 (born 1951–59) or 75 (born 1960+) using the IRS Uniform Lifetime Table. Social Security adjusts for claiming age and includes the 50% spousal top-up.</li>
           <li>Withdrawals happen at the start of each year; growth applies to what remains. Every account follows the same stock/bond mix.</li>
+          <li>Term life: premiums are level for the term and added to spending while the insured person is alive. In the survivor test, if the insured dies during the term, the payout arrives tax-free that year and is invested. Prices are estimates from MoneyGeek's 2026 averages (20-year term, non-smoker, average health) scaled by term length, health class and smoking.</li>
           <li>Monthly investing (SIP): each fund type follows the year's stock and bond returns in its own mix (target-date funds follow your stock/bond glide path), minus its fee, so recessions and random markets hit SIPs too. International funds assume 0.5% a year less than US stocks. Brokerage SIPs are taxed on gains when sold after you retire.</li>
           <li>While you work: salary rises with inflation plus your raise; 401(k) and IRA limits, employer match and payroll tax (6.2% Social Security up to $184,500, 1.45% Medicare, 0.9% above $200,000 single / $250,000 joint) are applied. Leftover pay goes to the brokerage account.</li>
           <li>Before 59½, withdrawals come from the brokerage account, then Roth contributions and Roth conversions at least five years old, then the 401(k)/IRA with a 10% penalty, then Roth growth (taxed plus 10%). The 72(t) payment option isn't modeled.</li>
@@ -700,6 +731,37 @@ tr.short td:first-child { background: var(--bad-soft); }
     return e * r.eq + (1 - e) * r.bd + F.ex - fee;
   }
 
+  // ---------- Term life insurance price estimate ----------
+  // MoneyGeek 2026 averages: 20-year term, non-smoker, average health (Standard Plus), monthly $
+  // for $250K / $500K / $1M at ages 25–65. Other terms, health classes and smokers are scaled.
+  const LIFE = {
+    ages: [25, 30, 35, 40, 45, 50, 55, 60, 65],
+    m: [[23, 32, 67], [26, 38, 74], [28, 47, 85], [35, 59, 109], [44, 90, 170], [77, 137, 262], [100, 231, 440], [215, 395, 771], [245, 591, 1195]],
+    f: [[22, 30, 54], [23, 32, 60], [24, 37, 68], [28, 47, 86], [35, 69, 130], [59, 102, 194], [75, 168, 317], [157, 286, 545], [178, 415, 806]],
+    term: { 10: 0.70, 15: 0.82, 20: 1.0, 25: 1.30, 30: 1.75 },
+    health: { pp: 0.59, p: 0.73, sp: 1.0, s: 1.12, smoker: 3.3 },
+  };
+  function termPrice({ age, sex, health, coverage, term }) {
+    const tbl = LIFE[sex === 'f' ? 'f' : 'm'], A = LIFE.ages;
+    const a = Math.min(65, Math.max(25, num(age)));
+    let i = 0; while (i < A.length - 2 && a > A[i + 1]) i++;
+    const fr = (a - A[i]) / (A[i + 1] - A[i]);
+    const row = tbl[i].map((v, k) => v + (tbl[i + 1][k] - v) * fr);
+    const c = Math.max(0, num(coverage)), pts = [250000, 500000, 1000000];
+    let m;
+    if (c <= pts[0]) m = row[0] * Math.max(0.5, c / pts[0]);
+    else if (c <= pts[1]) m = row[0] + (row[1] - row[0]) * (c - pts[0]) / (pts[1] - pts[0]);
+    else if (c <= pts[2]) m = row[1] + (row[2] - row[1]) * (c - pts[1]) / (pts[2] - pts[1]);
+    else m = row[2] * c / pts[2] * 0.95;
+    const tk = Object.keys(LIFE.term).map(Number).reduce((b, k) => Math.abs(k - num(term)) < Math.abs(b - num(term)) ? k : b, 20);
+    return m * LIFE.term[tk] * (LIFE.health[health] || 1);
+  }
+  // Monthly premium for a policy: your own quote if entered, otherwise the estimate at the start age.
+  function policyMonthly(pol, P, startYear) {
+    if (has(pol.quote) && num(pol.quote) > 0) return num(pol.quote);
+    return termPrice({ age: num(pol.start || startYear) - num(P.birthYear), sex: pol.sex, health: pol.health, coverage: pol.coverage, term: pol.term });
+  }
+
   // ---------- Return path ----------
   function eventYears(p, retA) {
     return (p.stress.enabled ? p.stress.events : []).map(e => ({
@@ -850,6 +912,17 @@ tr.short td:first-child { background: var(--bad-soft); }
       }
       spend += oneExpense;
 
+      // ----- Term life: level premiums while insured and alive; tax-free payout if the insured dies in the term -----
+      let lifePrem = 0, lifePayout = 0;
+      for (const pol of (p.life || [])) {
+        const P = pol.who === 'b' && couple ? B : A, dYear = pol.who === 'b' && couple ? deathB : deathA;
+        const from = num(pol.start || y0), to = from + num(pol.term);
+        if (y < from || y >= to) continue;
+        if (y < dYear) lifePrem += policyMonthly(pol, P, y0) * 12;
+        else if (y === dYear) lifePayout += num(pol.coverage);
+      }
+      spend += lifePrem; oneCash += lifePayout;
+
       // ----- Health insurance before Medicare (only once nobody in the household works) -----
       let healthFull = 0, hh = 0;
       if (H.enabled && !anyWorking) {
@@ -984,6 +1057,7 @@ tr.short td:first-child { background: var(--bad-soft); }
       rows.push({
         year: y, ageA: aliveA ? ageA : null, ageB: couple && aliveB ? ageB : null, status, survivor,
         begin, spend, wages, ss, pension, oneCash, rmd, conv, wTax, wIra, wRoth: wRoth + wRothE,
+        lifePrem, lifePayout,
         contrib: pre + r401 + match + rira + sipOut, saved: pre + r401 + match + rira + sipOut + invested, sipOut, sipBal,
         fica, pen, health, healthFull, incomeTax: taxRes.total,
         fedTax: taxRes.fed, stateTax: taxRes.state, tax: allTax, marg: taxRes.marg, agi: taxRes.agi,
@@ -1043,7 +1117,7 @@ tr.short td:first-child { background: var(--bad-soft); }
     return { successRate: ok / n, p10: pct(0.10), p25: pct(0.25), p50: pct(0.5), p75: pct(0.75), p90: pct(0.9), n };
   }
 
-  const api = { T, FUNDS, sipReturn, project, monteCarlo, computeTax, ownFactor, rmdStartAge, rmdFactor, irmaaTier, equityWeight,
+  const api = { T, FUNDS, LIFE, termPrice, policyMonthly, sipReturn, project, monteCarlo, computeTax, ownFactor, rmdStartAge, rmdFactor, irmaaTier, equityWeight,
     earliestRetirement, withRetireYear, effectiveSS, ssEstimate, acaApplicable, acaAgeFactor, retYearOf };
   if (typeof module !== 'undefined') module.exports = api; else root.RetireEngine = api;
 })(this);
@@ -1077,6 +1151,7 @@ tr.short td:first-child { background: var(--bad-soft); }
     spending: { base: 55000, retireBase: 60000, lateTrimAge: 0, lateTrimPct: 0, survivorPct: 0.75, phases: [], adjustments: [] },
     oneTime: [],
     saving: { investLeftover: false },
+    life: [{ who: 'a', coverage: 500000, term: 20, sex: 'm', health: 'sp', quote: '' }],
     sips: [{ fund: 'sp500', monthly: 500, from: 2026, years: 0, stepUp: 0.03, account: 'taxable', fee: 0.0003, eqShare: 1 }],
     returns: { equity: 0.07, bond: 0.035 },
     glide: { enabled: true, startEq: 0.90, startAge: 40, endEq: 0.50, endAge: 70 },
@@ -1112,7 +1187,7 @@ tr.short td:first-child { background: var(--bad-soft); }
       Object.assign(p.a, z, { name: 'You' }); Object.assign(p.b, z, { name: 'Spouse' });
       p.accounts = { ira: 0, roth: 0, rothBasis: 0, taxable: 0, taxableBasisPct: 1 }; p.filing = 'Single';
       p.spending.base = 0; p.spending.retireBase = 0; p.spending.adjustments = []; p.oneTime = []; p.sips = [];
-      p.saving = { investLeftover: false };
+      p.saving = { investLeftover: false }; p.life = [];
       return p;
     }
     Object.assign(p.a, { name: 'You', salary: 0, ssFRA: 0 }); Object.assign(p.b, { name: 'Spouse', salary: 0, ssFRA: 0 });
@@ -1157,7 +1232,7 @@ tr.short td:first-child { background: var(--bad-soft); }
     setNames();
     if ($('#paySpouse')) $('#paySpouse').hidden = single;
     $('#exampleFlag').hidden = !p._example;
-    ['phases', 'adjustments', 'oneTime', 'events'].concat($('#list-sips') ? ['sips'] : []).forEach(renderList);
+    ['phases', 'adjustments', 'oneTime', 'events'].concat($('#list-sips') ? ['sips', 'life'] : []).forEach(renderList);
   }
 
   function setNames() {
@@ -1179,7 +1254,7 @@ tr.short td:first-child { background: var(--bad-soft); }
     const el = e.target;
     if (el.dataset.path) {
       setP(el.dataset.path, readField(el));
-      if (el.dataset.path.endsWith('.name')) setNames();
+      if (el.dataset.path.endsWith('.name')) { setNames(); if ($('#list-life') && !el.closest('#list-life')) renderList('life'); }
       changed();
     }
   });
@@ -1201,6 +1276,12 @@ tr.short td:first-child { background: var(--bad-soft); }
     sips: { arr: () => (p.sips = p.sips || []), cls: 'sip', blank: () => ({ fund: 'sp500', monthly: 500, from: p.startYear, years: 0, stepUp: 0, account: 'taxable', fee: 0.0003, eqShare: 1 }),
       fields: [['fund', 'Fund type', 'sel', 'wide', FUND_OPTS], ['monthly', '$ per month (today)', 'num'], ['from', 'Start year', 'num'], ['years', 'For years (0 = until you retire)', 'num'],
         ['stepUp', 'Raise it each year %', 'pct'], ['account', 'Held in', 'sel', 'wide', [['taxable', 'Brokerage account'], ['roth', 'Roth IRA']]], ['fee', 'Fund fee %', 'pct'], ['eqShare', 'Stocks % (other / custom)', 'pct', '', null, it => it.fund === 'custom']] },
+    life: { arr: () => (p.life = p.life || []), cls: 'life', blank: () => ({ who: 'a', coverage: 500000, term: 20, sex: 'm', health: 'sp', quote: '' }),
+      fields: [['who', 'Insured person', 'sel', 'wide', () => [['a', p.a.name || 'Person A']].concat(p.filing === 'MFJ' ? [['b', p.b.name || 'Person B']] : [])],
+        ['coverage', 'Coverage $', 'num'], ['term', 'For years', 'sel', '', [['10', '10'], ['15', '15'], ['20', '20'], ['25', '25'], ['30', '30']]],
+        ['sex', 'Sex (for rates)', 'sel', '', [['m', 'Male'], ['f', 'Female']]],
+        ['health', 'Health', 'sel', 'wide', [['pp', 'Excellent (Preferred Plus)'], ['p', 'Very good (Preferred)'], ['sp', 'Average (Standard Plus)'], ['s', 'Fair (Standard)'], ['smoker', 'Smoker']]],
+        ['quote', 'Your quote $/mo (optional)', 'numopt', 'wide']] },
     events: { arr: () => p.stress.events, cls: 'ev', blank: () => ({ year: p.startYear + 10, equity: -0.25, bond: '', label: 'Recession' }),
       fields: [['year', 'Year', 'num'], ['equity', 'Stocks %', 'pct'], ['bond', 'Bonds %', 'pctopt'], ['label', 'Label', 'text', 'wide']] },
   };
@@ -1218,10 +1299,11 @@ tr.short td:first-child { background: var(--bad-soft); }
           f.innerHTML = `<label class="check"><input type="checkbox" id="${id}"> ${label}</label>`;
           const c = f.querySelector('input'); c.checked = !!item[k]; c.addEventListener('change', () => { item[k] = c.checked; changed(); });
         } else if (type === 'sel') {
-          f.innerHTML = `<label class="lbl" for="${id}">${label}</label><select id="${id}">${opts.map(([v, t]) => `<option value="${v}">${t}</option>`).join('')}</select>`;
-          const s = f.querySelector('select'); s.value = item[k];
+          const o = typeof opts === 'function' ? opts() : opts;
+          f.innerHTML = `<label class="lbl" for="${id}">${label}</label><select id="${id}">${o.map(([v, t]) => `<option value="${v}">${escapeHtml(t)}</option>`).join('')}</select>`;
+          const s = f.querySelector('select'); s.value = String(item[k]);
           s.addEventListener('change', () => {
-            item[k] = s.value;
+            item[k] = k === 'term' ? +s.value : s.value;
             if (name === 'sips' && k === 'fund') { item.fee = E.FUNDS[s.value].fee; renderList(name); }
             changed();
           });
@@ -1232,13 +1314,14 @@ tr.short td:first-child { background: var(--bad-soft); }
           f.innerHTML = `<span class="lbl">${label}</span><div class="ro">At retirement</div>`;
         } else {
           const isPct = type === 'pct' || type === 'pctopt';
-          f.innerHTML = `<label class="lbl" for="${id}">${label}</label><input id="${id}" type="${type === 'text' ? 'text' : 'number'}" ${isPct ? (k === 'fee' ? 'step="0.01"' : 'step="1"') : ''} ${type === 'pctopt' ? 'placeholder="normal"' : ''}>`;
+          const isOpt = type === 'pctopt' || type === 'numopt';
+          f.innerHTML = `<label class="lbl" for="${id}">${label}</label><input id="${id}" type="${type === 'text' ? 'text' : 'number'}" ${isPct ? (k === 'fee' ? 'step="0.01"' : 'step="1"') : ''} ${type === 'pctopt' ? 'placeholder="normal"' : type === 'numopt' ? 'placeholder="use estimate"' : ''}>`;
           const inp = f.querySelector('input');
           inp.value = isPct ? pctIn(item[k]) : item[k];
           inp.addEventListener('input', () => {
             const raw = inp.value;
             if (type === 'text') item[k] = raw;
-            else if (type === 'pctopt' && raw === '') item[k] = '';
+            else if (isOpt && raw === '') item[k] = '';
             else { const n = parseFloat(raw); item[k] = isFinite(n) ? (isPct ? n / 100 : n) : 0; }
             changed();
           });
@@ -1276,7 +1359,7 @@ tr.short td:first-child { background: var(--bad-soft); }
     }
     if (!res) return;
     renderVerdict(); renderChart1(); renderTable(); renderMC(); renderCompare(); renderHints();
-    if (YOUNG) renderLadder();
+    if (YOUNG) { renderLadder(); renderLife(); }
   }
 
   // ---------- formatting ----------
@@ -1379,6 +1462,7 @@ tr.short td:first-child { background: var(--bad-soft); }
     if (YOUNG) {
       const r0 = res.rows[0];
       $('#hintPay').textContent = (r0 && r0.contrib ? money(r0.contrib) + '/yr' : 'none') + ((p.sips || []).length ? ` · ${p.sips.length} SIP${p.sips.length > 1 ? 's' : ''}` : '');
+      $('#hintLife').textContent = (p.life || []).length ? (p.life.length === 1 ? money(+p.life[0].coverage) + ' · ' + p.life[0].term + ' yrs' : p.life.length + ' policies') : 'none';
       $('#hintHealth').textContent = p.health && p.health.enabled ? (p.health.subsidy ? 'with credits' : 'full price') : 'off';
       $('#hintSpend').textContent = money(p.spending.base) + ' → ' + money(p.spending.retireBase || p.spending.base);
       $('#hintHouse').textContent = (p.filing === 'MFJ' ? `${p.a.name || 'A'} & ${p.b.name || 'B'}` : (p.a.name || 'Single')) + `, age ${curAge()}`;
@@ -1524,13 +1608,13 @@ tr.short td:first-child { background: var(--bad-soft); }
   let pendingDelete = null;
   function renderTableYoung() {
     const rows = res.rows;
-    const head = ['Year', 'Age', 'Pay', 'Saved', 'Into SIPs', 'Spending', 'Health ins.', 'Social Sec.', 'Roth conv.', 'From taxable', 'From Roth', 'From 401(k)/IRA', 'Taxes', 'Penalty', 'Stocks', 'Return', 'End balance', 'Short'];
+    const head = ['Year', 'Age', 'Pay', 'Saved', 'Into SIPs', 'Spending', 'Life ins.', 'Health ins.', 'Social Sec.', 'Roth conv.', 'From taxable', 'From Roth', 'From 401(k)/IRA', 'Taxes', 'Penalty', 'Stocks', 'Return', 'End balance', 'Short'];
     const h = '<thead><tr>' + head.map(x => `<th scope="col">${x}</th>`).join('') + '</tr></thead>';
     const c = (v, y) => v > 0.5 ? full(real(v, y)) : '<span style="opacity:.35">—</span>';
     const b = rows.map(r => {
       const tag = r.tag === 'recession' ? ' <span class="chip rec">R</span>' : r.tag === 'recovery' ? ' <span class="chip recov">↑</span>' : '';
       const rt = r.year === res.retireYear ? ' <span class="chip recov">retire</span>' : '';
-      return `<tr class="${r.short > 1 ? 'short' : ''}"><td>${r.year}${tag}${rt}</td><td>${ageStr(r)}</td><td>${c(r.wages + r.oneCash, r.year)}</td><td>${c(r.saved, r.year)}</td><td>${c(r.sipOut, r.year)}</td><td>${c(r.spend, r.year)}</td><td>${c(r.health, r.year)}</td><td>${c(r.ss, r.year)}</td><td>${c(r.conv, r.year)}</td><td>${c(r.wTax, r.year)}</td><td>${c(r.wRoth, r.year)}</td><td>${c(r.wIra + r.rmd, r.year)}</td><td>${c(r.tax - r.pen, r.year)}</td><td>${c(r.pen, r.year)}</td><td>${Math.round(r.eqW * 100)}%</td><td>${(r.ret * 100).toFixed(1)}%</td><td><b>${full(real(r.end, r.year))}</b></td><td>${c(r.short, r.year)}</td></tr>`;
+      return `<tr class="${r.short > 1 ? 'short' : ''}"><td>${r.year}${tag}${rt}</td><td>${ageStr(r)}</td><td>${c(r.wages + r.oneCash, r.year)}</td><td>${c(r.saved, r.year)}</td><td>${c(r.sipOut, r.year)}</td><td>${c(r.spend - r.lifePrem, r.year)}</td><td>${c(r.lifePrem, r.year)}</td><td>${c(r.health, r.year)}</td><td>${c(r.ss, r.year)}</td><td>${c(r.conv, r.year)}</td><td>${c(r.wTax, r.year)}</td><td>${c(r.wRoth, r.year)}</td><td>${c(r.wIra + r.rmd, r.year)}</td><td>${c(r.tax - r.pen, r.year)}</td><td>${c(r.pen, r.year)}</td><td>${Math.round(r.eqW * 100)}%</td><td>${(r.ret * 100).toFixed(1)}%</td><td><b>${full(real(r.end, r.year))}</b></td><td>${c(r.short, r.year)}</td></tr>`;
     }).join('');
     $('#tbl').innerHTML = h + '<tbody>' + b + '</tbody>';
     $('#tblNote').textContent = (dollars === 'real' ? `In ${p.startYear} dollars` : 'In each year\'s dollars') + '. Taxes include payroll tax.';
@@ -1585,6 +1669,55 @@ tr.short td:first-child { background: var(--bad-soft); }
       return `<b>Retire at ${age}</b> · ${p.a.birthYear + age}<div class="r"><em>Money lasts to ${p.endAge}</em>${d ? Math.round(d.rate * 100) + '%' : '…'}</div>`;
     }, sx => Math.floor((sx - f.m.l) / (f.iw / n)));
   }
+  // ---------- life insurance card (Climb Up) ----------
+  const LIFE_COV = [250000, 500000, 750000, 1000000, 1500000, 2000000], LIFE_TERMS = [10, 15, 20, 25, 30];
+  function renderLife() {
+    const box = $('#lifeSummary'); if (!box) return;
+    const r0 = res.rows[0];
+    const yearSpend = Math.max(1, (r0.spend || 0) - (r0.lifePrem || 0));
+    const yrsOf = c => c / yearSpend;
+    const nm = P => P.name || 'Person';
+    const pols = (p.life || []).filter(x => x.who !== 'b' || p.filing === 'MFJ');
+    let html = '';
+    pols.forEach(pol => {
+      const P = pol.who === 'b' ? p.b : p.a;
+      const mo = E.policyMonthly(pol, P, p.startYear), yrs = +pol.term, end = p.startYear + yrs;
+      const est = !(pol.quote !== '' && pol.quote != null && +pol.quote > 0);
+      html += `<div class="life-pol"><b>${escapeHtml(nm(P))}: ${money(+pol.coverage)} for ${yrs} years</b>
+        <div><span class="big">$${Math.round(mo).toLocaleString('en-US')}/mo</span> <span class="note">${est ? 'estimated' : 'your quote'}, ${full(mo * 12 * yrs)} over ${yrs} years</span></div>
+        <div class="note" style="color:var(--ink-2)">If ${escapeHtml(nm(P))} dies before ${end}, the family receives ${money(+pol.coverage)}, about <b>${yrsOf(+pol.coverage).toFixed(1)} years</b> of today's household spending (${money(yearSpend)}/yr).</div></div>`;
+    });
+    if (!pols.length) html = `<p class="note" style="margin:0">No policy yet. Pick a price in the grid below or use “Add a policy” on the left.</p>`;
+    // guidance
+    const saved = (+p.accounts.ira) + (+p.accounts.roth) + (+p.accounts.taxable);
+    if (fire && fire.age > curAge()) {
+      const tRow = fire.result.rows.find(x => x.year === fire.year);
+      const target = tRow.begin / Math.pow(1 + p.inflation, fire.year - p.startYear);
+      const gap = Math.max(0, target - saved), yrsNeed = fire.year - p.startYear;
+      html += `<p class="note" style="margin:0;color:var(--ink-2)">A common way to size it: your retirement target is about ${money(target)} and you have ${money(saved)} today, so the gap is about <b>${money(gap)}</b>. You reach financial independence in ${fire.year}, so a term of about <b>${yrsNeed} years</b> covers the years until then. After that, your savings protect the family.</p>`;
+    }
+    box.innerHTML = html;
+    // grid for the first policy's person (or Person A with defaults)
+    const pol0 = pols[0] || { who: 'a', sex: 'm', health: 'sp' };
+    const P0 = pol0.who === 'b' ? p.b : p.a, age = p.startYear - P0.birthYear;
+    $('#lifeGridNote').textContent = `${nm(P0)}, age ${age}, ${pol0.sex === 'f' ? 'female' : 'male'}, ${({ pp: 'excellent health', p: 'very good health', sp: 'average health', s: 'fair health', smoker: 'smoker' })[pol0.health] || 'average health'}. Click a price to use it.`;
+    const sel = pols[0] ? [+pols[0].coverage, +pols[0].term] : null;
+    const head = '<thead><tr><th scope="col">Coverage</th>' + LIFE_TERMS.map(t => `<th scope="col">${t} years</th>`).join('') + '</tr></thead>';
+    const body = LIFE_COV.map(c => `<tr><td><b>${money(c)}</b><small>≈ ${yrsOf(c).toFixed(1)} yrs of spending</small></td>` + LIFE_TERMS.map(t => {
+      const mo = E.termPrice({ age, sex: pol0.sex, health: pol0.health, coverage: c, term: t });
+      const on = sel && sel[0] === c && sel[1] === t;
+      return `<td><button type="button" data-cov="${c}" data-term="${t}" aria-pressed="${on}">$${Math.round(mo)}</button></td>`;
+    }).join('') + '</tr>').join('');
+    $('#lifeGrid').innerHTML = head + '<tbody>' + body + '</tbody>';
+  }
+  if ($('#lifeGrid')) $('#lifeGrid').addEventListener('click', e => {
+    const b = e.target.closest('button[data-cov]'); if (!b) return;
+    p.life = p.life || [];
+    if (!p.life.length) p.life.push({ who: 'a', coverage: 0, term: 20, sex: 'm', health: 'sp', quote: '' });
+    p.life[0].coverage = +b.dataset.cov; p.life[0].term = +b.dataset.term; p.life[0].quote = '';
+    renderList('life'); changed(); toast(`Policy set to ${money(+b.dataset.cov)} for ${b.dataset.term} years`);
+  });
+
   if ($('#btnUseAge')) $('#btnUseAge').addEventListener('click', () => {
     if (!fire) return;
     const delta = fire.age - (+p.a.retireAge || plannedAge());
