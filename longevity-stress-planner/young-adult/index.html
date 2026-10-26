@@ -18,7 +18,7 @@ body{margin:0}img{max-width:100%}[hidden]{display:none!important}
   --bg: #eef2ef; --panel: #ffffff; --sunk: #e4eae6; --ink: #13201b; --ink-2: #4a5852; --ink-3: #737f79; --line: #d3dbd6;
   --accent: #0c6652; --accent-ink: #ffffff; --accent-soft: #dcefe8;
   --good: #11743a; --warn: #a45a07; --bad: #b42318; --bad-soft: #fbe9e7;
-  --s1: #2a78d6; --s2: #eb6834; --s3: #1baf7a;
+  --s1: #2a78d6; --s2: #eb6834; --s3: #1baf7a; --s4: #eda100;
   --band-rec: rgba(180, 35, 24, .11); --band-recov: rgba(12, 102, 82, .07);
   --mine-bg: #fff4d6; --mine-line: #d9a21b; --mine-ink: #7a5300;
   --f-display: "IBM Plex Sans Condensed", "Arial Narrow", system-ui, sans-serif;
@@ -29,13 +29,13 @@ body{margin:0}img{max-width:100%}[hidden]{display:none!important}
   --bg: #0e1412; --panel: #151d1a; --sunk: #1c2622; --ink: #e6ece9; --ink-2: #a9b5af; --ink-3: #7e8a84; --line: #2a3530;
   --accent: #46b99a; --accent-ink: #04211a; --accent-soft: #173a31;
   --good: #4cc27a; --warn: #e3a04a; --bad: #f07a6c; --bad-soft: #3a1d1a;
-  --s1: #3987e5; --s2: #d95926; --s3: #199e70;
+  --s1: #3987e5; --s2: #d95926; --s3: #199e70; --s4: #c98500;
   --band-rec: rgba(240, 122, 108, .13); --band-recov: rgba(70, 185, 154, .08); --mine-bg: #33290f; --mine-line: #b58a24; --mine-ink: #f0c56a; color-scheme: dark; } }
 :root[data-theme="dark"] {
   --bg: #0e1412; --panel: #151d1a; --sunk: #1c2622; --ink: #e6ece9; --ink-2: #a9b5af; --ink-3: #7e8a84; --line: #2a3530;
   --accent: #46b99a; --accent-ink: #04211a; --accent-soft: #173a31;
   --good: #4cc27a; --warn: #e3a04a; --bad: #f07a6c; --bad-soft: #3a1d1a;
-  --s1: #3987e5; --s2: #d95926; --s3: #199e70;
+  --s1: #3987e5; --s2: #d95926; --s3: #199e70; --s4: #c98500;
   --band-rec: rgba(240, 122, 108, .13); --band-recov: rgba(70, 185, 154, .08); --mine-bg: #33290f; --mine-line: #b58a24; --mine-ink: #f0c56a; color-scheme: dark; }
 
 * { box-sizing: border-box; }
@@ -267,7 +267,13 @@ tr.short td:first-child { background: var(--bad-soft); }
               <div class="f"><label for="b_ri">Roth IRA ($/yr, today's $)</label><input id="b_ri" data-mine data-path="b.rothIra" type="number" step="500"></div>
             </div>
           </div>
-          <p class="note">2026 limits are applied automatically: $24,500 for 401(k) plus $8,000 from age 50, and $7,500 for an IRA. Whatever is left after taxes, payroll tax and spending goes into your brokerage account.</p>
+          <p class="note">2026 limits are applied automatically: $24,500 for 401(k) plus $8,000 from age 50, and $7,500 for an IRA. Leftover pay is only invested if you turn that on below.</p>
+          <div class="sub">Monthly investing (SIP)</div>
+          <p class="note">A fixed amount invested every month into a fund, outside your 401(k). Investing stops when you retire, then the balance joins your other savings. Roth SIPs share the $7,500 IRA limit with your Roth IRA above.</p>
+          <div class="list mine" id="list-sips"></div>
+          <button type="button" class="btn small" data-add="sips">Add a SIP</button>
+          <label class="check" style="margin-top:4px"><input type="checkbox" id="leftOn" data-path="saving.investLeftover" data-type="bool"> Also invest all leftover pay automatically</label>
+          <p class="note">Leave this off unless you really invest every spare dollar. With it off, only your 401(k), Roth and SIPs count as saving, and leftover pay is assumed spent.</p>
         </div>
       </details>
 
@@ -451,7 +457,7 @@ tr.short td:first-child { background: var(--bad-soft); }
           <div class="seg" role="group" aria-label="Dollar basis"><button type="button" data-dollars="nominal">Future $</button><button type="button" data-dollars="real">Today's $</button></div>
         </div>
         <div class="legend" id="legend1">
-          <span><i style="background:var(--s1)"></i>Traditional IRA</span><span><i style="background:var(--s3)"></i>Taxable</span><span><i style="background:var(--s2)"></i>Roth</span>
+          <span><i style="background:var(--s1)"></i>Traditional IRA</span><span><i style="background:var(--s3)"></i>Taxable</span><span><i style="background:var(--s2)"></i>Roth</span><span><i style="background:var(--s4)"></i>Monthly investing (SIP)</span>
           <span><i class="dash"></i>Same plan, no recessions</span><span><i style="background:var(--band-rec);border:1px solid var(--bad)"></i>Recession year</span>
         </div>
         <div class="chart" id="chart1"></div>
@@ -490,6 +496,7 @@ tr.short td:first-child { background: var(--bad-soft); }
           <li>Medicare surcharges (IRMAA) use 2026 CMS tiers and your income from two years earlier, per person on Medicare. Only the surcharge above the standard premium is added; put base premiums in spending.</li>
           <li>RMDs start at 73 (born 1951–59) or 75 (born 1960+) using the IRS Uniform Lifetime Table. Social Security adjusts for claiming age and includes the 50% spousal top-up.</li>
           <li>Withdrawals happen at the start of each year; growth applies to what remains. Every account follows the same stock/bond mix.</li>
+          <li>Monthly investing (SIP): each fund type follows the year's stock and bond returns in its own mix (target-date funds follow your stock/bond glide path), minus its fee, so recessions and random markets hit SIPs too. International funds assume 0.5% a year less than US stocks. Brokerage SIPs are taxed on gains when sold after you retire.</li>
           <li>While you work: salary rises with inflation plus your raise; 401(k) and IRA limits, employer match and payroll tax (6.2% Social Security up to $184,500, 1.45% Medicare, 0.9% above $200,000 single / $250,000 joint) are applied. Leftover pay goes to the brokerage account.</li>
           <li>Before 59½, withdrawals come from the brokerage account, then Roth contributions and Roth conversions at least five years old, then the 401(k)/IRA with a 10% penalty, then Roth growth (taxed plus 10%). The 72(t) payment option isn't modeled.</li>
           <li>Health insurance is charged once nobody in the household works, until 65. Below the poverty line it is charged as if income were at the poverty line, since you may need Medicaid instead of tax credits. Employer coverage is assumed while either person works.</li>
@@ -673,6 +680,26 @@ tr.short td:first-child { background: var(--bad-soft); }
     return 1;
   }
 
+  // ---------- Monthly investing (SIP) fund types ----------
+  // eq: share in stocks (null = follows the plan's glide path); ex: return vs. the plan's stock/bond
+  // assumptions; fee: default expense ratio. Returns follow the plan's year-by-year stock and bond
+  // returns, so recessions, rebounds and random markets apply to SIPs too.
+  const FUNDS = {
+    sp500:    { name: 'S&P 500 index fund',            eq: 1,    ex: 0,      fee: 0.0003 },
+    totalus:  { name: 'Total US stock market fund',    eq: 1,    ex: 0,      fee: 0.0003 },
+    intl:     { name: 'International stock index fund', eq: 1,   ex: -0.005, fee: 0.0008 },
+    target:   { name: 'Target-date fund',              eq: null, ex: 0,      fee: 0.0012 },
+    balanced: { name: 'Balanced 60/40 fund',           eq: 0.6,  ex: 0,      fee: 0.0015 },
+    bond:     { name: 'Bond index fund',               eq: 0,    ex: 0,      fee: 0.0004 },
+    custom:   { name: 'Other / custom',                eq: 1,    ex: 0,      fee: 0.0050 },
+  };
+  function sipReturn(s, r, planEq) {
+    const F = FUNDS[s.fund] || FUNDS.custom;
+    const e = s.fund === 'target' ? planEq : s.fund === 'custom' ? Math.min(1, Math.max(0, has(s.eqShare) ? num(s.eqShare) : 1)) : F.eq;
+    const fee = has(s.fee) ? num(s.fee) : F.fee;
+    return e * r.eq + (1 - e) * r.bd + F.ex - fee;
+  }
+
   // ---------- Return path ----------
   function eventYears(p, retA) {
     return (p.stress.enabled ? p.stress.events : []).map(e => ({
@@ -717,6 +744,9 @@ tr.short td:first-child { background: var(--bad-soft); }
     let rothContrib = has(p.accounts.rothBasis) ? Math.min(roth, num(p.accounts.rothBasis)) : roth;
     const convs = [];
     const rows = [];
+    const investLeftover = !(p.saving && p.saving.investLeftover === false);
+    const sips = (p.sips || []).map(s => ({ ...s, bal: 0, basis: 0, paid: 0, merged: false }));
+    let sipAtRetire = 0;
     const magiHist = {}; magiHist[y0 - 2] = p.priorMagi; magiHist[y0 - 1] = p.priorMagi;
     let shortfallYear = null, totalTax = 0, totalIrmaa = 0, totalShort = 0, totalPen = 0, totalHealth = 0;
     const deathA = has(A.deathAge) ? A.birthYear + +A.deathAge : Infinity;
@@ -733,6 +763,15 @@ tr.short td:first-child { background: var(--bad-soft); }
       const survivor = couple && !(aliveA && aliveB);
       const n65 = (aliveA && ageA >= 65 ? 1 : 0) + (aliveB && ageB >= 65 ? 1 : 0);
 
+      // ----- SIPs stop at retirement and join the other savings -----
+      if (y >= retA) for (const s of sips) {
+        if (s.merged) continue;
+        s.merged = true; sipAtRetire += s.bal / Math.pow(1 + p.inflation, t);
+        if (s.account === 'roth') { roth += s.bal; rothContrib += s.paid; }
+        else { tax += s.bal; basis += s.basis; }
+        s.bal = 0;
+      }
+
       // ----- Paycheck -----
       const wageOf = (P, alive, ret) => alive && y < ret ? num(P.salary) * infl * Math.pow(1 + num(P.raise), t) : 0;
       const wA = wageOf(A, aliveA, retA), wB = couple ? wageOf(B, aliveB, retB) : 0;
@@ -748,6 +787,19 @@ tr.short td:first-child { background: var(--bad-soft); }
       };
       const cA = contrib(A, wA, ageA), cB = couple ? contrib(B, wB, ageB) : contrib(B, 0, 0);
       const pre = cA.pre + cB.pre, r401 = cA.r401 + cB.r401, match = cA.match + cB.match, rira = cA.rira + cB.rira;
+      // SIP contributions, paid from take-home pay while working
+      let sipOut = 0;
+      const iraRoom = Math.max(0, (T.ira + (ageA >= 50 ? T.iraCatch : 0)) * infl - cA.rira);
+      let rothRoomLeft = iraRoom;
+      for (const s of sips) {
+        s.out = 0;
+        if (s.merged || wages <= 0) continue;
+        const from = num(s.from), yrs = num(s.years);
+        if (y < from || (yrs > 0 && y >= from + yrs) || y >= retA) continue;
+        let amt = num(s.monthly) * 12 * infl * Math.pow(1 + num(s.stepUp), y - from);
+        if (s.account === 'roth') { amt = Math.min(amt, rothRoomLeft); rothRoomLeft -= amt; }
+        s.out = Math.max(0, amt); sipOut += s.out;
+      }
       const wagesTaxable = wages - pre;
       const wagesCash = wages - pre - r401 - rira;
       const fica = T.ficaSS * (Math.min(wA, T.ssWageBase * infl) + Math.min(wB, T.ssWageBase * infl))
@@ -858,7 +910,7 @@ tr.short td:first-child { background: var(--bad-soft); }
         : p.withdrawOrder === 'protect-ira' ? ['taxable', 'rothA', 'ira'] : ['taxable', 'ira', 'rothA'];
       let wTax = 0, wIra = 0, wRoth = 0, wRothE = 0, gain = 0, taxRes = null, need = 0, short = 0, pen = 0, health = 0;
       let taxGuess = 0;
-      const inflow = wagesCash + ss + pension + oneCash;
+      const inflow = wagesCash - sipOut + ss + pension + oneCash;
       const solve = () => {
         taxGuess = 0; health = healthCost(0);
         for (let it = 0; it < 16; it++) {
@@ -896,9 +948,11 @@ tr.short td:first-child { background: var(--bad-soft); }
       }
       need = spend + irmaa + fica + health + taxGuess;
       const surplus = Math.max(0, inflow + rmd + wTax + wIra + wRoth + wRothE - need);
+      // Without "invest leftover pay", spare take-home pay is assumed spent; other surpluses are still invested.
+      const invested = investLeftover || !anyWorking ? surplus : Math.max(0, surplus - Math.max(0, wagesCash - sipOut));
 
       // ----- Apply flows -----
-      const begin = ira + roth + tax;
+      const begin = ira + roth + tax + sips.reduce((a, s) => a + s.bal, 0);
       const gFrac = tax > 0 ? Math.max(0, 1 - basis / tax) : 0;
       basis -= wTax * (1 - gFrac);
       tax -= wTax;
@@ -909,7 +963,8 @@ tr.short td:first-child { background: var(--bad-soft); }
       let left = wRoth + wRothE;
       const fromContrib = Math.min(left, rothContrib); rothContrib -= fromContrib; left -= fromContrib;
       for (const c of convs) { if (left <= 0) break; const k = Math.min(left, c.amt); c.amt -= k; left -= k; }
-      tax += surplus; basis += surplus;
+      tax += invested; basis += invested;
+      for (const s of sips) if (s.out > 0) { s.bal += s.out; s.basis += s.out; s.paid += s.out; }
       ira = Math.max(0, ira); roth = Math.max(0, roth); tax = Math.max(0, tax); basis = Math.max(0, Math.min(basis, tax));
       rothContrib = Math.min(rothContrib, roth);
 
@@ -918,6 +973,8 @@ tr.short td:first-child { background: var(--bad-soft); }
       const w = equityWeight(p, ageA);
       const blended = w * r.eq + (1 - w) * r.bd;
       ira *= 1 + blended; roth *= 1 + blended; tax *= 1 + blended;
+      let sipBal = 0;
+      for (const s of sips) if (!s.merged) { s.bal *= 1 + sipReturn(s, r, w); sipBal += s.bal; }
 
       magiHist[y] = taxRes.agi; magiHist['s' + y] = status;
       if (short > 1 && shortfallYear == null) shortfallYear = y;
@@ -927,11 +984,11 @@ tr.short td:first-child { background: var(--bad-soft); }
       rows.push({
         year: y, ageA: aliveA ? ageA : null, ageB: couple && aliveB ? ageB : null, status, survivor,
         begin, spend, wages, ss, pension, oneCash, rmd, conv, wTax, wIra, wRoth: wRoth + wRothE,
-        contrib: pre + r401 + match + rira, saved: pre + r401 + match + rira + surplus,
+        contrib: pre + r401 + match + rira + sipOut, saved: pre + r401 + match + rira + sipOut + invested, sipOut, sipBal,
         fica, pen, health, healthFull, incomeTax: taxRes.total,
         fedTax: taxRes.fed, stateTax: taxRes.state, tax: allTax, marg: taxRes.marg, agi: taxRes.agi,
         irmaa, irmaaTier: tierNow, short, eqW: w, ret: blended, tag: r.tag, working: anyWorking,
-        ira, roth, taxable: tax, end: ira + roth + tax,
+        ira, roth, taxable: tax, end: ira + roth + tax + sipBal,
       });
     }
     const last = rows[rows.length - 1];
@@ -941,6 +998,7 @@ tr.short td:first-child { background: var(--bad-soft); }
       endBalance: last.end, endReal: last.end / Math.pow(1 + p.inflation, last.year - y0),
       minRow, success: shortfallYear == null, endYear: last.year,
       retireYear: retA, ssFRA: { a: FA, b: FB },
+      sipAtRetire: sipAtRetire || rows.length && sips.reduce((a, s) => a + s.bal, 0) / Math.pow(1 + p.inflation, last.year - y0),
     };
   }
 
@@ -985,7 +1043,7 @@ tr.short td:first-child { background: var(--bad-soft); }
     return { successRate: ok / n, p10: pct(0.10), p25: pct(0.25), p50: pct(0.5), p75: pct(0.75), p90: pct(0.9), n };
   }
 
-  const api = { T, project, monteCarlo, computeTax, ownFactor, rmdStartAge, rmdFactor, irmaaTier, equityWeight,
+  const api = { T, FUNDS, sipReturn, project, monteCarlo, computeTax, ownFactor, rmdStartAge, rmdFactor, irmaaTier, equityWeight,
     earliestRetirement, withRetireYear, effectiveSS, ssEstimate, acaApplicable, acaAgeFactor, retYearOf };
   if (typeof module !== 'undefined') module.exports = api; else root.RetireEngine = api;
 })(this);
@@ -1009,15 +1067,17 @@ tr.short td:first-child { background: var(--bad-soft); }
   const EXAMPLE_YOUNG = () => ({
     _example: true,
     startYear: 2026, filing: 'Single', endAge: 95, inflation: 0.03, stateRate: 0.05, priorMagi: 110000,
-    a: { name: 'Jordan', birthYear: 1993, birthMonth: 6, retireAge: 55, retireYear: '', salary: 120000, raise: 0.015, yearsWorked: 10,
+    a: { name: 'Jordan', birthYear: 1993, birthMonth: 6, retireAge: 58, retireYear: '', salary: 120000, raise: 0.015, yearsWorked: 10,
       k401Pct: 0.10, roth401kPct: 0, matchPct: 0.04, rothIra: 7500, ssFRA: '', ssClaimAge: 67, deathAge: '' },
-    b: { name: 'Casey', birthYear: 1994, birthMonth: 3, retireAge: 55, retireYear: '', salary: 95000, raise: 0.015, yearsWorked: 9,
+    b: { name: 'Casey', birthYear: 1994, birthMonth: 3, retireAge: 58, retireYear: '', salary: 95000, raise: 0.015, yearsWorked: 9,
       k401Pct: 0.08, roth401kPct: 0, matchPct: 0.03, rothIra: 0, ssFRA: '', ssClaimAge: 67, deathAge: '' },
     iraOwner: 'a',
     accounts: { ira: 95000, roth: 40000, rothBasis: 30000, taxable: 35000, taxableBasisPct: 0.85 },
     pension: { annual: 0, startYear: 2026, cola: false, survivorPct: 0 },
     spending: { base: 55000, retireBase: 60000, lateTrimAge: 0, lateTrimPct: 0, survivorPct: 0.75, phases: [], adjustments: [] },
     oneTime: [],
+    saving: { investLeftover: false },
+    sips: [{ fund: 'sp500', monthly: 500, from: 2026, years: 0, stepUp: 0.03, account: 'taxable', fee: 0.0003, eqShare: 1 }],
     returns: { equity: 0.07, bond: 0.035 },
     glide: { enabled: true, startEq: 0.90, startAge: 40, endEq: 0.50, endAge: 70 },
     stress: { enabled: true, recoveryYears: 3, recoveryEquity: 0.12, events: presetEvents('three08', 2026) },
@@ -1051,7 +1111,8 @@ tr.short td:first-child { background: var(--bad-soft); }
       const z = { salary: 0, raise: 0.01, yearsWorked: 0, k401Pct: 0, roth401kPct: 0, matchPct: 0, rothIra: 0, ssFRA: '' };
       Object.assign(p.a, z, { name: 'You' }); Object.assign(p.b, z, { name: 'Spouse' });
       p.accounts = { ira: 0, roth: 0, rothBasis: 0, taxable: 0, taxableBasisPct: 1 }; p.filing = 'Single';
-      p.spending.base = 0; p.spending.retireBase = 0; p.spending.adjustments = []; p.oneTime = [];
+      p.spending.base = 0; p.spending.retireBase = 0; p.spending.adjustments = []; p.oneTime = []; p.sips = [];
+      p.saving = { investLeftover: false };
       return p;
     }
     Object.assign(p.a, { name: 'You', salary: 0, ssFRA: 0 }); Object.assign(p.b, { name: 'Spouse', salary: 0, ssFRA: 0 });
@@ -1096,7 +1157,7 @@ tr.short td:first-child { background: var(--bad-soft); }
     setNames();
     if ($('#paySpouse')) $('#paySpouse').hidden = single;
     $('#exampleFlag').hidden = !p._example;
-    ['phases', 'adjustments', 'oneTime', 'events'].forEach(renderList);
+    ['phases', 'adjustments', 'oneTime', 'events'].concat($('#list-sips') ? ['sips'] : []).forEach(renderList);
   }
 
   function setNames() {
@@ -1129,6 +1190,7 @@ tr.short td:first-child { background: var(--bad-soft); }
   $$('[data-preset]').forEach(b => b.addEventListener('click', () => { p.stress.events = presetEvents(b.dataset.preset, p.startYear); p.stress.enabled = true; bindStatic(); changed(); toast('Recessions set: ' + b.textContent); }));
 
   // ---------- editable lists ----------
+  const FUND_OPTS = Object.entries(E.FUNDS).map(([k, f]) => [k, f.name]);
   const LISTS = {
     phases: { arr: () => p.spending.phases, cls: 'ph', blank: () => ({ from: p.startYear + 1, to: p.startYear + 5, amount: Math.round(p.spending.base * 0.7) }),
       fields: [['from', 'From', 'num'], ['to', 'To', 'num'], ['amount', 'Spending $/yr', 'num']] },
@@ -1136,6 +1198,9 @@ tr.short td:first-child { background: var(--bad-soft); }
       fields: [['label', 'What', 'text', 'wide'], ['from', 'From', 'num'], ['to', 'To', 'num'], ['amount', '$/yr (today)', 'num'], ['inflates', 'Rises with inflation', 'bool', 'wide']] },
     oneTime: { arr: () => p.oneTime, cls: 'one', blank: () => ({ label: 'Inheritance', year: p.startYear + 3, amount: 100000, kind: 'ltcg', gainPct: 0 }),
       fields: [['label', 'What', 'text', 'wide'], ['year', 'Year', 'num'], ['amount', 'Amount $', 'num'], ['gainPct', 'Taxable gain %', 'pct'], ['kind', 'Type', 'kind', 'wide']] },
+    sips: { arr: () => (p.sips = p.sips || []), cls: 'sip', blank: () => ({ fund: 'sp500', monthly: 500, from: p.startYear, years: 0, stepUp: 0, account: 'taxable', fee: 0.0003, eqShare: 1 }),
+      fields: [['fund', 'Fund type', 'sel', 'wide', FUND_OPTS], ['monthly', '$ per month (today)', 'num'], ['from', 'Start year', 'num'], ['years', 'For years (0 = until you retire)', 'num'],
+        ['stepUp', 'Raise it each year %', 'pct'], ['account', 'Held in', 'sel', 'wide', [['taxable', 'Brokerage account'], ['roth', 'Roth IRA']]], ['fee', 'Fund fee %', 'pct'], ['eqShare', 'Stocks % (other / custom)', 'pct', '', null, it => it.fund === 'custom']] },
     events: { arr: () => p.stress.events, cls: 'ev', blank: () => ({ year: p.startYear + 10, equity: -0.25, bond: '', label: 'Recession' }),
       fields: [['year', 'Year', 'num'], ['equity', 'Stocks %', 'pct'], ['bond', 'Bonds %', 'pctopt'], ['label', 'Label', 'text', 'wide']] },
   };
@@ -1145,12 +1210,21 @@ tr.short td:first-child { background: var(--bad-soft); }
     if (!arr.length) { const n = document.createElement('p'); n.className = 'note'; n.textContent = 'None yet.'; box.appendChild(n); return; }
     arr.forEach((item, i) => {
       const li = document.createElement('div'); li.className = 'li ' + L.cls;
-      L.fields.forEach(([k, label, type, wide]) => {
+      L.fields.forEach(([k, label, type, wide, opts, show]) => {
+        if (show && !show(item)) return;
         const id = `${name}_${i}_${k}`;
         const f = document.createElement('div'); f.className = 'f' + (wide ? ' wide' : '');
         if (type === 'bool') {
           f.innerHTML = `<label class="check"><input type="checkbox" id="${id}"> ${label}</label>`;
           const c = f.querySelector('input'); c.checked = !!item[k]; c.addEventListener('change', () => { item[k] = c.checked; changed(); });
+        } else if (type === 'sel') {
+          f.innerHTML = `<label class="lbl" for="${id}">${label}</label><select id="${id}">${opts.map(([v, t]) => `<option value="${v}">${t}</option>`).join('')}</select>`;
+          const s = f.querySelector('select'); s.value = item[k];
+          s.addEventListener('change', () => {
+            item[k] = s.value;
+            if (name === 'sips' && k === 'fund') { item.fee = E.FUNDS[s.value].fee; renderList(name); }
+            changed();
+          });
         } else if (type === 'kind') {
           f.innerHTML = `<label class="lbl" for="${id}">${label}</label><select id="${id}"><option value="ltcg">Sale (capital gain)</option><option value="ordinary">Income (taxed as wages)</option><option value="cash">Tax-free cash</option><option value="expense">Expense</option></select>`;
           const s = f.querySelector('select'); s.value = item[k]; s.addEventListener('change', () => { item[k] = s.value; changed(); });
@@ -1158,7 +1232,7 @@ tr.short td:first-child { background: var(--bad-soft); }
           f.innerHTML = `<span class="lbl">${label}</span><div class="ro">At retirement</div>`;
         } else {
           const isPct = type === 'pct' || type === 'pctopt';
-          f.innerHTML = `<label class="lbl" for="${id}">${label}</label><input id="${id}" type="${type === 'text' ? 'text' : 'number'}" ${isPct ? 'step="1"' : ''} ${type === 'pctopt' ? 'placeholder="normal"' : ''}>`;
+          f.innerHTML = `<label class="lbl" for="${id}">${label}</label><input id="${id}" type="${type === 'text' ? 'text' : 'number'}" ${isPct ? (k === 'fee' ? 'step="0.01"' : 'step="1"') : ''} ${type === 'pctopt' ? 'placeholder="normal"' : ''}>`;
           const inp = f.querySelector('input');
           inp.value = isPct ? pctIn(item[k]) : item[k];
           inp.addEventListener('input', () => {
@@ -1181,7 +1255,7 @@ tr.short td:first-child { background: var(--bad-soft); }
   const normalize = q => { const c = JSON.parse(JSON.stringify(q)); c.oneTime = c.oneTime.map(e => e.kind === 'cash' ? { ...e, kind: 'ltcg', gainPct: 0 } : e); c.a.ssClaimAge = Math.min(70, Math.max(62, +c.a.ssClaimAge || 67)); c.b.ssClaimAge = Math.min(70, Math.max(62, +c.b.ssClaimAge || 67)); c.a.birthMonth = Math.min(12, Math.max(1, +c.a.birthMonth || 1)); c.b.birthMonth = Math.min(12, Math.max(1, +c.b.birthMonth || 1)); c.endAge = Math.min(110, Math.max(c.startYear - c.a.birthYear + 1, +c.endAge || 95)); return c; };
 
   // ---------- compute ----------
-  let res = null, base = null, mc = null, mcTimer = null, calcTimer = null, fire = null, ladder = null, ladderJob = 0;
+  let res = null, base = null, mc = null, mcTimer = null, calcTimer = null, fire = null, fireNoSip, ladder = null, ladderJob = 0;
   function changed() {
     if (p._example) { delete p._example; $('#exampleFlag').hidden = true; }
     store.set(DKEY, p);
@@ -1192,7 +1266,12 @@ tr.short td:first-child { background: var(--bad-soft); }
     if (recalc || !res) {
       res = run(p);
       const qb = JSON.parse(JSON.stringify(p)); qb.stress.enabled = false; base = run(qb);
-      if (YOUNG) { try { fire = E.earliestRetirement(normalize(p)); } catch (e) { console.error(e); fire = null; } startLadder(); }
+      if (YOUNG) {
+        try { fire = E.earliestRetirement(normalize(p)); } catch (e) { console.error(e); fire = null; }
+        fireNoSip = undefined;
+        if ((p.sips || []).length) { try { const q0 = normalize(p); q0.sips = []; fireNoSip = E.earliestRetirement(q0); } catch (e) { fireNoSip = null; } }
+        startLadder();
+      }
       clearTimeout(mcTimer); mcTimer = setTimeout(() => { try { mc = E.monteCarlo(normalize(p), 500, 20261, false, YOUNG); } catch (e) { mc = null; } renderMC(); }, 60);
     }
     if (!res) return;
@@ -1208,6 +1287,13 @@ tr.short td:first-child { background: var(--bad-soft); }
 
   const curAge = () => p.startYear - p.a.birthYear;
   const plannedAge = () => res.retireYear - p.a.birthYear;
+  function sipKpi() {
+    const n = (p.sips || []).length;
+    if (!n) return ['Monthly investing (SIP)', 'None', 'add one under Saving from your paycheck'];
+    const a = fire ? fire.age : 71, b = fireNoSip ? fireNoSip.age : 71, d = b - a;
+    const val = d > 0 ? `${d} yr${d === 1 ? '' : 's'} sooner` : d < 0 ? `${-d} yr${d === -1 ? '' : 's'} later` : 'Same age';
+    return [`Your SIP${n > 1 ? 's' : ''}`, val, `worth ${money(res.sipAtRetire)} at retirement, today's $`];
+  }
   function renderVerdictYoung() {
     const r = res, last = r.rows[r.rows.length - 1], nm = p.a.name || 'Person A';
     const isYou = /^you$/i.test(nm.trim()), who = isYou ? 'You' : nm;
@@ -1224,6 +1310,7 @@ tr.short td:first-child { background: var(--bad-soft); }
       stamp.textContent = fire.age <= curAge() ? 'Free now' : `FI at ${fire.age}`; stamp.className = 'stamp ok';
       $('#vHead').textContent = fire.age <= curAge() ? `${who} could stop working now` : `${who} can retire in ${fire.year}, at age ${fire.age}`;
       $('#vSub').textContent = `That takes about ${money(target)} saved (today's dollars) by then, and lasts to age ${p.endAge} through your recession test. `
+        + (fireNoSip !== undefined && fireNoSip !== null && fireNoSip.age > fire.age ? `Your SIPs bring it ${fireNoSip.age - fire.age} year${fireNoSip.age - fire.age === 1 ? '' : 's'} sooner. ` : '')
         + (r.success ? `Your planned age of ${pa} works, with ${money(r.endReal)} left at ${p.endAge} in today's dollars.`
                      : `Your planned age of ${pa} runs short in ${r.shortfallYear}.`);
     } else {
@@ -1238,6 +1325,7 @@ tr.short td:first-child { background: var(--bad-soft); }
     const conf = ladder && ladder.done ? ladder.conf : null;
     const k = [
       ['Earliest retirement age', fire ? String(fire.age) : '70+', fire ? `in ${fire.year}, stress test` : 'not within reach'],
+      sipKpi(),
       ['With 90% confidence', conf ? String(conf.age) : (ladder && ladder.done ? '70+' : '…'), conf ? `${Math.round(conf.rate * 100)}% of random markets` : 'random markets'],
       ['Savings rate now', Math.round(rate * 100) + '%', `${money(first.saved)} of ${money(gross)} pay, incl. match`],
       ['Social Security at 67', '$' + Math.round(ss).toLocaleString('en-US') + '/mo', `today's $, retiring at ${pa}`],
@@ -1290,7 +1378,7 @@ tr.short td:first-child { background: var(--bad-soft); }
     $('#hintRoth').textContent = p.roth.enabled ? (p.roth.ladder ? 'ladder' : 'on') : 'off';
     if (YOUNG) {
       const r0 = res.rows[0];
-      $('#hintPay').textContent = r0 && r0.contrib ? money(r0.contrib) + '/yr' : 'none';
+      $('#hintPay').textContent = (r0 && r0.contrib ? money(r0.contrib) + '/yr' : 'none') + ((p.sips || []).length ? ` · ${p.sips.length} SIP${p.sips.length > 1 ? 's' : ''}` : '');
       $('#hintHealth').textContent = p.health && p.health.enabled ? (p.health.subsidy ? 'with credits' : 'full price') : 'off';
       $('#hintSpend').textContent = money(p.spending.base) + ' → ' + money(p.spending.retireBase || p.spending.base);
       $('#hintHouse').textContent = (p.filing === 'MFJ' ? `${p.a.name || 'A'} & ${p.b.name || 'B'}` : (p.a.name || 'Single')) + `, age ${curAge()}`;
@@ -1341,16 +1429,16 @@ tr.short td:first-child { background: var(--bad-soft); }
   function renderChart1() {
     const el = $('#chart1'), rows = res.rows; const f = frame(el, 300);
     const yr = r => r.year;
-    const v = rows.map(r => ({ ira: real(r.ira, yr(r)), tax: real(r.taxable, yr(r)), roth: real(r.roth, yr(r)) }));
+    const v = rows.map(r => ({ ira: real(r.ira, yr(r)), tax: real(r.taxable, yr(r)), roth: real(r.roth, yr(r)), sip: real(r.sipBal || 0, yr(r)) }));
     const bv = base ? base.rows.map(r => real(r.end, yr(r))) : [];
-    const yMax = niceMax(Math.max(...v.map(o => o.ira + o.tax + o.roth), ...bv, 1));
+    const yMax = niceMax(Math.max(...v.map(o => o.ira + o.tax + o.roth + o.sip), ...bv, 1));
     const x = i => f.m.l + f.iw * (rows.length === 1 ? 0 : i / (rows.length - 1));
     const y = val => f.m.t + f.ih - f.ih * val / yMax;
     // bands
     const bw = f.iw / Math.max(1, rows.length - 1);
     rows.forEach((r, i) => { if (r.tag) mk(f.svg, 'rect', { x: x(i) - bw / 2, y: f.m.t, width: bw, height: f.ih, fill: r.tag === 'recession' ? 'var(--band-rec)' : 'var(--band-recov)' }); });
     axes(f, rows, yMax, x);
-    const layers = [['ira', 'var(--s1)'], ['tax', 'var(--s3)'], ['roth', 'var(--s2)']];
+    const layers = [['ira', 'var(--s1)'], ['tax', 'var(--s3)'], ['roth', 'var(--s2)']].concat(YOUNG ? [['sip', 'var(--s4)']] : []);
     let lower = v.map(() => 0);
     layers.forEach(([k, col]) => {
       const upper = v.map((o, i) => lower[i] + o[k]);
@@ -1375,10 +1463,11 @@ tr.short td:first-child { background: var(--bad-soft); }
       const r = rows[i], o = v[i];
       const tag = r.tag === 'recession' ? ' <span class="chip rec">Recession</span>' : r.tag === 'recovery' ? ' <span class="chip recov">Rebound</span>' : '';
       return `<b>${r.year}</b> · age ${ageStr(r)}${tag}
+        ${YOUNG && o.sip > 0 ? `<div class="r"><em><span class="sw" style="background:var(--s4)"></span>SIP</em>${money(o.sip)}</div>` : ''}
         <div class="r"><em><span class="sw" style="background:var(--s2)"></span>Roth</em>${money(o.roth)}</div>
         <div class="r"><em><span class="sw" style="background:var(--s3)"></span>Taxable</em>${money(o.tax)}</div>
         <div class="r"><em><span class="sw" style="background:var(--s1)"></span>IRA</em>${money(o.ira)}</div>
-        <div class="r" style="border-top:1px solid var(--line);margin-top:3px;padding-top:3px"><em>Total</em><b>${money(o.ira + o.tax + o.roth)}</b></div>
+        <div class="r" style="border-top:1px solid var(--line);margin-top:3px;padding-top:3px"><em>Total</em><b>${money(o.ira + o.tax + o.roth + o.sip)}</b></div>
         ${bv.length && p.stress.enabled ? `<div class="r"><em>No recessions</em>${money(bv[i])}</div>` : ''}
         <div class="r"><em>Return</em>${(r.ret * 100).toFixed(1)}%</div>`;
     });
@@ -1435,13 +1524,13 @@ tr.short td:first-child { background: var(--bad-soft); }
   let pendingDelete = null;
   function renderTableYoung() {
     const rows = res.rows;
-    const head = ['Year', 'Age', 'Pay', 'Saved', 'Spending', 'Health ins.', 'Social Sec.', 'Roth conv.', 'From taxable', 'From Roth', 'From 401(k)/IRA', 'Taxes', 'Penalty', 'Stocks', 'Return', 'End balance', 'Short'];
+    const head = ['Year', 'Age', 'Pay', 'Saved', 'Into SIPs', 'Spending', 'Health ins.', 'Social Sec.', 'Roth conv.', 'From taxable', 'From Roth', 'From 401(k)/IRA', 'Taxes', 'Penalty', 'Stocks', 'Return', 'End balance', 'Short'];
     const h = '<thead><tr>' + head.map(x => `<th scope="col">${x}</th>`).join('') + '</tr></thead>';
     const c = (v, y) => v > 0.5 ? full(real(v, y)) : '<span style="opacity:.35">—</span>';
     const b = rows.map(r => {
       const tag = r.tag === 'recession' ? ' <span class="chip rec">R</span>' : r.tag === 'recovery' ? ' <span class="chip recov">↑</span>' : '';
       const rt = r.year === res.retireYear ? ' <span class="chip recov">retire</span>' : '';
-      return `<tr class="${r.short > 1 ? 'short' : ''}"><td>${r.year}${tag}${rt}</td><td>${ageStr(r)}</td><td>${c(r.wages + r.oneCash, r.year)}</td><td>${c(r.saved, r.year)}</td><td>${c(r.spend, r.year)}</td><td>${c(r.health, r.year)}</td><td>${c(r.ss, r.year)}</td><td>${c(r.conv, r.year)}</td><td>${c(r.wTax, r.year)}</td><td>${c(r.wRoth, r.year)}</td><td>${c(r.wIra + r.rmd, r.year)}</td><td>${c(r.tax - r.pen, r.year)}</td><td>${c(r.pen, r.year)}</td><td>${Math.round(r.eqW * 100)}%</td><td>${(r.ret * 100).toFixed(1)}%</td><td><b>${full(real(r.end, r.year))}</b></td><td>${c(r.short, r.year)}</td></tr>`;
+      return `<tr class="${r.short > 1 ? 'short' : ''}"><td>${r.year}${tag}${rt}</td><td>${ageStr(r)}</td><td>${c(r.wages + r.oneCash, r.year)}</td><td>${c(r.saved, r.year)}</td><td>${c(r.sipOut, r.year)}</td><td>${c(r.spend, r.year)}</td><td>${c(r.health, r.year)}</td><td>${c(r.ss, r.year)}</td><td>${c(r.conv, r.year)}</td><td>${c(r.wTax, r.year)}</td><td>${c(r.wRoth, r.year)}</td><td>${c(r.wIra + r.rmd, r.year)}</td><td>${c(r.tax - r.pen, r.year)}</td><td>${c(r.pen, r.year)}</td><td>${Math.round(r.eqW * 100)}%</td><td>${(r.ret * 100).toFixed(1)}%</td><td><b>${full(real(r.end, r.year))}</b></td><td>${c(r.short, r.year)}</td></tr>`;
     }).join('');
     $('#tbl').innerHTML = h + '<tbody>' + b + '</tbody>';
     $('#tblNote').textContent = (dollars === 'real' ? `In ${p.startYear} dollars` : 'In each year\'s dollars') + '. Taxes include payroll tax.';
@@ -1558,7 +1647,7 @@ tr.short td:first-child { background: var(--bad-soft); }
     try {
       const o = JSON.parse(txt); const q = o.inputs || o;
       if (!q.a || !q.accounts || !q.spending) throw new Error('missing');
-      const d = BLANK(); p = Object.assign(d, q); ['a', 'b', 'accounts', 'spending', 'returns', 'glide', 'stress', 'roth', 'mc', 'pension', 'health'].forEach(k => p[k] = Object.assign(BLANK()[k], q[k] || {}));
+      const d = BLANK(); p = Object.assign(d, q); ['a', 'b', 'accounts', 'spending', 'returns', 'glide', 'stress', 'roth', 'mc', 'pension', 'health', 'saving'].forEach(k => p[k] = Object.assign(BLANK()[k], q[k] || {}));
       if (Array.isArray(o.scenarios)) { o.scenarios.forEach(sc => { if (!sc || !sc.name || !sc.p) return; const k = scen.findIndex(x => x.name === sc.name); if (k >= 0) scen[k] = sc; else scen.push(sc); }); store.set(SCKEY, scen); }
       store.set(DKEY, p); bindStatic(); renderResults(true); toast('Plan loaded');
     } catch (e) { toast('Those inputs could not be read. Paste the full text from “Copy inputs”.'); }

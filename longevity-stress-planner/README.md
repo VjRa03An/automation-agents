@@ -20,8 +20,10 @@ Each page also links to the other at the top.
 
 Built for someone in their 20s–40s. It adds what an early retirement depends on:
 
-- **Paycheck saving:** salary with raises above inflation, 401(k) pre-tax and Roth percentages, employer match and Roth IRA, with 2026 limits ($24,500 401(k), +$8,000 from 50; $7,500 IRA). Leftover pay after tax, payroll tax and spending goes to the brokerage account.
+- **Paycheck saving:** salary with raises above inflation, 401(k) pre-tax and Roth percentages, employer match and Roth IRA, with 2026 limits ($24,500 401(k), +$8,000 from 50; $7,500 IRA). 
 - **Payroll tax:** 6.2% Social Security up to $184,500, 1.45% Medicare, 0.9% above $200,000 single / $250,000 joint.
+- **Monthly investing (SIP):** invest a fixed amount every month into a fund type (S&P 500 index, total US market, international, target-date, balanced 60/40, bond index, or custom), for a set number of years or until retirement, with an optional yearly increase, in a brokerage account or Roth IRA. Each fund follows the year's stock and bond returns in its own mix, minus its fee. Climb Up shows how many years sooner your SIPs let you retire and what they're worth at retirement.
+- **Leftover pay:** by default it's assumed spent, so only 401(k), Roth and SIPs count as saving. Turn on "invest all leftover pay" if you really do invest every spare dollar.
 - **Spending now vs. in retirement**, plus kids, college or a mortgage as extra costs, and a down payment as a one-time event.
 - **Health insurance before 65:** marketplace premiums that rise with age, with 2026 ACA tax credits (2.10%–9.96% of income for the benchmark plan, none above 400% of the poverty line).
 - **The 59½ rules:** withdrawals go brokerage → Roth contributions → Roth conversions 5+ years old → 401(k)/IRA with a 10% penalty → Roth growth (taxed + 10%).

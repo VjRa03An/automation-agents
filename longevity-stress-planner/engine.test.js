@@ -70,4 +70,22 @@ const pen = young(); pen.a.retireAge = 34; pen.accounts = { ira: 400000, roth: 0
 const pr = E.project(pen).rows.find(r => r.year === 2028);
 assert.ok(pr.wIra > 0 && Math.abs(pr.pen - 0.1 * pr.wIra) < 1, '10% early-withdrawal penalty');
 
+// ---------- Monthly investing (SIP) ----------
+// $1,000/month into a bond index fund for 10 years, no inflation or recessions:
+// matches the annuity-due formula at 3.5% minus the 0.04% fee
+const sipPlan = young(); sipPlan.inflation = 0; sipPlan.stress.enabled = false; sipPlan.a.retireAge = 60;
+sipPlan.sips = [{ fund: 'bond', monthly: 1000, from: 2026, years: 10, stepUp: 0, account: 'taxable' }];
+const rr = 0.035 - 0.0004, fv = 12000 * ((Math.pow(1 + rr, 10) - 1) / rr) * (1 + rr);
+assert.ok(Math.abs(E.project(sipPlan).rows.find(r => r.year === 2035).sipBal - fv) < 1, 'SIP future value');
+// A recession year hits a stock fund but not a bond fund
+assert.ok(E.sipReturn({ fund: 'sp500' }, { eq: -0.37, bd: 0.05 }, 0.9) < -0.36);
+assert.ok(E.sipReturn({ fund: 'bond' }, { eq: -0.37, bd: 0.05 }, 0.9) > 0.04);
+// A bigger SIP never makes the earliest retirement age later
+const sipAge = m => { const q = young(); q.saving = { investLeftover: false }; q.sips = m ? [{ fund: 'sp500', monthly: m, from: 2026, years: 0, stepUp: 0, account: 'taxable' }] : []; const e = E.earliestRetirement(q); return e ? e.age : 99; };
+assert.ok(sipAge(2000) <= sipAge(500) && sipAge(500) <= sipAge(0));
+// Not investing leftover pay can only push retirement later
+const lo = q => { const e = E.earliestRetirement(q); return e ? e.age : 99; };
+const inv = young(), spent = young(); spent.saving = { investLeftover: false };
+assert.ok(lo(spent) >= lo(inv));
+
 console.log('All engine checks passed.');

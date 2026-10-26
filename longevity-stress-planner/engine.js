@@ -166,6 +166,26 @@
     return 1;
   }
 
+  // ---------- Monthly investing (SIP) fund types ----------
+  // eq: share in stocks (null = follows the plan's glide path); ex: return vs. the plan's stock/bond
+  // assumptions; fee: default expense ratio. Returns follow the plan's year-by-year stock and bond
+  // returns, so recessions, rebounds and random markets apply to SIPs too.
+  const FUNDS = {
+    sp500:    { name: 'S&P 500 index fund',            eq: 1,    ex: 0,      fee: 0.0003 },
+    totalus:  { name: 'Total US stock market fund',    eq: 1,    ex: 0,      fee: 0.0003 },
+    intl:     { name: 'International stock index fund', eq: 1,   ex: -0.005, fee: 0.0008 },
+    target:   { name: 'Target-date fund',              eq: null, ex: 0,      fee: 0.0012 },
+    balanced: { name: 'Balanced 60/40 fund',           eq: 0.6,  ex: 0,      fee: 0.0015 },
+    bond:     { name: 'Bond index fund',               eq: 0,    ex: 0,      fee: 0.0004 },
+    custom:   { name: 'Other / custom',                eq: 1,    ex: 0,      fee: 0.0050 },
+  };
+  function sipReturn(s, r, planEq) {
+    const F = FUNDS[s.fund] || FUNDS.custom;
+    const e = s.fund === 'target' ? planEq : s.fund === 'custom' ? Math.min(1, Math.max(0, has(s.eqShare) ? num(s.eqShare) : 1)) : F.eq;
+    const fee = has(s.fee) ? num(s.fee) : F.fee;
+    return e * r.eq + (1 - e) * r.bd + F.ex - fee;
+  }
+
   // ---------- Return path ----------
   function eventYears(p, retA) {
     return (p.stress.enabled ? p.stress.events : []).map(e => ({
@@ -210,6 +230,9 @@
     let rothContrib = has(p.accounts.rothBasis) ? Math.min(roth, num(p.accounts.rothBasis)) : roth;
     const convs = [];
     const rows = [];
+    const investLeftover = !(p.saving && p.saving.investLeftover === false);
+    const sips = (p.sips || []).map(s => ({ ...s, bal: 0, basis: 0, paid: 0, merged: false }));
+    let sipAtRetire = 0;
     const magiHist = {}; magiHist[y0 - 2] = p.priorMagi; magiHist[y0 - 1] = p.priorMagi;
     let shortfallYear = null, totalTax = 0, totalIrmaa = 0, totalShort = 0, totalPen = 0, totalHealth = 0;
     const deathA = has(A.deathAge) ? A.birthYear + +A.deathAge : Infinity;
@@ -226,6 +249,15 @@
       const survivor = couple && !(aliveA && aliveB);
       const n65 = (aliveA && ageA >= 65 ? 1 : 0) + (aliveB && ageB >= 65 ? 1 : 0);
 
+      // ----- SIPs stop at retirement and join the other savings -----
+      if (y >= retA) for (const s of sips) {
+        if (s.merged) continue;
+        s.merged = true; sipAtRetire += s.bal / Math.pow(1 + p.inflation, t);
+        if (s.account === 'roth') { roth += s.bal; rothContrib += s.paid; }
+        else { tax += s.bal; basis += s.basis; }
+        s.bal = 0;
+      }
+
       // ----- Paycheck -----
       const wageOf = (P, alive, ret) => alive && y < ret ? num(P.salary) * infl * Math.pow(1 + num(P.raise), t) : 0;
       const wA = wageOf(A, aliveA, retA), wB = couple ? wageOf(B, aliveB, retB) : 0;
@@ -241,6 +273,19 @@
       };
       const cA = contrib(A, wA, ageA), cB = couple ? contrib(B, wB, ageB) : contrib(B, 0, 0);
       const pre = cA.pre + cB.pre, r401 = cA.r401 + cB.r401, match = cA.match + cB.match, rira = cA.rira + cB.rira;
+      // SIP contributions, paid from take-home pay while working
+      let sipOut = 0;
+      const iraRoom = Math.max(0, (T.ira + (ageA >= 50 ? T.iraCatch : 0)) * infl - cA.rira);
+      let rothRoomLeft = iraRoom;
+      for (const s of sips) {
+        s.out = 0;
+        if (s.merged || wages <= 0) continue;
+        const from = num(s.from), yrs = num(s.years);
+        if (y < from || (yrs > 0 && y >= from + yrs) || y >= retA) continue;
+        let amt = num(s.monthly) * 12 * infl * Math.pow(1 + num(s.stepUp), y - from);
+        if (s.account === 'roth') { amt = Math.min(amt, rothRoomLeft); rothRoomLeft -= amt; }
+        s.out = Math.max(0, amt); sipOut += s.out;
+      }
       const wagesTaxable = wages - pre;
       const wagesCash = wages - pre - r401 - rira;
       const fica = T.ficaSS * (Math.min(wA, T.ssWageBase * infl) + Math.min(wB, T.ssWageBase * infl))
@@ -351,7 +396,7 @@
         : p.withdrawOrder === 'protect-ira' ? ['taxable', 'rothA', 'ira'] : ['taxable', 'ira', 'rothA'];
       let wTax = 0, wIra = 0, wRoth = 0, wRothE = 0, gain = 0, taxRes = null, need = 0, short = 0, pen = 0, health = 0;
       let taxGuess = 0;
-      const inflow = wagesCash + ss + pension + oneCash;
+      const inflow = wagesCash - sipOut + ss + pension + oneCash;
       const solve = () => {
         taxGuess = 0; health = healthCost(0);
         for (let it = 0; it < 16; it++) {
@@ -389,9 +434,11 @@
       }
       need = spend + irmaa + fica + health + taxGuess;
       const surplus = Math.max(0, inflow + rmd + wTax + wIra + wRoth + wRothE - need);
+      // Without "invest leftover pay", spare take-home pay is assumed spent; other surpluses are still invested.
+      const invested = investLeftover || !anyWorking ? surplus : Math.max(0, surplus - Math.max(0, wagesCash - sipOut));
 
       // ----- Apply flows -----
-      const begin = ira + roth + tax;
+      const begin = ira + roth + tax + sips.reduce((a, s) => a + s.bal, 0);
       const gFrac = tax > 0 ? Math.max(0, 1 - basis / tax) : 0;
       basis -= wTax * (1 - gFrac);
       tax -= wTax;
@@ -402,7 +449,8 @@
       let left = wRoth + wRothE;
       const fromContrib = Math.min(left, rothContrib); rothContrib -= fromContrib; left -= fromContrib;
       for (const c of convs) { if (left <= 0) break; const k = Math.min(left, c.amt); c.amt -= k; left -= k; }
-      tax += surplus; basis += surplus;
+      tax += invested; basis += invested;
+      for (const s of sips) if (s.out > 0) { s.bal += s.out; s.basis += s.out; s.paid += s.out; }
       ira = Math.max(0, ira); roth = Math.max(0, roth); tax = Math.max(0, tax); basis = Math.max(0, Math.min(basis, tax));
       rothContrib = Math.min(rothContrib, roth);
 
@@ -411,6 +459,8 @@
       const w = equityWeight(p, ageA);
       const blended = w * r.eq + (1 - w) * r.bd;
       ira *= 1 + blended; roth *= 1 + blended; tax *= 1 + blended;
+      let sipBal = 0;
+      for (const s of sips) if (!s.merged) { s.bal *= 1 + sipReturn(s, r, w); sipBal += s.bal; }
 
       magiHist[y] = taxRes.agi; magiHist['s' + y] = status;
       if (short > 1 && shortfallYear == null) shortfallYear = y;
@@ -420,11 +470,11 @@
       rows.push({
         year: y, ageA: aliveA ? ageA : null, ageB: couple && aliveB ? ageB : null, status, survivor,
         begin, spend, wages, ss, pension, oneCash, rmd, conv, wTax, wIra, wRoth: wRoth + wRothE,
-        contrib: pre + r401 + match + rira, saved: pre + r401 + match + rira + surplus,
+        contrib: pre + r401 + match + rira + sipOut, saved: pre + r401 + match + rira + sipOut + invested, sipOut, sipBal,
         fica, pen, health, healthFull, incomeTax: taxRes.total,
         fedTax: taxRes.fed, stateTax: taxRes.state, tax: allTax, marg: taxRes.marg, agi: taxRes.agi,
         irmaa, irmaaTier: tierNow, short, eqW: w, ret: blended, tag: r.tag, working: anyWorking,
-        ira, roth, taxable: tax, end: ira + roth + tax,
+        ira, roth, taxable: tax, end: ira + roth + tax + sipBal,
       });
     }
     const last = rows[rows.length - 1];
@@ -434,6 +484,7 @@
       endBalance: last.end, endReal: last.end / Math.pow(1 + p.inflation, last.year - y0),
       minRow, success: shortfallYear == null, endYear: last.year,
       retireYear: retA, ssFRA: { a: FA, b: FB },
+      sipAtRetire: sipAtRetire || rows.length && sips.reduce((a, s) => a + s.bal, 0) / Math.pow(1 + p.inflation, last.year - y0),
     };
   }
 
@@ -478,7 +529,7 @@
     return { successRate: ok / n, p10: pct(0.10), p25: pct(0.25), p50: pct(0.5), p75: pct(0.75), p90: pct(0.9), n };
   }
 
-  const api = { T, project, monteCarlo, computeTax, ownFactor, rmdStartAge, rmdFactor, irmaaTier, equityWeight,
+  const api = { T, FUNDS, sipReturn, project, monteCarlo, computeTax, ownFactor, rmdStartAge, rmdFactor, irmaaTier, equityWeight,
     earliestRetirement, withRetireYear, effectiveSS, ssEstimate, acaApplicable, acaAgeFactor, retYearOf };
   if (typeof module !== 'undefined') module.exports = api; else root.RetireEngine = api;
 })(this);
