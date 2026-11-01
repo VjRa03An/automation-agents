@@ -263,7 +263,7 @@ tr.short td:first-child { background: var(--bad-soft); }
             <div class="f"><label for="startYear">First plan year</label><input id="startYear" data-path="startYear" type="number"></div>
           </div>
 
-          <p class="note">Leave Social Security blank and the planner estimates it from your salary and the years you'll have worked. If you enter your SSA figure, it is scaled down for the working years you skip by retiring early.</p>
+          <p class="note">Leave Social Security blank and the planner estimates it from your salary and the years you'll have worked. If you enter your SSA figure, it is scaled down for the working years you skip by retiring early. Claiming before full retirement age while still working withholds part of the benefit until you reach it.</p>
         </div>
       </details>
 
@@ -411,6 +411,23 @@ tr.short td:first-child { background: var(--bad-soft); }
             <div class="f" style="justify-content:end"><label class="check"><input type="checkbox" id="hSub" data-path="health.subsidy" data-type="bool"> Apply ACA tax credits</label></div>
           </div>
           <p class="note">Premiums rise with age (3× at 64 vs. 21) and inflation. With tax credits, you pay 2.1%–9.96% of income for the benchmark plan, but nothing is covered above 400% of the poverty line ($62,600 single, $84,600 for two in 2026). Check your area's benchmark on healthcare.gov.</p>
+        </div>
+      </details>
+
+      <details class="sec" open>
+        <summary><h2>Social Security shortfall</h2><span class="hint" id="hintSsc"></span></summary>
+        <div class="body">
+          <label class="check"><input type="checkbox" id="sscOn" data-path="ssCut.enabled" data-type="bool"> Cut benefits if the trust fund runs short</label>
+          <div class="presets">
+            <button type="button" class="btn small" data-sscpreset="trustees">2026 Trustees: 78% falling to 62%</button>
+            <button type="button" class="btn small" data-sscpreset="flat">Flat 22% cut</button>
+          </div>
+          <div class="row three">
+            <div class="f"><label for="sscY">Cut starts in</label><input id="sscY" data-path="ssCut.year" type="number" step="1"></div>
+            <div class="f"><label for="sscA">Share paid then</label><input id="sscA" data-path="ssCut.startPct" data-type="pct" type="number" step="1"></div>
+            <div class="f"><label for="sscB">Share paid by 2100</label><input id="sscB" data-path="ssCut.endPct" data-type="pct" type="number" step="1"></div>
+          </div>
+          <p class="note">The 2026 Trustees Report projects the retirement trust fund runs out in late 2032. Benefits wouldn't stop: payroll taxes would still cover about 78% of them, falling to about 62% by 2100, for everyone already collecting too, unless Congress acts.</p>
         </div>
       </details>
 
@@ -585,6 +602,8 @@ tr.short td:first-child { background: var(--bad-soft); }
       <section class="fine">
         <h3 style="font-size:14px;color:var(--ink-2)">How this projection works</h3>
         <ul>
+          <li>Rules as of November 2026. Social Security's 2027 figures are official: the 3.6% raise, the $192,300 wage base, earnings-test limits of $25,560 and $67,920, and the benefit formula. The IRS hasn't published 2027 tax brackets or 401(k)/IRA limits, and Medicare hasn't announced 2027 premiums (both expected by mid-November), so 2026 figures grown with inflation are used until then.</li>
+          <li>Social Security shortfall: from the year you set, benefits are multiplied by the share still paid, moving in a straight line to the 2100 share (2026 Trustees: 78% in 2033, 62% by 2100). Earnings test: before full retirement age, $1 is withheld for every $2 of pay above the limit ($1 for $3 in the year you reach it), and those months are credited back at full retirement age.</li>
           <li>Federal tax uses 2026 IRS brackets, standard deduction, the 65+ additions, the 2025–2028 senior deduction, 0/15/20% capital-gains rates, 3.8% NIIT and Social Security taxation. Brackets rise with your inflation rate. State tax is a flat rate on income above the standard deduction.</li>
           <li>Medicare surcharges (IRMAA) use 2026 CMS tiers and your income from two years earlier, per person on Medicare. Only the surcharge above the standard premium is added; put base premiums in spending.</li>
           <li>RMDs start at 73 (born 1951–59) or 75 (born 1960+) using the IRS Uniform Lifetime Table. Social Security adjusts for claiming age and includes the 50% spousal top-up.</li>
@@ -642,6 +661,11 @@ tr.short td:first-child { background: var(--bad-soft); }
     k401: 24500, k401Catch: 8000, ira: 7500, iraCatch: 1100,
     // Social Security benefit formula (today's dollars)
     pia: [1286, 7749],
+    // Social Security figures by year (SSA). Later years grow with the plan's inflation from the last known year.
+    ssYear: {
+      2026: { wageBase: 184500, pia: [1286, 7749], etUnder: 24480, etFraYear: 65160 },
+      2027: { wageBase: 192300, pia: [1340, 8077], etUnder: 25560, etFraYear: 67920, cola: 0.036 },
+    },
     // ACA: poverty line for the household (base + per extra person), applicable % bands, age rating
     fpl: [15650, 5500],
     acaBands: [[1.33, .021, .021], [1.5, .0314, .0419], [2.0, .0419, .066], [2.5, .066, .0844], [3.0, .0844, .0996], [4.0, .0996, .0996]],
@@ -672,20 +696,36 @@ tr.short td:first-child { background: var(--bad-soft); }
     return 1 - Math.min(m, 36) * (25 / 3600) - Math.max(m - 36, 0) * (5 / 1200);
   }
 
+  // Social Security figure for a year: the known value, or the last known value grown by inflation.
+  function ssFig(key, y, inflation) {
+    const ys = Object.keys(T.ssYear).map(Number).sort((a, b) => a - b);
+    let k = ys[0];
+    for (const z of ys) if (z <= y && T.ssYear[z][key] != null) k = z;
+    return T.ssYear[k][key] * (Array.isArray(T.ssYear[k][key]) ? 1 : Math.pow(1 + inflation, Math.max(0, y - k)));
+  }
+  // Social Security trust-fund shortfall: share of benefits still paid in year y.
+  function ssPayable(p, y) {
+    const c = p.ssCut;
+    if (!c || !c.enabled || y < num(c.year)) return 1;
+    const y0 = num(c.year), y1 = Math.max(y0 + 1, num(c.endYear) || 2100);
+    const a = has(c.startPct) ? num(c.startPct) : 0.78, b = has(c.endPct) ? num(c.endPct) : a;
+    return a + (b - a) * Math.min(1, (y - y0) / (y1 - y0));
+  }
+
   // ---------- Social Security estimate from earnings (today's dollars) ----------
-  function piaFromAime(aime) {
-    const [b1, b2] = T.pia;
+  function piaFromAime(aime, bends) {
+    const [b1, b2] = bends || T.pia;
     return 0.9 * Math.min(aime, b1) + 0.32 * Math.max(0, Math.min(aime, b2) - b1) + 0.15 * Math.max(0, aime - b2);
   }
   // Past years are estimated by walking today's salary back by the raise rate.
   function ssEstimate(P, y0, stopYear) {
-    const raise = num(P.raise), sal = num(P.salary), cap = T.ssWageBase, yrs = [];
+    const raise = num(P.raise), sal = num(P.salary), cap = ssFig('wageBase', y0, 0), yrs = [];
     const past = Math.max(0, Math.round(num(P.yearsWorked)));
     for (let k = 1; k <= past; k++) yrs.push(Math.min(cap, sal / Math.pow(1 + raise, k)));
     for (let y = y0; y < stopYear; y++) yrs.push(Math.min(cap, sal * Math.pow(1 + raise, y - y0)));
     yrs.sort((a, b) => b - a);
     const aime = yrs.slice(0, 35).reduce((s, x) => s + x, 0) / 420;
-    return piaFromAime(aime);
+    return piaFromAime(aime, ssFig('pia', y0, 0));
   }
   // Monthly benefit at full retirement age, today's dollars.
   // Without a work history the statement figure is used as-is (original behavior).
@@ -917,6 +957,8 @@ tr.short td:first-child { background: var(--bad-soft); }
     }
     // In rent mode, owning costs come from a shadow run of the same plan in own mode
     const shadow = HM && homeMode === 'rent' ? project(p, { ...opts, homeMode: 'own', rng: null, shadowOnly: true }).rows : null;
+    let ssIdx = 1;                        // benefit growth since the plan's first year: known COLAs, then inflation
+    const whMonths = { a: 0, b: 0 };      // months of benefits withheld by the earnings test (credited back at FRA)
     const sips = (p.sips || []).map(s => ({ ...s, bal: 0, basis: 0, paid: 0, merged: false }));
     let sipAtRetire = 0;
     const magiHist = {}; magiHist[y0 - 2] = p.priorMagi; magiHist[y0 - 1] = p.priorMagi;
@@ -975,34 +1017,58 @@ tr.short td:first-child { background: var(--bad-soft); }
       }
       const wagesTaxable = wages - pre;
       const wagesCash = wages - pre - r401 - rira;
-      const fica = T.ficaSS * (Math.min(wA, T.ssWageBase * infl) + Math.min(wB, T.ssWageBase * infl))
+      const wbase = ssFig('wageBase', y, p.inflation);
+      if (y > y0) { const c = T.ssYear[y] && T.ssYear[y].cola; ssIdx *= 1 + (c != null ? c : p.inflation); }
+      const fica = T.ficaSS * (Math.min(wA, wbase) + Math.min(wB, wbase))
         + T.ficaMed * wages + T.addlMed * Math.max(0, wages - T.addlMedTh[status]);
       const anyWorking = wages > 0;
 
       // ----- Social Security -----
-      const ssPerson = (P, fra, by) => {
+      // After full retirement age, months withheld by the earnings test are credited back as if you'd claimed later.
+      const ssPerson = (P, fra, by, key) => {
         const claimYear = by + Math.floor(P.ssClaimAge);
         if (y < claimYear) return { own: 0, months: 0 };
         const months = y === claimYear ? Math.max(0, 12 - (P.birthMonth - 1) - Math.round((P.ssClaimAge % 1) * 12)) : 12;
-        return { own: fra * ownFactor(by, P.ssClaimAge) * infl, months };
+        const fraAge = fraMonths(by) / 12, pastFra = (y - by) > fraAge;
+        const age = pastFra ? Math.min(Math.max(fraAge, P.ssClaimAge), P.ssClaimAge + whMonths[key] / 12) : P.ssClaimAge;
+        return { own: fra * ownFactor(by, age) * ssIdx, months };
       };
-      const sa = ssPerson(A, FA, A.birthYear);
-      const sb = couple ? ssPerson(B, FB, B.birthYear) : { own: 0, months: 0 };
+      const sa = ssPerson(A, FA, A.birthYear, 'a');
+      const sb = couple ? ssPerson(B, FB, B.birthYear, 'b') : { own: 0, months: 0 };
       let ssA = 0, ssB = 0;
       if (couple && aliveA && aliveB) {
         const both = sa.months > 0 && sb.months > 0;
-        const spA = both ? Math.max(0, 0.5 * FB * infl * spousalFactor(A.birthYear, A.ssClaimAge) - sa.own) : 0;
-        const spB = both ? Math.max(0, 0.5 * FA * infl * spousalFactor(B.birthYear, B.ssClaimAge) - sb.own) : 0;
+        const spA = both ? Math.max(0, 0.5 * FB * ssIdx * spousalFactor(A.birthYear, A.ssClaimAge) - sa.own) : 0;
+        const spB = both ? Math.max(0, 0.5 * FA * ssIdx * spousalFactor(B.birthYear, B.ssClaimAge) - sb.own) : 0;
         ssA = (sa.own + spA) * sa.months; ssB = (sb.own + spB) * sb.months;
       } else if (couple) {
         const [sS, sD, fD] = aliveA ? [sa, sb, FB] : [sb, sa, FA];
-        const decBen = sD.own > 0 ? Math.max(sD.own, fD * infl * 0.825) : fD * infl;
+        const decBen = sD.own > 0 ? Math.max(sD.own, fD * ssIdx * 0.825) : fD * ssIdx;
         const amt = Math.max(sS.own, decBen) * sS.months;
         if (aliveA) ssA = amt; else ssB = amt;
       } else {
         ssA = sa.own * sa.months;
       }
-      const ss = ssA + ssB;
+      // Earnings test: claiming before full retirement age while working withholds $1 of every $2 above the
+      // limit ($1 of $3 in the year you reach FRA, counting pay before that month).
+      let ssWithheld = 0;
+      const earningsTest = (P, w, paid, key) => {
+        if (w <= 0 || paid <= 0) return paid;
+        const fraM = fraMonths(P.birthYear), fraYear = P.birthYear + Math.floor(fraM / 12);
+        if (y > fraYear) return paid;
+        let wh;
+        if (y < fraYear) wh = Math.max(0, w - ssFig('etUnder', y, p.inflation)) / 2;
+        else { const before = Math.max(0, (num(P.birthMonth) - 1 + fraM % 12)) / 12; wh = Math.max(0, w * Math.min(1, before) - ssFig('etFraYear', y, p.inflation)) / 3; }
+        wh = Math.min(paid, wh);
+        if (wh > 0) { const monthly = paid / 12; whMonths[key] += monthly > 0 ? Math.min(12, wh / monthly) : 0; ssWithheld += wh; }
+        return paid - wh;
+      };
+      ssA = earningsTest(A, wA, ssA, 'a');
+      if (couple) ssB = earningsTest(B, wB, ssB, 'b');
+      // Trust-fund shortfall stress test
+      const ssPay = ssPayable(p, y), ssFull = ssA + ssB;
+      ssA *= ssPay; ssB *= ssPay;
+      const ss = ssA + ssB, ssCutAmt = ssFull - ss;
 
       const pension = (p.pension.annual && y >= p.pension.startYear)
         ? p.pension.annual * (p.pension.cola ? infl : 1) * (survivor ? p.pension.survivorPct : 1) : 0;
@@ -1266,7 +1332,7 @@ tr.short td:first-child { background: var(--bad-soft); }
       rows.push({
         year: y, ageA: aliveA ? ageA : null, ageB: couple && aliveB ? ageB : null, status, survivor,
         begin, spend, wages, ss, pension, oneCash, rmd, conv, wTax, wIra, wRoth: wRoth + wRothE,
-        lifePrem, lifePayout, medical, itemized: taxRes.itemized,
+        lifePrem, lifePayout, medical, itemized: taxRes.itemized, ssWithheld, ssCutAmt, ssPay,
         homeFund, homeFundOut, downCash, mortInt, principal, pmi, propTax, ownCost, rentCost, homeInvest, homeTaxSave,
         homeValue: homeMode === 'own' && y >= buyYear ? homeValue : 0, loanBal: homeMode === 'own' ? loanBal : 0,
         equity: (homeMode === 'own' && y >= buyYear ? homeValue - loanBal : 0) + (ownState === 'orig' ? curValue - curBal : ownState === 'new' ? newValue : 0),
@@ -1330,7 +1396,7 @@ tr.short td:first-child { background: var(--bad-soft); }
     return { successRate: ok / n, p10: pct(0.10), p25: pct(0.25), p50: pct(0.5), p75: pct(0.75), p90: pct(0.9), n };
   }
 
-  const api = { T, saltCap, FUNDS, LIFE, MED_2026, medicalOutOfPocket, termPrice, policyMonthly, sipReturn, project, monteCarlo, computeTax, ownFactor, rmdStartAge, rmdFactor, irmaaTier, equityWeight,
+  const api = { T, saltCap, ssFig, ssPayable, FUNDS, LIFE, MED_2026, medicalOutOfPocket, termPrice, policyMonthly, sipReturn, project, monteCarlo, computeTax, ownFactor, rmdStartAge, rmdFactor, irmaaTier, equityWeight,
     earliestRetirement, withRetireYear, effectiveSS, ssEstimate, acaApplicable, acaAgeFactor, retYearOf };
   if (typeof module !== 'undefined') module.exports = api; else root.RetireEngine = api;
 })(this);
@@ -1354,9 +1420,9 @@ tr.short td:first-child { background: var(--bad-soft); }
   const EXAMPLE_YOUNG = () => ({
     _example: true,
     startYear: 2026, filing: 'Single', endAge: 95, inflation: 0.03, stateRate: 0.05, priorMagi: 110000,
-    a: { name: 'Jordan', birthYear: 1993, birthMonth: 6, retireAge: 58, retireYear: '', salary: 120000, raise: 0.015, yearsWorked: 10,
+    a: { name: 'Jordan', birthYear: 1993, birthMonth: 6, retireAge: 60, retireYear: '', salary: 120000, raise: 0.015, yearsWorked: 10,
       k401Pct: 0.10, roth401kPct: 0, matchPct: 0.04, rothIra: 7500, ssFRA: '', ssClaimAge: 67, deathAge: '' },
-    b: { name: 'Casey', birthYear: 1994, birthMonth: 3, retireAge: 58, retireYear: '', salary: 95000, raise: 0.015, yearsWorked: 9,
+    b: { name: 'Casey', birthYear: 1994, birthMonth: 3, retireAge: 60, retireYear: '', salary: 95000, raise: 0.015, yearsWorked: 9,
       k401Pct: 0.08, roth401kPct: 0, matchPct: 0.03, rothIra: 0, ssFRA: '', ssClaimAge: 67, deathAge: '' },
     iraOwner: 'a',
     accounts: { ira: 95000, roth: 40000, rothBasis: 30000, taxable: 35000, taxableBasisPct: 0.85 },
@@ -1372,6 +1438,7 @@ tr.short td:first-child { background: var(--bad-soft); }
     stress: { enabled: true, recoveryYears: 3, recoveryEquity: 0.12, events: presetEvents('three08', 2026) },
     health: { enabled: true, premium40: 7500, subsidy: true },
     roth: { enabled: true, ladder: true, mode: 'fill', bracket: 0.12, amount: 40000, from: 2026, to: 2052, irmaaCap: true, acaCap: true },
+    ssCut: { enabled: true, year: 2033, startPct: 0.78, endPct: 0.62, endYear: 2100 },
     withdrawOrder: 'protect-ira',
     mc: { equitySd: 0.17, bondSd: 0.06 },
   });
@@ -1394,6 +1461,7 @@ tr.short td:first-child { background: var(--bad-soft); }
     stress: { enabled: true, recoveryYears: 3, recoveryEquity: 0.12, events: presetEvents('sept', 2026) },
     medical: { enabled: true, extra: 0, events: medPreset({ filing: 'MFJ', startYear: 2026, a: { birthYear: 1964 }, b: { birthYear: 1966 } }) },
     roth: { enabled: false, mode: 'fill', bracket: 0.22, amount: 40000, from: 2027, to: 2038, irmaaCap: true },
+    ssCut: { enabled: true, year: 2033, startPct: 0.78, endPct: 0.62, endYear: 2100 },
     withdrawOrder: 'protect-ira',
     mc: { equitySd: 0.17, bondSd: 0.06 },
   });
@@ -1646,6 +1714,7 @@ tr.short td:first-child { background: var(--bad-soft); }
       $('#vHead').textContent = fire.age <= curAge() ? `${who} could stop working now` : `${who} can retire in ${fire.year}, at age ${fire.age}`;
       $('#vSub').textContent = `That takes about ${money(target)} saved (today's dollars) by then, and lasts to age ${p.endAge} through your recession test. `
         + (fireNoSip !== undefined && fireNoSip !== null && fireNoSip.age > fire.age ? `Your SIPs bring it ${fireNoSip.age - fire.age} year${fireNoSip.age - fire.age === 1 ? '' : 's'} sooner. ` : '')
+        + (p.ssCut && p.ssCut.enabled ? `Includes a Social Security cut from ${p.ssCut.year}. ` : '')
         + (r.success ? `Your planned age of ${pa} works, with ${money(r.endReal)} left at ${p.endAge} in today's dollars.`
                      : `Your planned age of ${pa} runs short in ${r.shortfallYear}.`);
     } else {
@@ -1663,7 +1732,7 @@ tr.short td:first-child { background: var(--bad-soft); }
       sipKpi(),
       ['With 90% confidence', conf ? String(conf.age) : (ladder && ladder.done ? '70+' : '…'), conf ? `${Math.round(conf.rate * 100)}% of random markets` : 'random markets'],
       ['Savings rate now', Math.round(rate * 100) + '%', `${money(first.saved)} of ${money(gross)} pay, incl. match`],
-      ['Social Security at 67', '$' + Math.round(ss).toLocaleString('en-US') + '/mo', `today's $, retiring at ${pa}`],
+      ['Social Security at 67', '$' + Math.round(ss).toLocaleString('en-US') + '/mo', `today's $, retiring at ${pa}` + (p.ssCut && p.ssCut.enabled ? ', before the cut' : '')],
       ['Health insurance', money(r.totalHealth), 'before 65, after tax credits'],
     ];
     $('#kpis').innerHTML = k.map(([a, b, c]) => `<div class="kpi"><span>${a}</span><b>${b}</b><small>${c}</small></div>`).join('');
@@ -1684,7 +1753,8 @@ tr.short td:first-child { background: var(--bad-soft); }
       $('#vHead').textContent = `Money lasts to ${poss} age ${p.endAge} with ${money(r.endReal)} left in today's dollars`;
       const nRec = p.stress.enabled ? p.stress.events.length : 0;
       const nMed = r.rows.filter(x => x.medical > 0).length;
-      const what = [nRec ? `${nRec} recession${nRec > 1 ? 's' : ''}` : '', nMed ? `${nMed} medical event${nMed > 1 ? 's' : ''}` : ''].filter(Boolean).join(' and ');
+      const ssc = p.ssCut && p.ssCut.enabled ? 'a Social Security cut' : '';
+      const what = [nRec ? `${nRec} recession${nRec > 1 ? 's' : ''}` : '', nMed ? `${nMed} medical event${nMed > 1 ? 's' : ''}` : '', ssc].filter(Boolean).join(', ').replace(/, ([^,]*)$/, ' and $1');
       $('#vSub').textContent = `${full(r.endBalance)} in ${last.year} dollars` + (what ? `, after ${what}.` : '. No recessions or medical events applied.') + (nRec ? ` Without the recessions: ${money(base.endBalance)}.` : '');
     } else {
       const sr = r.rows.find(x => x.year === r.shortfallYear);
@@ -1715,6 +1785,7 @@ tr.short td:first-child { background: var(--bad-soft); }
     if ($('#hintOwn')) { const o = p.own || {}; $('#hintOwn').textContent = o.enabled ? ({ stay: 'stay put', downsize: 'downsize ' + o.sellYear, rent: 'sell ' + o.sellYear + ', rent' })[o.plan || 'stay'] : 'off'; }
     if ($('#hintMed')) { const m = p.medical || {}; $('#hintMed').textContent = m.enabled && (m.events || []).length ? `${m.events.length} event${m.events.length > 1 ? 's' : ''}` : 'off'; }
     $('#hintSurv').textContent = (p.a.deathAge || (p.filing === 'MFJ' && p.b.deathAge)) ? 'on' : 'off';
+    if ($('#hintSsc')) { const c = p.ssCut || {}; $('#hintSsc').textContent = c.enabled ? `${Math.round((+c.startPct || 0) * 100)}% from ${c.year}` : 'off'; }
     $('#hintRoth').textContent = p.roth.enabled ? (p.roth.ladder ? 'ladder' : 'on') : 'off';
     if (YOUNG) {
       const r0 = res.rows[0];
@@ -2100,6 +2171,11 @@ tr.short td:first-child { background: var(--bad-soft); }
     renderList('life'); changed(); toast(`Policy set to ${money(+b.dataset.cov)} for ${b.dataset.term} years`);
   });
 
+  $$('[data-sscpreset]').forEach(b => b.addEventListener('click', () => {
+    const flat = b.dataset.sscpreset === 'flat';
+    p.ssCut = { enabled: true, year: 2033, startPct: 0.78, endPct: flat ? 0.78 : 0.62, endYear: 2100 };
+    bindStatic(); changed(); toast(flat ? 'Social Security cut: 22% from 2033' : 'Social Security cut: 2026 Trustees path');
+  }));
   if ($('#medPreset')) $('#medPreset').addEventListener('click', () => {
     p.medical = p.medical || { extra: 0 }; p.medical.enabled = true; p.medical.events = medPreset(p);
     bindStatic(); changed(); toast('Two $250K medical events added');

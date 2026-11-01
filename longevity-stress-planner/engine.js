@@ -31,6 +31,11 @@
     k401: 24500, k401Catch: 8000, ira: 7500, iraCatch: 1100,
     // Social Security benefit formula (today's dollars)
     pia: [1286, 7749],
+    // Social Security figures by year (SSA). Later years grow with the plan's inflation from the last known year.
+    ssYear: {
+      2026: { wageBase: 184500, pia: [1286, 7749], etUnder: 24480, etFraYear: 65160 },
+      2027: { wageBase: 192300, pia: [1340, 8077], etUnder: 25560, etFraYear: 67920, cola: 0.036 },
+    },
     // ACA: poverty line for the household (base + per extra person), applicable % bands, age rating
     fpl: [15650, 5500],
     acaBands: [[1.33, .021, .021], [1.5, .0314, .0419], [2.0, .0419, .066], [2.5, .066, .0844], [3.0, .0844, .0996], [4.0, .0996, .0996]],
@@ -61,20 +66,36 @@
     return 1 - Math.min(m, 36) * (25 / 3600) - Math.max(m - 36, 0) * (5 / 1200);
   }
 
+  // Social Security figure for a year: the known value, or the last known value grown by inflation.
+  function ssFig(key, y, inflation) {
+    const ys = Object.keys(T.ssYear).map(Number).sort((a, b) => a - b);
+    let k = ys[0];
+    for (const z of ys) if (z <= y && T.ssYear[z][key] != null) k = z;
+    return T.ssYear[k][key] * (Array.isArray(T.ssYear[k][key]) ? 1 : Math.pow(1 + inflation, Math.max(0, y - k)));
+  }
+  // Social Security trust-fund shortfall: share of benefits still paid in year y.
+  function ssPayable(p, y) {
+    const c = p.ssCut;
+    if (!c || !c.enabled || y < num(c.year)) return 1;
+    const y0 = num(c.year), y1 = Math.max(y0 + 1, num(c.endYear) || 2100);
+    const a = has(c.startPct) ? num(c.startPct) : 0.78, b = has(c.endPct) ? num(c.endPct) : a;
+    return a + (b - a) * Math.min(1, (y - y0) / (y1 - y0));
+  }
+
   // ---------- Social Security estimate from earnings (today's dollars) ----------
-  function piaFromAime(aime) {
-    const [b1, b2] = T.pia;
+  function piaFromAime(aime, bends) {
+    const [b1, b2] = bends || T.pia;
     return 0.9 * Math.min(aime, b1) + 0.32 * Math.max(0, Math.min(aime, b2) - b1) + 0.15 * Math.max(0, aime - b2);
   }
   // Past years are estimated by walking today's salary back by the raise rate.
   function ssEstimate(P, y0, stopYear) {
-    const raise = num(P.raise), sal = num(P.salary), cap = T.ssWageBase, yrs = [];
+    const raise = num(P.raise), sal = num(P.salary), cap = ssFig('wageBase', y0, 0), yrs = [];
     const past = Math.max(0, Math.round(num(P.yearsWorked)));
     for (let k = 1; k <= past; k++) yrs.push(Math.min(cap, sal / Math.pow(1 + raise, k)));
     for (let y = y0; y < stopYear; y++) yrs.push(Math.min(cap, sal * Math.pow(1 + raise, y - y0)));
     yrs.sort((a, b) => b - a);
     const aime = yrs.slice(0, 35).reduce((s, x) => s + x, 0) / 420;
-    return piaFromAime(aime);
+    return piaFromAime(aime, ssFig('pia', y0, 0));
   }
   // Monthly benefit at full retirement age, today's dollars.
   // Without a work history the statement figure is used as-is (original behavior).
@@ -306,6 +327,8 @@
     }
     // In rent mode, owning costs come from a shadow run of the same plan in own mode
     const shadow = HM && homeMode === 'rent' ? project(p, { ...opts, homeMode: 'own', rng: null, shadowOnly: true }).rows : null;
+    let ssIdx = 1;                        // benefit growth since the plan's first year: known COLAs, then inflation
+    const whMonths = { a: 0, b: 0 };      // months of benefits withheld by the earnings test (credited back at FRA)
     const sips = (p.sips || []).map(s => ({ ...s, bal: 0, basis: 0, paid: 0, merged: false }));
     let sipAtRetire = 0;
     const magiHist = {}; magiHist[y0 - 2] = p.priorMagi; magiHist[y0 - 1] = p.priorMagi;
@@ -364,34 +387,58 @@
       }
       const wagesTaxable = wages - pre;
       const wagesCash = wages - pre - r401 - rira;
-      const fica = T.ficaSS * (Math.min(wA, T.ssWageBase * infl) + Math.min(wB, T.ssWageBase * infl))
+      const wbase = ssFig('wageBase', y, p.inflation);
+      if (y > y0) { const c = T.ssYear[y] && T.ssYear[y].cola; ssIdx *= 1 + (c != null ? c : p.inflation); }
+      const fica = T.ficaSS * (Math.min(wA, wbase) + Math.min(wB, wbase))
         + T.ficaMed * wages + T.addlMed * Math.max(0, wages - T.addlMedTh[status]);
       const anyWorking = wages > 0;
 
       // ----- Social Security -----
-      const ssPerson = (P, fra, by) => {
+      // After full retirement age, months withheld by the earnings test are credited back as if you'd claimed later.
+      const ssPerson = (P, fra, by, key) => {
         const claimYear = by + Math.floor(P.ssClaimAge);
         if (y < claimYear) return { own: 0, months: 0 };
         const months = y === claimYear ? Math.max(0, 12 - (P.birthMonth - 1) - Math.round((P.ssClaimAge % 1) * 12)) : 12;
-        return { own: fra * ownFactor(by, P.ssClaimAge) * infl, months };
+        const fraAge = fraMonths(by) / 12, pastFra = (y - by) > fraAge;
+        const age = pastFra ? Math.min(Math.max(fraAge, P.ssClaimAge), P.ssClaimAge + whMonths[key] / 12) : P.ssClaimAge;
+        return { own: fra * ownFactor(by, age) * ssIdx, months };
       };
-      const sa = ssPerson(A, FA, A.birthYear);
-      const sb = couple ? ssPerson(B, FB, B.birthYear) : { own: 0, months: 0 };
+      const sa = ssPerson(A, FA, A.birthYear, 'a');
+      const sb = couple ? ssPerson(B, FB, B.birthYear, 'b') : { own: 0, months: 0 };
       let ssA = 0, ssB = 0;
       if (couple && aliveA && aliveB) {
         const both = sa.months > 0 && sb.months > 0;
-        const spA = both ? Math.max(0, 0.5 * FB * infl * spousalFactor(A.birthYear, A.ssClaimAge) - sa.own) : 0;
-        const spB = both ? Math.max(0, 0.5 * FA * infl * spousalFactor(B.birthYear, B.ssClaimAge) - sb.own) : 0;
+        const spA = both ? Math.max(0, 0.5 * FB * ssIdx * spousalFactor(A.birthYear, A.ssClaimAge) - sa.own) : 0;
+        const spB = both ? Math.max(0, 0.5 * FA * ssIdx * spousalFactor(B.birthYear, B.ssClaimAge) - sb.own) : 0;
         ssA = (sa.own + spA) * sa.months; ssB = (sb.own + spB) * sb.months;
       } else if (couple) {
         const [sS, sD, fD] = aliveA ? [sa, sb, FB] : [sb, sa, FA];
-        const decBen = sD.own > 0 ? Math.max(sD.own, fD * infl * 0.825) : fD * infl;
+        const decBen = sD.own > 0 ? Math.max(sD.own, fD * ssIdx * 0.825) : fD * ssIdx;
         const amt = Math.max(sS.own, decBen) * sS.months;
         if (aliveA) ssA = amt; else ssB = amt;
       } else {
         ssA = sa.own * sa.months;
       }
-      const ss = ssA + ssB;
+      // Earnings test: claiming before full retirement age while working withholds $1 of every $2 above the
+      // limit ($1 of $3 in the year you reach FRA, counting pay before that month).
+      let ssWithheld = 0;
+      const earningsTest = (P, w, paid, key) => {
+        if (w <= 0 || paid <= 0) return paid;
+        const fraM = fraMonths(P.birthYear), fraYear = P.birthYear + Math.floor(fraM / 12);
+        if (y > fraYear) return paid;
+        let wh;
+        if (y < fraYear) wh = Math.max(0, w - ssFig('etUnder', y, p.inflation)) / 2;
+        else { const before = Math.max(0, (num(P.birthMonth) - 1 + fraM % 12)) / 12; wh = Math.max(0, w * Math.min(1, before) - ssFig('etFraYear', y, p.inflation)) / 3; }
+        wh = Math.min(paid, wh);
+        if (wh > 0) { const monthly = paid / 12; whMonths[key] += monthly > 0 ? Math.min(12, wh / monthly) : 0; ssWithheld += wh; }
+        return paid - wh;
+      };
+      ssA = earningsTest(A, wA, ssA, 'a');
+      if (couple) ssB = earningsTest(B, wB, ssB, 'b');
+      // Trust-fund shortfall stress test
+      const ssPay = ssPayable(p, y), ssFull = ssA + ssB;
+      ssA *= ssPay; ssB *= ssPay;
+      const ss = ssA + ssB, ssCutAmt = ssFull - ss;
 
       const pension = (p.pension.annual && y >= p.pension.startYear)
         ? p.pension.annual * (p.pension.cola ? infl : 1) * (survivor ? p.pension.survivorPct : 1) : 0;
@@ -655,7 +702,7 @@
       rows.push({
         year: y, ageA: aliveA ? ageA : null, ageB: couple && aliveB ? ageB : null, status, survivor,
         begin, spend, wages, ss, pension, oneCash, rmd, conv, wTax, wIra, wRoth: wRoth + wRothE,
-        lifePrem, lifePayout, medical, itemized: taxRes.itemized,
+        lifePrem, lifePayout, medical, itemized: taxRes.itemized, ssWithheld, ssCutAmt, ssPay,
         homeFund, homeFundOut, downCash, mortInt, principal, pmi, propTax, ownCost, rentCost, homeInvest, homeTaxSave,
         homeValue: homeMode === 'own' && y >= buyYear ? homeValue : 0, loanBal: homeMode === 'own' ? loanBal : 0,
         equity: (homeMode === 'own' && y >= buyYear ? homeValue - loanBal : 0) + (ownState === 'orig' ? curValue - curBal : ownState === 'new' ? newValue : 0),
@@ -719,7 +766,7 @@
     return { successRate: ok / n, p10: pct(0.10), p25: pct(0.25), p50: pct(0.5), p75: pct(0.75), p90: pct(0.9), n };
   }
 
-  const api = { T, saltCap, FUNDS, LIFE, MED_2026, medicalOutOfPocket, termPrice, policyMonthly, sipReturn, project, monteCarlo, computeTax, ownFactor, rmdStartAge, rmdFactor, irmaaTier, equityWeight,
+  const api = { T, saltCap, ssFig, ssPayable, FUNDS, LIFE, MED_2026, medicalOutOfPocket, termPrice, policyMonthly, sipReturn, project, monteCarlo, computeTax, ownFactor, rmdStartAge, rmdFactor, irmaaTier, equityWeight,
     earliestRetirement, withRetireYear, effectiveSS, ssEstimate, acaApplicable, acaAgeFactor, retYearOf };
   if (typeof module !== 'undefined') module.exports = api; else root.RetireEngine = api;
 })(this);

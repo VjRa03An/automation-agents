@@ -16,6 +16,8 @@ Anyone can open them in a browser, with no account or install:
 
 Each page also links to the other at the top.
 
+**Rules as of November 2026.** Social Security's 2027 figures are official and built in: the 3.6% raise, the $192,300 wage base, the earnings-test limits ($25,560 / $67,920) and the 2027 benefit formula. The IRS 2027 tax brackets and 401(k)/IRA limits and Medicare's 2027 premiums aren't published yet (expected by mid-November); until then the planners grow the 2026 figures with inflation.
+
 ### For testers: what to try
 
 Both pages open with a made-up example so you can explore first. Then press **Start blank** and enter your own numbers in the amber fields; nothing you type leaves your browser.
@@ -74,6 +76,8 @@ It grew out of a real household's retirement spreadsheet (a concentrated stock s
 - **Social Security.** Claiming-age reduction and delayed credits, the 50% spousal top-up, and cost-of-living increases.
 - **Required minimum distributions** from 73 or 75 (by birth year) using the IRS Uniform Lifetime Table.
 - **Your home: stay, downsize, or sell and rent.** Enter the home's value, what you paid plus improvements, any mortgage (balance, rate, years left), property tax, insurance, upkeep and HOA, then pick a plan and a sale year. Selling costs, moving costs and the mortgage payoff come out of the sale; up to $250,000 of profit ($500,000 for a couple) is tax-free and the rest is taxed as a capital gain. Downsizing buys a smaller home with cash; selling to rent adds rent from the year you choose. A comparison card shows all three plans side by side: whether the money lasts, cash freed up, tax on the sale, housing cost afterward, home equity at 85 (a reserve for long-term care), savings and net worth at 95.
+- **Social Security shortfall (both planners).** Cut benefits from a chosen year to a share still paid, sliding to a 2100 share. A preset follows the 2026 Trustees Report: the retirement trust fund runs out in late 2032, after which payroll taxes cover about 78% of benefits, falling to about 62% by 2100. A second preset applies a flat 22% cut. The examples have it on; plans saved earlier load with it off.
+- **Earnings test (both planners).** Claiming before full retirement age while still working withholds $1 of every $2 earned above the limit ($1 of $3 in the year you reach it); the withheld months are credited back at full retirement age.
 - **Medical stress test.** Add hospital stays with home nursing at chosen ages; a preset adds two $250,000 events. Each event has a coverage choice, and the planner estimates what you'd actually pay under 2026 Medicare rules: about $283 with Original Medicare + Medigap Plan G, up to $9,250 with Medicare Advantage (the in-network maximum), roughly $19,000 on a $250,000 bill with Original Medicare alone (20% of Part B services has no cap), or the full bill if it isn't covered (Medicare doesn't pay for long-term custodial care). Large bills are itemized (costs above 7.5% of income) when that beats the standard deduction, and the extra withdrawals can raise Medicare premiums two years later. Results show the bills on the chart and table and how much they lower the ending balance.
 - **Survivor test.** Set an age of death for either spouse to see the widow's tax change: single brackets and IRMAA tiers, the higher Social Security check only, and lower survivor spending.
 - **Roth conversions.** Fill up to the 12%, 22% or 24% bracket (optionally staying under the first IRMAA tier), or convert a fixed amount.

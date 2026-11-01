@@ -151,4 +151,17 @@ assert.strictEqual(Math.round(E.project(ho2).rows.find(r => r.year === 2030).sal
 // Stay keeps the equity; selling to rent leaves none
 assert.ok(E.project(ho, { ownMode: 'stay' }).rows.at(-1).equity > 0 && E.project(ho, { ownMode: 'rent' }).rows.at(-1).equity === 0);
 
+// ---------- 2027 Social Security rules ----------
+assert.strictEqual(E.ssFig('wageBase', 2027, 0.03), 192300);
+assert.strictEqual(E.ssFig('etUnder', 2027, 0.03), 25560);
+// Trustees shortfall path: 78% from 2033, 62% by 2100
+const sc = { ssCut: { enabled: true, year: 2033, startPct: 0.78, endPct: 0.62, endYear: 2100 } };
+assert.strictEqual(E.ssPayable(sc, 2032), 1);
+assert.strictEqual(E.ssPayable(sc, 2033), 0.78);
+assert.strictEqual(E.ssPayable(sc, 2100), 0.62);
+// Earnings test: claiming at 62 in 2026 with $50,000 of pay withholds ($50,000 - $24,480) / 2
+const et = plan(); et.filing = 'Single'; et.inflation = 0; et.stress.enabled = false;
+et.a = { ...et.a, birthYear: 1964, birthMonth: 1, ssClaimAge: 62, ssFRA: 2000, salary: 50000, retireYear: 2029 };
+assert.strictEqual(Math.round(E.project(et).rows[0].ssWithheld), 12760);
+
 console.log('All engine checks passed.');
