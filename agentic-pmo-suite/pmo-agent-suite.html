@@ -1,3 +1,4 @@
+<meta charset="utf-8">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/4.3.0/marked.min.js"></script>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600&display=swap');
@@ -136,6 +137,10 @@
   const INTAKE_AGENT = 'intake-agent-v1';
   const PRIORITY_AGENT = 'prioritization-agent-v1';
   const TRANSCRIPT_AGENT = 'transcript-parser-agent-v1';
+  const GATE_AGENT = 'gate-readiness-agent-v1';
+  // Every prompted agent in the app (each is a differently-prompted call to the same model).
+  // The seven document agents plus intake triage, prioritization, transcript parsing and gate readiness.
+  const AGENT_ROSTER = ARTIFACT_TYPES.map(a=>a.agent).concat([INTAKE_AGENT, PRIORITY_AGENT, TRANSCRIPT_AGENT, GATE_AGENT]);
 
   const TEAM_OPTIONS = ['Data','UI','Backend','Integration','Service'];
   const SIZE_OPTIONS = ['S','M','L','XL','XXL'];
@@ -251,10 +256,10 @@
   }
 
   // A single, deliberately concrete example of a structured cross-program dependency
-  // (Aurora's billing cutover blocked on Atlas's API gateway) — system-tracked data,
+  // (Aurora's billing cutover blocked on Atlas's API gateway) - system-tracked data,
   // not just narrative text buried in a knownRisks paragraph. This does not make
   // cross-program dependency management a built feature (see Roadmap: still Partial,
-  // since there's no general graph linking any two programs automatically) — it's one
+  // since there's no general graph linking any two programs automatically) - it's one
   // named, real link shown concretely rather than claimed abstractly.
   function crossDependencyBox(p){
     const deps = p.crossDependencies || [];
@@ -363,7 +368,7 @@
   const RIGOR_PROCESS = {
     High: ['Stage gates with formal sign-off','Steering committee, bi-weekly','Full RAID log, owners and dates','Formal change control','Weekly executive status'],
     Medium: ['Milestone reviews at key points','RAID-lite: top risks and dependencies','Bi-weekly status','Change log, decided at Director level'],
-    Low: ['Short iterations; ship early and learn (“go ugly early”)','Team-level tracking in Jira','Status in the team channel','Escalate only when blocked'],
+    Low: ['Short iterations; ship early and learn (\u201cgo ugly early\u201d)','Team-level tracking in Jira','Status in the team channel','Escalate only when blocked'],
   };
   function defaultRigor(p){
     return {complexity: RIGOR_COMPLEXITY[p.complexity]!==undefined ? p.complexity : 'Medium', integration:'Internal teams', layers:['Back end'], release:'Enhancement', override:null};
@@ -395,7 +400,7 @@
           <span>Release ${rigorSelect(i.id,'release',Object.keys(RIGOR_RELEASE),r.release)}</span>
         </div>
         <div style="margin-top:8px;">${chips}</div>
-        <div style="font-size:11.5px;color:var(--text-faint);margin-top:6px;">Recommended process on approval: ${RIGOR_PROCESS[c.level].slice(0,3).join(' · ')}. The program inherits this profile when approved.</div>
+        <div style="font-size:11.5px;color:var(--text-faint);margin-top:6px;">Recommended process on approval: ${RIGOR_PROCESS[c.level].slice(0,3).join(' \u00b7 ')}. The program inherits this profile when approved.</div>
       </div>`;
   }
   function rigorSnap(p){ const r=getRigor(p), c=computeRigor(p); return c.level+' rigor ('+c.score+'/8: '+r.complexity+' complexity, '+r.integration+', '+(r.layers||[]).length+' layer(s), '+r.release+')'; }
@@ -1282,7 +1287,7 @@ Quantified data on file: ${p.initiativeType==='Platform'
     return `
       <div class="rail">
         <div class="brand">PMO Agent Suite<small>Program Command Center</small></div>
-        <div class="rail-status"><span class="pip"></span>7 AGENTS ONLINE</div>
+        <div class="rail-status" title="${AGENT_ROSTER.join(', ')}"><span class="pip"></span>${AGENT_ROSTER.length} AI AGENTS</div>
         <div class="wip-badge">WORK IN PROGRESS \u2014 PROTOTYPE</div>
         ${items.map(it=>`<div class="navbtn ${UI.view===it.key?'active':''}" data-action="nav" data-view="${it.key}">${navIcon(it.key)}${it.label}</div>`).join('')}
         <div style="padding:14px 10px 0;"><label style="font-family:var(--mono);font-size:10px;color:var(--text-faint);text-transform:uppercase;letter-spacing:0.04em;">Acting as</label><input id="actorInput" value="${escHtml((STATE&&STATE.actor)||'')}" placeholder="your name" style="margin-top:4px;"></div>
@@ -1722,7 +1727,7 @@ Quantified data on file: ${p.initiativeType==='Platform'
       </div>` : '';
 
     return `
-      <div class="pagehead"><h1>Portfolio Tracker</h1><p>Consolidated view across all active programs and TPM capacity. TPMs are capped at ${Math.round(MAX_ALLOCATION_RATIO*100)}% utilization to preserve buffer capacity.</p></div>
+      <div class="pagehead"><h1>Portfolio Tracker</h1><p>Consolidated view across all active programs and TPM capacity. Allocations above ${Math.round(MAX_ALLOCATION_RATIO*100)}% of a TPM\u2019s capacity trigger a warning and need explicit confirmation.</p></div>
       <div class="card">
         <table>
           <thead><tr><th>ID</th><th>Program</th><th>RAG</th><th>Phase</th><th>End</th><th>Score</th><th>TPM Allocation</th><th>Budget</th></tr></thead>
@@ -2052,7 +2057,7 @@ Quantified data on file: ${p.initiativeType==='Platform'
           <label>Technical Scope <span style="color:var(--text-faint);font-weight:400;">(optional \u2014 engineering endpoint, systems touched, etc.)</span></label>
           <textarea name="description" placeholder="Optional \u2014 do not substitute this for the value proposition above."></textarea>
 
-          <label>Rigor profile <span style="color:var(--text-faint);font-weight:400;">(sets the program’s process level: high, medium or low)</span></label>
+          <label>Rigor profile <span style="color:var(--text-faint);font-weight:400;">(sets the program\u2019s process level: high, medium or low)</span></label>
           <div class="grid2">
             <div><label style="font-weight:400;">Complexity</label><select name="rigorComplexity"><option>Low</option><option selected>Medium</option><option>High</option></select></div>
             <div><label style="font-weight:400;">Integration</label><select name="rigorIntegration"><option>None</option><option selected>Internal teams</option><option>External partner</option></select></div>
@@ -2085,7 +2090,7 @@ Quantified data on file: ${p.initiativeType==='Platform'
     }).join('') || `<tr><td colspan="5"><div class="empty-state">No TPMs added.</div></td></tr>`;
 
     return `
-      <div class="pagehead"><h1>TPM Team</h1><p>Roster and capacity used for portfolio allocation checks. Max allocation is capped at ${Math.round(MAX_ALLOCATION_RATIO*100)}% of stated capacity to preserve buffer.</p></div>
+      <div class="pagehead"><h1>TPM Team</h1><p>Roster and capacity used for portfolio allocation checks. Allocations above ${Math.round(MAX_ALLOCATION_RATIO*100)}% of stated capacity trigger a warning and need explicit confirmation, to preserve buffer.</p></div>
       <div class="card">
         <table><thead><tr><th>Name</th><th>Capacity</th><th>Max Alloc (${Math.round(MAX_ALLOCATION_RATIO*100)}%)</th><th>Current Load</th><th></th></tr></thead>
         <tbody>${rows}</tbody></table>
@@ -2113,7 +2118,7 @@ Quantified data on file: ${p.initiativeType==='Platform'
     {fn:'Demand & Intake Management', owns:'Captures new work requests in a consistent format and triages them before they compete for resources.', status:'Built', proto:'Structured intake form; an Intake Agent drafts the problem statement, checks value-prop quality, assesses OKR fit. Voice/transcript capture included.'},
     {fn:'Prioritization & Selection', owns:'Ranks competing investments against a defensible, repeatable method instead of politics or recency.', status:'Built', proto:'Fixed rubric (OKR gate, size, team spread, complexity, 9-pt value score), with equally-weighted tracks for revenue-generating vs. reliability/infra work.'},
     {fn:'Program Artifact Standards', owns:'Defines and enforces a consistent shape for charters, plans, status reports, etc. across every program.', status:'Built', proto:'Seven agents (Charter, Plan, Status, Risk Register, Dependency Tracker, OKR Report, Landing Page), each against a fixed template, grounded in shared context.'},
-    {fn:'Resource & Capacity Management', owns:'Tracks who/what is allocated where, and prevents silent over-commitment of scarce delivery capacity.', status:'Partial', proto:"TPM allocation is capped at 80% of capacity and enforced automatically, with a month-by-month TPM heat map built from program dates. Engineering and budget capacity aren't modeled."},
+    {fn:'Resource & Capacity Management', owns:'Tracks who/what is allocated where, and prevents silent over-commitment of scarce delivery capacity.', status:'Partial', proto:"Allocations above 80% of a TPM's capacity trigger a warning and need explicit confirmation (a hard block is not built; confirmed exceptions are logged). A month-by-month TPM heat map with a next-available date is built from program dates. Engineering and budget capacity aren't modeled."},
     {fn:'Risk, Issue & Knowledge Management', owns:'Surfaces and mitigates risk, and carries lessons from past programs forward instead of relearning them.', status:'Partial', proto:'Per-program risk register plus a seeded pattern library matched from prior programs \u2014 not yet fed by a live, closed-loop post-mortem process.'},
     {fn:'Dependency Management', owns:'Tracks what one program needs from another, and sequences work accordingly.', status:'Partial', proto:"Tracked within each program; no system-enforced graph linking one program's dependency to another's actual deliverable."},
     {fn:'Portfolio Reporting & Rollups', owns:'Gives leadership one aggregate view of portfolio health, not a dozen separate decks.', status:'Partial', proto:'A tracker shows per-program RAG/budget/TPM load, plus an OKR alignment rollup (% tied, % tied and metrics-consistent, budget by OKR, flagged mismatches). Financials roll up here too. No exportable reports yet.'},
@@ -2151,20 +2156,33 @@ Quantified data on file: ${p.initiativeType==='Platform'
     const counts = RIGOR_LEVELS.map(l=>STATE.programs.filter(p=>computeRigor(p).level===l).length);
     const levelCards = ['High','Medium','Low'].map(l=>`
       <div class="card" style="flex:1;min-width:220px;border-top:3px solid ${RIGOR_COLOR[l]};">
-        <div style="font-family:var(--disp);font-weight:600;margin-bottom:4px;">${l} rigor <span style="color:var(--text-faint);font-size:12px;font-weight:400;">· ${counts[RIGOR_LEVELS.indexOf(l)]} program(s)</span></div>
+        <div style="font-family:var(--disp);font-weight:600;margin-bottom:4px;">${l} rigor <span style="color:var(--text-faint);font-size:12px;font-weight:400;">\u00b7 ${counts[RIGOR_LEVELS.indexOf(l)]} program(s)</span></div>
         <ul style="margin:6px 0 0 16px;padding:0;color:var(--text-muted);font-size:12.5px;line-height:1.6;">${RIGOR_PROCESS[l].map(x=>`<li>${x}</li>`).join('')}</ul>
       </div>`).join('');
     return `
-      <div class="pagehead"><h1>Rigor Meter</h1><p>One method doesn’t fit every program. Each program is scored on complexity, integration, the parts of the stack it touches, and release type (0–8). The score sets the rigor level, and the level sets the recommended process. A leader can move the slider to override; the override is badged and always revertible.</p></div>
+      <div class="pagehead"><h1>Rigor Meter</h1><p>One method doesn\u2019t fit every program. Each program is scored on complexity, integration, the parts of the stack it touches, and release type (0\u20138). The score sets the rigor level, and the level sets the recommended process. A leader can move the slider to override; the override is badged and always revertible.</p></div>
       <div class="card" style="overflow-x:auto;"><table>
         <thead><tr><th>Program</th><th>Complexity</th><th>Integration</th><th>Stack layers</th><th>Release type</th><th>Score</th><th>Rigor level</th></tr></thead>
         <tbody>${rows}</tbody></table>
-        <div style="font-size:11.5px;color:var(--text-faint);margin-top:10px;font-family:var(--mono);">Scoring: complexity 0–2 · integration 0–2 · stack layers (1 → 0, 2–3 → 1, 4–5 → 2) · release type 0–2 · High ≥ 6 · Medium 3–5 · Low ≤ 2</div>
+        <div style="font-size:11.5px;color:var(--text-faint);margin-top:10px;font-family:var(--mono);">Scoring: complexity 0\u20132 \u00b7 integration 0\u20132 \u00b7 stack layers (1 \u2192 0, 2\u20133 \u2192 1, 4\u20135 \u2192 2) \u00b7 release type 0\u20132 \u00b7 High \u2265 6 \u00b7 Medium 3\u20135 \u00b7 Low \u2264 2</div>
       </div>
       <div style="display:flex;gap:14px;flex-wrap:wrap;">${levelCards}</div>
       <div class="pagehead" style="margin:6px 0 10px;"><h1 style="font-size:15px;">Pipeline: rigor set at intake</h1><p>Every request carries a rigor profile from submission, so programs enter execution with their process already decided. Adjust it on the Intake page.</p></div>
       <div class="card"><table><thead><tr><th>Pending request</th><th>Score</th><th>Rigor level</th><th>First process step</th></tr></thead><tbody>${pipeRows}</tbody></table></div>`;
   }
+
+  // The seven gaps between this prototype and a production tool. Kept next to PFMO_FUNCTION_MAP so the
+  // in-app roadmap, the Function Map one-pager and the Path to Product one-pager tell the same story.
+  // None of these is started; "phase" refers to the phased plan in the Path to Product one-pager.
+  const PRODUCT_GAPS = [
+    {n:1, gap:'Backend and login', need:'API proxy so \u201cGenerate with AI\u201d works for everyone; roles (requester, TPM, PMO lead, executive); single sign-on.', phase:'Phase 1'},
+    {n:2, gap:'Shared database', need:'Multi-user data with history and backups. Today all data is stored in the browser.', phase:'Phase 1'},
+    {n:3, gap:'Integrations', need:'Approved program creates its Jira structure; Tempo hours feed actuals and capitalization; documents publish to Confluence or Glean; Slack or Teams notifications.', phase:'Phase 2'},
+    {n:4, gap:'Admin settings', need:'OKRs, scoring weights, rigor thresholds, the 80% capacity guardrail and the TPM roster are written into the code today. Needs a first-time setup wizard and role-based starting views.', phase:'Phase 1'},
+    {n:5, gap:'Running a quarter', need:'Cut-line scenarios, mid-quarter change requests, a logged executive override, and bi-weekly business review views (2\u00d72; launched, upcoming, delayed).', phase:'Phase 3'},
+    {n:6, gap:'AI governance', need:'Versioned prompts, output checks, data rules for what may go to a model, and cost limits.', phase:'Phases 0\u20131'},
+    {n:7, gap:'Engineering basics', need:'Split into front end and back end, automated tests, a deployment pipeline, and accessibility.', phase:'Phase 1'}
+  ];
 
   function renderRoadmap(){
     const builtCount = PFMO_FUNCTION_MAP.filter(r=>r.status==='Built').length;
@@ -2194,6 +2212,20 @@ Quantified data on file: ${p.initiativeType==='Platform'
         <table>
           <thead><tr><th>PfMO Function</th><th>What a PfMO Owns Here</th><th>Status</th><th>In This Prototype</th></tr></thead>
           <tbody>${rows}</tbody>
+        </table>
+      </div>
+      <div class="pagehead" style="margin-top:22px;"><h1 style="font-size:15px;">From Prototype to Product: Seven Gaps</h1><p>What it would take to run this for real, beyond the PfMO functions above. None of these is started. The phased plan, with exit gates, is in the Path to Product one-pager in the repository.</p></div>
+      <div class="card">
+        <table>
+          <thead><tr><th>#</th><th>Gap</th><th>What it takes</th><th>Status</th><th>Planned</th></tr></thead>
+          <tbody>${PRODUCT_GAPS.map(g=>`
+            <tr>
+              <td style="font-family:var(--mono);color:var(--text-faint);">${g.n}</td>
+              <td style="font-weight:600;color:var(--accent);">${g.gap}</td>
+              <td style="color:var(--text-muted);">${g.need}</td>
+              <td><span class="tag" style="color:${STATUS_COLOR['Not Yet']};border-color:${STATUS_COLOR['Not Yet']};">Not started</span></td>
+              <td style="font-family:var(--mono);font-size:12px;color:var(--text-faint);white-space:nowrap;">${g.phase}</td>
+            </tr>`).join('')}</tbody>
         </table>
       </div>
     `;
@@ -2469,6 +2501,7 @@ Quantified data on file: ${p.initiativeType==='Platform'
       const fd = new FormData(apf);
       const tpmId = fd.get('tpmId');
       const pct = Number(fd.get('pct')) || 0;
+      let overCapNote = '';
       if(tpmId){
         const t = getTpm(tpmId);
         const cap = effectiveCap(t);
@@ -2478,6 +2511,7 @@ Quantified data on file: ${p.initiativeType==='Platform'
           const over = newLoad - cap;
           const proceed = window.confirm(`This would put ${t.name} at ${newLoad}% load \u2014 ${over}% over their ${cap}% cap (${Math.round(MAX_ALLOCATION_RATIO*100)}% of ${t.capacityPct}% capacity). Approve anyway?`);
           if(!proceed) return;
+          overCapNote = ' (over cap, confirmed)';
         }
       }
       item.status = 'approved';
@@ -2499,7 +2533,7 @@ Quantified data on file: ${p.initiativeType==='Platform'
       };
       STATE.programs.push(newProgram);
       item.approvedProgramId = newProgram.id;
-      audit({type:'intake', entityId:item.id, entity:item.name, action:'Intake approved, program created', after:(tpmId ? (getTpm(tpmId)||{}).name+' at '+pct+'%' : 'No TPM assigned')+'; '+rigorSnap(newProgram)});
+      audit({type:'intake', entityId:item.id, entity:item.name, action:'Intake approved, program created', after:(tpmId ? (getTpm(tpmId)||{}).name+' at '+pct+'%'+overCapNote : 'No TPM assigned')+'; '+rigorSnap(newProgram)});
       UI.approvingIntakeId = null;
       UI.view = 'programDetail'; UI.programId = newProgram.id; UI.tab = 'charter';
       saveState(); render();
