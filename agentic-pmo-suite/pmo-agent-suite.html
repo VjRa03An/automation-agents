@@ -99,6 +99,15 @@
 
   .pillbtn{display:inline-flex;align-items:center;gap:5px;padding:2px 8px;border-radius:99px;font-size:11px;font-family:var(--mono);cursor:pointer;border:1px solid var(--border);color:var(--text-muted);}
   .pillbtn:hover{border-color:var(--red);color:var(--red);}
+  .tour-backdrop{position:fixed;inset:0;background:rgba(6,9,14,0.72);display:flex;align-items:center;justify-content:center;padding:16px;z-index:1000;}
+  .tour-card{background:var(--surface);border:1px solid var(--accent);border-radius:12px;max-width:480px;width:100%;padding:22px 24px;box-shadow:0 12px 40px rgba(0,0,0,0.5);}
+  .tour-card h2{font-family:var(--disp);font-size:19px;margin:4px 0 8px;font-weight:600;}
+  .tour-card p{margin:0 0 14px;font-size:13.5px;line-height:1.6;color:var(--text-muted);}
+  .tour-step{font-family:var(--mono);font-size:10.5px;color:var(--accent);letter-spacing:0.04em;}
+  .tour-dots{display:flex;gap:6px;margin-bottom:16px;}
+  .tour-dots span{width:7px;height:7px;border-radius:50%;background:var(--border);}
+  .tour-dots span.on{background:var(--accent);}
+  .tour-actions{display:flex;gap:8px;align-items:center;flex-wrap:wrap;}
   .footer-credit{margin-top:30px;color:var(--text-faint);font-size:11px;font-family:var(--mono);}
 </style>
 
@@ -480,6 +489,8 @@
     (STATE.programs||[]).forEach(ensureFinancials);
     STATE.auditLog = STATE.auditLog || [];
     ensureAuditSamples();
+    ensureOnboarding();
+    if(!STATE.onboarding.tourSeen) UI.tour = {step:0};
     render();
   }
   async function saveState(){
@@ -1268,6 +1279,7 @@ Quantified data on file: ${p.initiativeType==='Platform'
       priority: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M4 19V10M12 19V5M20 19v-6"/></svg>',
       audit: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M6 3h9l4 4v14H6z"/><path d="M9 12h7M9 16h7M9 8h3"/></svg>',
       rigor: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M4 16a8 8 0 0 1 16 0"/><path d="M12 16l4-5"/><circle cx="12" cy="16" r="1.2"/></svg>',
+      start: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="12" r="9"/><path d="M10 8l6 4-6 4z"/></svg>',
       roadmap: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M3 12h4l2-7 4 14 2-7h6"/></svg>'
     };
     return icons[name]||'';
@@ -1275,6 +1287,7 @@ Quantified data on file: ${p.initiativeType==='Platform'
 
   function renderRail(){
     const items = [
+      {key:'start', label:'Getting Started'},
       {key:'tracker', label:'Portfolio Tracker'},
       {key:'priority', label:'Priority Ranking'},
       {key:'rigor', label:'Rigor Meter'},
@@ -2415,7 +2428,119 @@ Quantified data on file: ${p.initiativeType==='Platform'
     `;
   }
 
+  // ---------------- Getting Started page + first-run tour ----------------
+  // Onboarding only: nothing here changes program data. "Explored" ticks are simply which
+  // tabs this browser has opened (stored in STATE.onboarding), not a measure of anything else.
+  const TOUR_STEPS = [
+    {title:'Welcome to the PMO Agent Suite', view:null,
+     body:'A working prototype of an AI-assisted PMO: named agents draft the standard artifacts and triage intake, while people make every approval, gate and override decision. It is a work in progress, not a finished product. The programs you see are sample data.'},
+    {title:'Portfolio Tracker', view:'tracker', go:'Open the tracker',
+     body:'Start here. One row per program with RAG status, phase, TPM allocation and end date, plus the OKR alignment, capacity heat map and financial roll-ups below it. Click any row to open that program.'},
+    {title:'Intake and prioritization', view:'intake', go:'Open Intake',
+     body:'New requests land in Intake. Agents help draft the request and propose a score; the score is plain arithmetic you can inspect and override (with a reason). Approving a request creates a program and assigns a TPM, with a warning if that TPM would go over 80% capacity.'},
+    {title:'Rigor Meter', view:'rigor', go:'Open Rigor Meter',
+     body:'Not every program needs the same process. The Rigor Meter scores a program on size, risk and visibility and recommends a light, standard or high-rigor approach. You can adjust it layer by layer.'},
+    {title:'Program workspace and stage gates', view:'programs', go:'Open Programs',
+     body:'Open a program to generate a charter, plan, status report, risk register, dependency tracker, OKR report or landing page. Stage gates get an advisory readiness memo, but a named approver makes the decision.'},
+    {title:'Humans decide, and it is logged', view:'audit', go:'Open Audit Log',
+     body:'Approvals, rejections, gate decisions and score overrides are recorded in the Audit Log with an "Acting as" name. That name is self-declared and the log is not tamper-proof; real login and roles are on the roadmap.'},
+    {title:'What is and is not built', view:'roadmap', go:'Open Roadmap',
+     body:'The Roadmap & Scope tab is the honest scorecard: which PfMO functions are built, partial or not yet attempted, and the seven gaps between this prototype and a production tool. You can reopen this tour any time from Getting Started.'}
+  ];
+  const START_CHECKLIST = [
+    {view:'tracker', label:'Scan the Portfolio Tracker', hint:'Which programs are red or amber, and when does each end?'},
+    {view:'priority', label:'Check Priority Ranking', hint:'See how scores are built and which programs clear the threshold.'},
+    {view:'rigor', label:'Try the Rigor Meter', hint:'Toggle a layer and watch the recommended process change.'},
+    {view:'programDetail', label:'Open a program', hint:'Look at its tabs: charter, plan, status, risks, gates, financials.'},
+    {view:'intake', label:'Review an intake request', hint:'Try the Aurora request, or paste a transcript to fill the form.'},
+    {view:'team', label:'See TPM capacity', hint:'Heat map by month and when each TPM is next available.'},
+    {view:'audit', label:'Read the Audit Log', hint:'Entries marked sample are illustrative examples.'},
+    {view:'roadmap', label:'Read the Roadmap & Scope', hint:'What is built, what is partial, and what is missing.'}
+  ];
+
+  function ensureOnboarding(){
+    const o = STATE.onboarding || {};
+    STATE.onboarding = {tourSeen: !!o.tourSeen, visited: o.visited || {}};
+  }
+  function markVisited(){
+    if(!STATE || !STATE.onboarding || UI.view==='start') return;
+    if(!STATE.onboarding.visited[UI.view]){ STATE.onboarding.visited[UI.view] = true; saveState(); }
+  }
+  function finishTour(){
+    UI.tour = null;
+    if(STATE && STATE.onboarding){ STATE.onboarding.tourSeen = true; saveState(); }
+  }
+
+  function renderTourOverlay(){
+    if(!UI.tour) return '';
+    const i = UI.tour.step, n = TOUR_STEPS.length, s = TOUR_STEPS[i];
+    const last = i === n-1;
+    return `
+      <div class="tour-backdrop">
+        <div class="tour-card" role="dialog" aria-modal="true" aria-label="Quick tour">
+          <div class="tour-step">QUICK TOUR \u00b7 ${i+1} OF ${n}</div>
+          <h2>${s.title}</h2>
+          <p>${s.body}</p>
+          <div class="tour-dots">${TOUR_STEPS.map((_,k)=>`<span class="${k===i?'on':''}"></span>`).join('')}</div>
+          <div class="tour-actions">
+            <button class="btn ghost small" data-action="tour-skip">Skip tour</button>
+            <span style="flex:1;"></span>
+            ${s.view?`<button class="btn ghost small" data-action="tour-go" data-view="${s.view}">${s.go}</button>`:''}
+            ${i>0?`<button class="btn ghost small" data-action="tour-back">Back</button>`:''}
+            <button class="btn small" data-action="${last?'tour-skip':'tour-next'}">${last?'Finish':'Next'}</button>
+          </div>
+        </div>
+      </div>`;
+  }
+
+  function renderStart(){
+    const vis = (STATE.onboarding && STATE.onboarding.visited) || {};
+    const done = START_CHECKLIST.filter(c=>vis[c.view]).length;
+    const total = START_CHECKLIST.length;
+    const pct = Math.round(done/total*100);
+    const target = c => c.view==='programDetail' ? 'programs' : c.view;
+    return `
+      <div class="pagehead"><h1>Getting Started</h1><p>A two-minute orientation to what this prototype does and where to look first.</p></div>
+      <div class="card">
+        <div style="font-family:var(--mono);font-size:10.5px;color:var(--amber);letter-spacing:0.04em;margin-bottom:8px;">WORK IN PROGRESS \u2014 PROTOTYPE</div>
+        <div style="font-size:13.5px;line-height:1.6;max-width:760px;">
+          The PMO Agent Suite shows how AI agents can take on the repetitive PMO work (drafting charters, plans, status reports and risk registers, triaging intake, proposing priority scores) while people keep every decision. The sample programs are made up, and the Roadmap & Scope tab says plainly what is and is not built.
+        </div>
+        <div style="display:flex;gap:10px;margin-top:14px;flex-wrap:wrap;">
+          <button class="btn" data-action="start-tour">Take the 2-minute tour</button>
+          <button class="btn ghost" data-action="nav" data-view="tracker">Go to the Portfolio Tracker</button>
+        </div>
+      </div>
+      <div class="card">
+        <div style="display:flex;align-items:baseline;justify-content:space-between;gap:12px;margin-bottom:6px;">
+          <div style="font-family:var(--disp);font-weight:600;font-size:15px;">Things to try</div>
+          <div style="font-family:var(--mono);font-size:11px;color:var(--text-faint);">${done} of ${total} explored</div>
+        </div>
+        <div class="barwrap" style="margin-bottom:12px;"><div class="bar" style="width:${pct}%;background:var(--green);"></div></div>
+        <table><tbody>
+          ${START_CHECKLIST.map(c=>`
+            <tr class="rowlink" data-action="nav" data-view="${target(c)}">
+              <td style="width:26px;font-size:14px;color:${vis[c.view]?'var(--green)':'var(--text-faint)'};">${vis[c.view]?'\u2713':'\u25cb'}</td>
+              <td style="font-weight:600;">${c.label}</td>
+              <td style="color:var(--text-muted);">${c.hint}</td>
+            </tr>`).join('')}
+        </tbody></table>
+        <div style="font-size:11.5px;color:var(--text-faint);margin-top:10px;">Ticks only record which tabs this browser has opened.</div>
+      </div>
+      <div class="card">
+        <div style="font-family:var(--disp);font-weight:600;font-size:15px;margin-bottom:8px;">Good to know</div>
+        <ul style="margin:0;padding-left:18px;font-size:13px;line-height:1.7;color:var(--text-muted);">
+          <li><strong style="color:var(--text);">${AGENT_ROSTER.length} AI agents, humans decide.</strong> Agents draft and propose. Approvals, gate decisions and score overrides are made by a person and logged.</li>
+          <li><strong style="color:var(--text);">Sample data.</strong> Atlas, Nova, Helix, the two sample projects and the Aurora intake request are illustrative. Your edits are saved in this browser only, not in a shared database.</li>
+          <li><strong style="color:var(--text);">AI generation.</strong> The "Generate with AI" buttons call Claude and work when the app is opened inside Claude. They may not work on other hosted copies.</li>
+          <li><strong style="color:var(--text);">The 80% TPM guardrail warns, it does not block.</strong> Going over asks you to confirm, and confirmed exceptions are logged.</li>
+          <li><strong style="color:var(--text);">"Acting as"</strong> in the sidebar is a self-declared name for the Audit Log, not a login.</li>
+        </ul>
+      </div>`;
+  }
+
   function render(){
+    markVisited();
     const app = document.getElementById('app');
     let mainHtml = '';
     if(UI.view==='tracker') mainHtml = renderTracker();
@@ -2427,8 +2552,9 @@ Quantified data on file: ${p.initiativeType==='Platform'
     else if(UI.view==='roadmap') mainHtml = renderRoadmap();
     else if(UI.view==='rigor') mainHtml = renderRigor();
     else if(UI.view==='audit') mainHtml = renderAudit();
+    else if(UI.view==='start') mainHtml = renderStart();
 
-    app.innerHTML = `${renderRail()}<main>${mainHtml}<div class="footer-credit">PMO Agent Suite \u00b7 agents run on Claude \u00b7 built by Venkatesh Subramanyam</div></main>`;
+    app.innerHTML = `${renderRail()}<main>${mainHtml}<div class="footer-credit">PMO Agent Suite \u00b7 agents run on Claude \u00b7 built by Venkatesh Subramanyam</div></main>${renderTourOverlay()}`;
     attachFormHandlers();
   }
 
@@ -2676,6 +2802,11 @@ Quantified data on file: ${p.initiativeType==='Platform'
     if(action==='nav'){ UI.view = el.dataset.view; UI.programId=null; render(); }
     else if(action==='toggle-layer'){ const p=rigorEntity(el.dataset.id); const r=getRigor(p); const before=rigorSnap(p); const l=el.dataset.layer; r.layers = r.layers.includes(l) ? r.layers.filter(x=>x!==l) : r.layers.concat([l]); audit({type:(getProgram(p.id)?'program':'intake'), entityId:p.id, entity:p.name, action:'Rigor input changed: stack layers', before, after:rigorSnap(p)}); saveState(); render(); }
     else if(action==='revert-rigor'){ const p=rigorEntity(el.dataset.id); const before=rigorSnap(p); getRigor(p).override=null; audit({type:(getProgram(p.id)?'program':'intake'), entityId:p.id, entity:p.name, action:'Rigor override reverted to meter', before, after:rigorSnap(p)}); saveState(); render(); }
+    else if(action==='start-tour'){ UI.tour = {step:0}; render(); }
+    else if(action==='tour-next'){ if(UI.tour){ UI.tour.step = Math.min(UI.tour.step+1, TOUR_STEPS.length-1); render(); } }
+    else if(action==='tour-back'){ if(UI.tour){ UI.tour.step = Math.max(UI.tour.step-1, 0); render(); } }
+    else if(action==='tour-skip'){ finishTour(); render(); }
+    else if(action==='tour-go'){ finishTour(); UI.view = el.dataset.view; UI.programId = null; render(); }
     else if(action==='toggle-dictation'){ toggleDictation(); }
     else if(action==='parse-transcript'){ parseTranscriptAndFill(); }
     else if(action==='open-program'){ UI.view='programDetail'; UI.programId=el.dataset.id; UI.tab='overview'; UI.gateError=null; UI.gateDraft={approver:'',rationale:''}; render(); }

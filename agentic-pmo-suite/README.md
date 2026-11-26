@@ -18,6 +18,8 @@
 
 ## Quick tour (5 minutes)
 
+New here? The app opens with a short first-run tour, and the **Getting Started** tab has a checklist of things to try and what is real versus sample. You can replay the tour from there.
+
 [Open the app](https://vjra03an.github.io/automation-agents/agentic-pmo-suite/pmo-agent-suite.html). It loads with sample programs, TPMs and intake requests, so you can click around right away. Nothing you do is saved; reload to start over.
 
 1. **See the portfolio.** Start on **Portfolio Tracker** for status, budget and TPM allocation across all programs. Then open **Priority Ranking** to see every program and request ranked by the same scoring rubric, with the cut line set by TPM capacity.
