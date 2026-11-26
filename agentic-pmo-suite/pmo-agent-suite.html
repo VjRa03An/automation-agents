@@ -2180,7 +2180,7 @@ Quantified data on file: ${p.initiativeType==='Platform'
   // Honest, self-reported scope assessment \u2014 kept here as code (not just a slide)
   // specifically so it can be shown live, in the same tool, next to the thing it is
   // judging. A roadmap that only exists in a separate deck is easy to lose track of.
-  // The roadmap IS the PfMO Function Map: the 15 standard functions of a Portfolio
+  // The roadmap IS the PfMO Function Map: the 14 standard functions of a Portfolio
   // Management Office, each mapped to this prototype's actual status. Kept as one
   // source of truth so the live tool, the one-pager, and the function-map doc never
   // drift from each other.
@@ -2198,7 +2198,6 @@ Quantified data on file: ${p.initiativeType==='Platform'
     {fn:'Governance & Stage-Gates', owns:'Enforces formal go/no-go decisions at defined checkpoints, with documented exit criteria.', status:'Partial', proto:'Four phase gates with exit criteria (some checked from real program data, some attested by a human), a required approver and rationale, exceptions and holds, and a decision log; an agent drafts an advisory readiness memo. No role-based permissions, notifications, or configurable gate templates yet.'},
     {fn:'Change Control', owns:'Manages and documents changes to scope, schedule, or budget baselines.', status:'Not Yet', proto:"No scope-change log or re-baselining process exists yet."},
     {fn:'Audit & Compliance', owns:'Maintains a defensible record of who decided what, and when.', status:'Partial', proto:'Audit log of who, when, what changed (before and after) and why, for score overrides, program edits, intake decisions, allocations, financial entries, gate decisions and agent runs; filterable, with CSV download. "Who" is self-declared (no login) and the log is not tamper-proof; no retention policy or external audit export.'},
-    {fn:'Onboarding', owns:'Gets new users productive quickly with guidance matched to their role, so adoption does not depend on someone walking them through it.', status:'Partial', proto:"First-run tour, a Getting Started checklist, and a role-based user guide for requesters, TPMs, PMO leads and executives. No role-specific starting views, setup wizard or in-context help yet, and roles are not enforced because there is no login."},
     {fn:'Tooling & System Integration', owns:'Connects PfMO views to systems of record (ticketing, HRIS, financials) so data isn\u2019t re-entered by hand.', status:'Not Yet', proto:'Fully standalone \u2014 all data is seeded/manual; no real integrations.'},
   ];
   const STATUS_COLOR = {Built:'var(--green)', Partial:'var(--amber)', 'Not Yet':'var(--text-faint)'};
@@ -2243,6 +2242,12 @@ Quantified data on file: ${p.initiativeType==='Platform'
       <div class="card"><table><thead><tr><th>Pending request</th><th>Score</th><th>Rigor level</th><th>First process step</th></tr></thead><tbody>${pipeRows}</tbody></table></div>`;
   }
 
+  // Tracked on the Roadmap but deliberately NOT counted in the 14 standard PfMO functions or the
+  // weighted percentage above; a separate line so the standard-function figure stays comparable.
+  const SUPPLEMENTARY_ROWS = [
+    {fn:'Onboarding', owns:'Gets new users productive quickly with guidance matched to their role, so adoption does not depend on someone walking them through it.', status:'Partial', proto:"First-run tour, a Getting Started checklist, and a role-based user guide for requesters, TPMs, PMO leads and executives. No role-specific starting views, setup wizard or in-context help yet, and roles are not enforced because there is no login."}
+  ];
+
   // The seven gaps between this prototype and a production tool. Kept next to PFMO_FUNCTION_MAP so the
   // in-app roadmap, the Function Map one-pager and the Path to Product one-pager tell the same story.
   // None of these is started; "phase" refers to the phased plan in the Path to Product one-pager.
@@ -2261,13 +2266,15 @@ Quantified data on file: ${p.initiativeType==='Platform'
     const partialCount = PFMO_FUNCTION_MAP.filter(r=>r.status==='Partial').length;
     const notYetCount = PFMO_FUNCTION_MAP.filter(r=>r.status==='Not Yet').length;
     const weighted = Math.round(((builtCount*1 + partialCount*0.5) / PFMO_FUNCTION_MAP.length) * 100);
-    const rows = PFMO_FUNCTION_MAP.map(r=>`
+    const rowHtml = r=>`
       <tr>
         <td style="font-weight:600;color:var(--accent);">${r.fn}</td>
         <td style="color:var(--text-muted);">${r.owns}</td>
         <td><span class="tag" style="color:${STATUS_COLOR[r.status]};border-color:${STATUS_COLOR[r.status]};">${r.status}</span></td>
         <td style="color:var(--text-faint);font-style:italic;">${r.proto}</td>
-      </tr>`).join('');
+      </tr>`;
+    const rows = PFMO_FUNCTION_MAP.map(rowHtml).join('');
+    const extraRows = SUPPLEMENTARY_ROWS.map(rowHtml).join('');
     return `
       <div class="pagehead">
         <h1>Roadmap &amp; Scope \u2014 The PfMO Function Map</h1>
@@ -2284,6 +2291,13 @@ Quantified data on file: ${p.initiativeType==='Platform'
         <table>
           <thead><tr><th>PfMO Function</th><th>What a PfMO Owns Here</th><th>Status</th><th>In This Prototype</th></tr></thead>
           <tbody>${rows}</tbody>
+        </table>
+      </div>
+      <div class="card">
+        <div style="font-family:var(--mono);font-size:10.5px;color:var(--text-faint);letter-spacing:0.04em;margin-bottom:8px;">ALSO TRACKED \u2014 NOT COUNTED IN THE 14 ABOVE OR THE PERCENTAGE</div>
+        <table>
+          <thead><tr><th>Area</th><th>What It Covers</th><th>Status</th><th>In This Prototype</th></tr></thead>
+          <tbody>${extraRows}</tbody>
         </table>
       </div>
       <div class="pagehead" style="margin-top:22px;"><h1 style="font-size:15px;">From Prototype to Product: Seven Gaps</h1><p>What it would take to run this for real, beyond the PfMO functions above. None of these is started. The phased plan, with exit gates, is in the Path to Product one-pager in the repository.</p></div>
