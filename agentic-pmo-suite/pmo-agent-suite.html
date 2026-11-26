@@ -1860,6 +1860,64 @@ Quantified data on file: ${p.initiativeType==='Platform'
     `;
   }
 
+  // ---------------- Duplicate / overlap detection at intake ----------------
+  // Rule-based on purpose (not an agent): a transparent word-overlap score between a request and
+  // every existing program and other intake request. It flags POSSIBLE overlap for a person to
+  // judge; it cannot tell that two differently worded requests are the same idea.
+  const DUP_THRESHOLD = 30;
+  const DUP_STOP = new Set(['the','and','for','with','that','this','from','will','are','our','all','new','use','into','not','but','can','has','have','its','their','than','then','also','more','must','should','would','such','each','any','out','per','via','who','how','what','when','where','which','while','across','about','over','under','current','existing','program','project','request','team','system','platform','customer','customers','support','service','services','tool','build','make','provide','including','end','year','plan']);
+  function dupTokens(text){
+    const out = new Set();
+    String(text||'').toLowerCase().replace(/[^a-z0-9\s]/g,' ').split(/\s+/).forEach(w=>{
+      if(w.length<3 || DUP_STOP.has(w)) return;
+      w = w.replace(/ing$/,'').replace(/(?<!s)s$/,'');
+      if(w.length>=3 && !DUP_STOP.has(w)) out.add(w);
+    });
+    return out;
+  }
+  function dupProfile(e){
+    return {name: dupTokens(e.name), body: dupTokens([e.name, e.description, e.objective, e.valueProp, e.technicalScope, e.scopeIn].filter(Boolean).join(' '))};
+  }
+  function dupInter(a,b){ const r=[]; a.forEach(x=>{ if(b.has(x)) r.push(x); }); return r; }
+  function dupScore(pa, pb){
+    const ni = dupInter(pa.name, pb.name).length, nu = new Set([...pa.name, ...pb.name]).size;
+    const nameSim = nu ? ni/nu : 0;
+    const bi = dupInter(pa.body, pb.body).length;
+    const bodySim = (pa.body.size && pb.body.size) ? bi/Math.sqrt(pa.body.size*pb.body.size) : 0;
+    const cover = (a,b)=> a.name.size ? dupInter(a.name, b.body).length/a.name.size : 0;
+    const nameInBody = Math.max(cover(pa,pb), cover(pb,pa));
+    return Math.round(100*(0.35*nameSim + 0.3*bodySim + 0.35*nameInBody));
+  }
+  function findSimilar(item){
+    const pa = dupProfile(item);
+    const dismissed = item.dupDismissed || [];
+    const pool = (STATE.programs||[]).map(p=>({kind:'program', e:p}))
+      .concat((STATE.intake||[]).filter(x=>x.id!==item.id && x.status!=='rejected').map(x=>({kind:'intake', e:x})));
+    return pool.map(c=>{
+      const pb = dupProfile(c.e);
+      const shared = dupInter(pa.name, pb.name).concat(dupInter(pa.body, pb.body).filter(w=>!pa.name.has(w) || !pb.name.has(w)));
+      return {kind:c.kind, id:c.e.id, name:c.e.name, score:dupScore(pa,pb), shared:Array.from(new Set(shared)).slice(0,6), dismissed:dismissed.includes(c.e.id) || (c.e.dupDismissed||[]).includes(item.id)};
+    }).filter(m=>m.score>=DUP_THRESHOLD).sort((a,b)=>b.score-a.score).slice(0,3);
+  }
+  function openOverlaps(item){ return findSimilar(item).filter(m=>!m.dismissed); }
+  function dupBox(item){
+    const ms = findSimilar(item);
+    if(!ms.length) return '';
+    return `
+      <div style="border:1px solid var(--amber);background:rgba(232,169,61,0.07);border-radius:8px;padding:10px 12px;margin:12px 0;">
+        <div style="font-family:var(--mono);font-size:11px;color:var(--amber);letter-spacing:0.03em;margin-bottom:6px;">POSSIBLE OVERLAP (RULE-BASED WORD MATCH \u2014 YOU DECIDE)</div>
+        ${ms.map(m=>`
+          <div style="font-size:12.5px;line-height:1.6;display:flex;gap:10px;align-items:baseline;flex-wrap:wrap;">
+            <span><strong>${escHtml(m.name)}</strong> <span style="color:var(--text-faint);">(${m.kind==='program'?'existing program':'other intake request'})</span></span>
+            <span style="font-family:var(--mono);font-size:11px;color:var(--amber);">${m.score}% similar</span>
+            <span style="color:var(--text-faint);font-size:11.5px;">shared terms: ${escHtml(m.shared.join(', ')||'\u2014')}</span>
+            ${m.dismissed ? `<span class="tag" style="color:var(--green);border-color:var(--green);">reviewed: not a duplicate</span>` : (i_pending(item) ? `<span class="pillbtn" data-action="dup-dismiss" data-id="${item.id}" data-match="${m.id}" style="border-color:var(--green);color:var(--green);">not a duplicate</span>` : '')}
+          </div>`).join('')}
+        <div style="font-size:11px;color:var(--text-faint);margin-top:6px;">Compares names and descriptions by shared words. It can miss the same idea described differently, and can flag unrelated work that uses similar words.</div>
+      </div>`;
+  }
+  function i_pending(item){ return item.status==='pending'; }
+
   function renderIntake(){
     const rows = STATE.intake.map(i=>{
       const expanded = UI.expandedIntake === i.id;
@@ -1882,7 +1940,7 @@ Quantified data on file: ${p.initiativeType==='Platform'
       const mainRow = `
       <tr class="rowlink" data-action="toggle-intake" data-id="${i.id}">
         <td class="pid">${i.id}</td>
-        <td>${i.name}<br><span style="display:inline-block;margin-top:3px;">${rigorTag(i)}</span>${i.blockedBy ? `<br><span class="tag" style="color:var(--red);border-color:var(--red);font-size:9.5px;margin-top:3px;">blocked by: ${i.blockedBy.program}</span>` : ''}</td>
+        <td>${i.name}${(i.status==='pending' && openOverlaps(i).length) ? ` <span class="tag" style="color:var(--amber);border-color:var(--amber);font-size:9.5px;" title="Open the row to review">possible overlap</span>` : ''}<br><span style="display:inline-block;margin-top:3px;">${rigorTag(i)}</span>${i.blockedBy ? `<br><span class="tag" style="color:var(--red);border-color:var(--red);font-size:9.5px;margin-top:3px;">blocked by: ${i.blockedBy.program}</span>` : ''}</td>
         <td style="color:var(--text-muted);font-size:12px;">${i.requestedBy}</td>
         <td>${scoreCell}</td>
         <td>${recTag}</td>
@@ -1995,7 +2053,7 @@ Quantified data on file: ${p.initiativeType==='Platform'
               </div>
             ` : ''}
 
-            ${scoreBoxHtml}${rigorBoxHtml}
+            ${dupBox(i)}${scoreBoxHtml}${rigorBoxHtml}
 
             <div class="agentbar">
               <span class="agentchip">AGENT: ${INTAKE_AGENT}</span>
@@ -2128,7 +2186,7 @@ Quantified data on file: ${p.initiativeType==='Platform'
   // drift from each other.
   const PFMO_FUNCTION_MAP = [
     {fn:'Strategic Alignment & Governance', owns:"Ensures every active investment ties back to the org's real strategic objectives, not just the loudest request.", status:'Built', proto:"OKR tie is a hard gate in scoring; a rule-based check flags when a program's stated OKR doesn't match the metrics it's actually tracking."},
-    {fn:'Demand & Intake Management', owns:'Captures new work requests in a consistent format and triages them before they compete for resources.', status:'Built', proto:'Structured intake form; an Intake Agent drafts the problem statement, checks value-prop quality, assesses OKR fit. Voice/transcript capture included.'},
+    {fn:'Demand & Intake Management', owns:'Captures new work requests in a consistent format and triages them before they compete for resources.', status:'Built', proto:'Structured intake form; an Intake Agent drafts the problem statement, checks value-prop quality, assesses OKR fit. Voice/transcript capture included. A rule-based word-match check flags possible overlap with existing programs and other requests for a person to review.'},
     {fn:'Prioritization & Selection', owns:'Ranks competing investments against a defensible, repeatable method instead of politics or recency.', status:'Built', proto:'Fixed rubric (OKR gate, size, team spread, complexity, 9-pt value score), with equally-weighted tracks for revenue-generating vs. reliability/infra work.'},
     {fn:'Program Artifact Standards', owns:'Defines and enforces a consistent shape for charters, plans, status reports, etc. across every program.', status:'Built', proto:'Seven agents (Charter, Plan, Status, Risk Register, Dependency Tracker, OKR Report, Landing Page), each against a fixed template, grounded in shared context.'},
     {fn:'Resource & Capacity Management', owns:'Tracks who/what is allocated where, and prevents silent over-commitment of scarce delivery capacity.', status:'Partial', proto:"Allocations above 80% of a TPM's capacity trigger a warning and need explicit confirmation (a hard block is not built; confirmed exceptions are logged). A month-by-month TPM heat map with a next-available date is built from program dates. Engineering and budget capacity aren't modeled."},
@@ -2583,6 +2641,9 @@ Quantified data on file: ${p.initiativeType==='Platform'
     if(nif) nif.addEventListener('submit', e=>{
       e.preventDefault();
       const fd = new FormData(nif);
+      const probe = {id:'new', name:fd.get('name'), description:fd.get('description'), valueProp:fd.get('valueProp')};
+      const similar = findSimilar(probe);
+      if(similar.length && !window.confirm('This looks similar to: '+similar.map(m=>m.name+' ('+m.score+'%)').join(', ')+'. Submit anyway?')) return;
       STATE.intake.push({id:uid('in'), name:fd.get('name'), requestedBy:fd.get('requestedBy'), executiveSponsor:'', description:fd.get('description'), priority:fd.get('priority'), status:'pending', submittedDate: todayStr(),
         valueProp: fd.get('valueProp'), initiativeType: fd.get('initiativeType')||'Product',
         requirements:'', successCriteria:'', scopeIn:'', scopeOut:'', constraints:'', knownRisks:'', budgetEstimate:'',
@@ -2628,6 +2689,13 @@ Quantified data on file: ${p.initiativeType==='Platform'
       const tpmId = fd.get('tpmId');
       const pct = Number(fd.get('pct')) || 0;
       let overCapNote = '';
+      let dupNote = '';
+      const dupOpen = openOverlaps(item);
+      if(dupOpen.length){
+        const names = dupOpen.map(m=>m.name+' ('+m.score+'%)').join(', ');
+        if(!window.confirm('This request may overlap with: '+names+'. Approve anyway?')) return;
+        dupNote = ' (overlap with '+dupOpen.map(m=>m.name).join(', ')+' acknowledged)';
+      }
       if(tpmId){
         const t = getTpm(tpmId);
         const cap = effectiveCap(t);
@@ -2659,7 +2727,7 @@ Quantified data on file: ${p.initiativeType==='Platform'
       };
       STATE.programs.push(newProgram);
       item.approvedProgramId = newProgram.id;
-      audit({type:'intake', entityId:item.id, entity:item.name, action:'Intake approved, program created', after:(tpmId ? (getTpm(tpmId)||{}).name+' at '+pct+'%'+overCapNote : 'No TPM assigned')+'; '+rigorSnap(newProgram)});
+      audit({type:'intake', entityId:item.id, entity:item.name, action:'Intake approved, program created', after:(tpmId ? (getTpm(tpmId)||{}).name+' at '+pct+'%'+overCapNote : 'No TPM assigned')+dupNote+'; '+rigorSnap(newProgram)});
       UI.approvingIntakeId = null;
       UI.view = 'programDetail'; UI.programId = newProgram.id; UI.tab = 'charter';
       saveState(); render();
@@ -2866,6 +2934,15 @@ Quantified data on file: ${p.initiativeType==='Platform'
       UI.expandedIntake = el.dataset.id;
       UI.approvingIntakeId = el.dataset.id;
       render();
+    }
+    else if(action==='dup-dismiss'){
+      const item = STATE.intake.find(i=>i.id===el.dataset.id);
+      const match = findSimilar(item).find(m=>m.id===el.dataset.match);
+      if(item && match){
+        item.dupDismissed = (item.dupDismissed||[]).concat(match.id);
+        audit({type:'intake', entityId:item.id, entity:item.name, action:'Duplicate check: marked not a duplicate of '+match.name, before:match.score+'% word overlap', after:'Reviewed by person'});
+        saveState(); render();
+      }
     }
     else if(action==='cancel-approve'){ UI.approvingIntakeId = null; render(); }
     else if(action==='reject-intake'){ const item = STATE.intake.find(i=>i.id===el.dataset.id); item.status='rejected'; audit({type:'intake', entityId:item.id, entity:item.name, action:'Intake rejected'}); saveState(); render(); }
